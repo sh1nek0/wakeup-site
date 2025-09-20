@@ -1,0 +1,130 @@
+/* NavBar.module.css */
+
+.navbar {
+  background: linear-gradient(90deg, #2a1a12, #3a231a, #2a1a12);
+  padding: 12px 24px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #c4b59b;
+  user-select: none;
+}
+
+.navbarContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbarLogo {
+  font-weight: 700;
+  font-size: 20px;
+  color: #c4b59b;
+  cursor: default;
+  user-select: text;
+}
+
+.navbarLogo a {
+  text-decoration: none;
+  color: inherit; /* чтобы цвет не изменился */
+}
+
+.logoHighlight {
+  color: #f28c3a; /* оранжевый цвет WakeUp */
+}
+
+.navbarMenu {
+  list-style: none;
+  display: flex;
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+}
+
+.navbarItem {
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+  text-decoration: none;
+}
+
+.navbarItem:hover {
+  color: #f28c3a;
+}
+
+.navbarLoginBtn {
+  background: linear-gradient(90deg, #f28c3a, #a95f2c);
+  border: none;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 8px 24px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  user-select: none;
+  text-decoration: none; /* чтобы ссылка выглядела как кнопка */
+  display: inline-block;
+  text-align: center;
+}
+
+.navbarLoginBtn:hover {
+  background: linear-gradient(90deg, #d9790d, #7b4b1a);
+}
+
+.navbarItem a {
+  position: relative;
+  padding-bottom: 6px; /* чтобы линия не налезала на текст */
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.navbarItem a:hover {
+  color: #f28c3a;
+}
+
+/* Декоративная линия под активным пунктом меню — только для ссылок внутри navbarItem */
+.navbarItem a.active {
+  color: #f28c3a;
+  position: relative;
+}
+
+.navbarItem a.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background-color: #f28c3a;
+  border-radius: 2px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.userAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userName {
+  font-weight: 600;
+  color: white;
+}
+
+.logoutBtn {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  margin-left: 10px;
+  font-size: 14px;
+}

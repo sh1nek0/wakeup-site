@@ -1,0 +1,154 @@
+.page {
+  padding: 50px 50px; /* Отступы от краёв страницы */
+  background-color: #2c1810;
+  min-height: 100vh;
+}
+
+.card {
+  display: flex;
+  background-color: #2c1810;
+  border: 2px solid #ffb74d;
+  border-radius: 8px;
+  padding: 0;
+  margin: 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  gap: 0;
+  /* max-height: 10%;  Убрано, чтобы карточка могла быть выше */
+  height: 350px; /* Например, фиксированная высота карточки */
+  overflow: hidden; /* Чтобы ничего не выходило за пределы */
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.leftBlock {
+  flex: 0 0 40%;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%; /* Занять всю высоту карточки */
+}
+
+.image {
+  width: 100%;
+  height: 100%; /* Занять всю высоту левого блока */
+  border-radius: 0;
+  object-fit: cover;
+  margin: 0;
+  display: block;
+}
+
+.leftBlock.noImage {
+  background-color: #444;
+}
+
+.urlLink {
+  color: #2c1810;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.9rem;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.urlLink:hover {
+  color: #ff6f00;
+}
+
+.rightBlock {
+  flex: 1;
+  background-color: #4e342e;
+  padding: 0;
+  border-radius: 4px;
+  color: #000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  height: 100%; /* Занять всю высоту карточки */
+  overflow: auto; /* Если контента много, появится скролл */
+}
+
+.title {
+  color: #ffb74d;
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.description {
+  width: 80%;
+  margin-left: 10%;
+  color: #c4b59b;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+
+.detailItem {
+  font-size: 0.9rem;
+}
+
+.detailItem strong {
+  color: #ff6f00;
+}
+
+.status {
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+/* Мобильная версия */
+@media (max-width: 768px) {
+  .card {
+    flex-direction: column;
+    padding: 0;
+    height: auto; /* Высота по содержимому */
+  }
+
+  .leftBlock {
+    flex: 0 0 auto;
+    margin: 0 0 0 0;
+    width: 100%;
+    min-height: 100px;
+    background-color: transparent;
+    height: auto; /* Высота по содержимому */
+  }
+
+  .image {
+    height: auto; /* Адаптивная высота */
+  }
+
+  .rightBlock {
+    padding: 0;
+    height: auto;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .description {
+    font-size: 0.9rem;
+  }
+
+  .detailItem {
+    font-size: 0.8rem;
+  }
+}

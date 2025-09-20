@@ -1,0 +1,994 @@
+/* Общие стили */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background-color: #2a1a12;
+  color: #c4b59b;
+  line-height: 1.6;
+}
+
+/* Основной контейнер, объединяющий таблицу и таймер с голосованием */
+.gameWrapper {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #2a1a12;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(162, 102, 48, 0.15);
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  /* УБРАНО: overflow: hidden; — чтобы выпадающие списки не обрезались */
+  /* Тень от box-shadow не выходит за границы, так что overflow не нужен */
+}
+
+/* Левая колонка - таблица */
+.playersTable {
+  flex: 1; /* теперь занимает ровно половину */
+  width: 100%; /* убираем 80%, чтобы занять всю ширину колонки */
+  border-collapse: separate; /* чтобы работали border-radius */
+  border-spacing: 0;
+  background-color: #4a3625;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(162, 102, 48, 0.25);
+  /* УБРАНО: overflow: hidden; — чтобы dropdowns не обрезались */
+  font-size: 1rem;
+  color: #c4b59b;
+  user-select: none;
+  display: table; /* показываем таблицу */
+}
+
+/* ДОБАВЛЕНО: Скругление для thead и tbody, чтобы сохранить визуальный эффект без overflow: hidden */
+.playersTable thead {
+  border-radius: 12px 12px 0 0;
+  overflow: hidden; /* Можно оставить для thead, если нужно */
+}
+
+.playersTable tbody {
+  border-radius: 0 0 12px 12px;
+}
+
+/* Правая колонка - таймер, голосование и т.д. */
+.rightColumn {
+  flex: 1; /* ровно половина ширины */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border: 2px solid #a95f2c;
+  border-radius: 20px;
+}
+
+/* УЛУЧШЕНО: Контейнер для контента в правой колонке (таймер, голосование и т.д.) */
+.contentContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  background-color: rgba(74, 54, 37, 0.5); /* Легкий фон для разделения */
+  border-radius: 12px;
+}
+
+/* Заголовок таблицы */
+.tableTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #c4b59b;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.playersTable thead th {
+  background-color: #a95f2c;
+  color: #2a1a12;
+  padding: 12px 10px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #5a4635;
+  user-select: none;
+}
+
+/* Строки */
+.playersTable tbody tr {
+  background-color: transparent;
+  border-bottom: 1px solid #5a4635;
+  transition: background-color 0.3s ease;
+}
+
+.playersTable tbody tr:hover {
+  background-color: #5a4635;
+}
+
+/* Ячейки */
+.playersTable tbody td {
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+  color: #c4b59b;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  white-space: nowrap;
+}
+
+/* Колонка № */
+.numberCell {
+  font-weight: 700;
+  color: #f28c3a;
+  padding-left: 12px;
+  text-align: right;
+  user-select: none;
+  width: 30px;
+}
+
+/* Фолы: кнопки и input в ряд */
+.foulsCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 110px; /* подгоните под нужный размер */
+}
+
+/* Кнопки минус/плюс */
+.foulBtn {
+  background-color: #a95f2c;
+  border: none;
+  color: #2a1a12;
+  font-weight: 700;
+  font-size: 1.2rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.foulBtn:hover {
+  filter: brightness(1.1);
+}
+
+/* Поле ввода фолов */
+.foulsInput {
+  width: 40px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #c4b59b;
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.foulsInput:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+/* Имя */
+.nameInput {
+  width: 160px;
+  padding: 4px 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #c4b59b;
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.nameInput:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+.saveButtonContainer {
+  width: 100%;
+  text-align: center;
+  margin-top: 20px;
+  order: 3; /* Правка: гарантирует, что кнопка идет после таблицы и колонки в flex-порядке */
+  padding: 15px;
+  background-color: rgba(74, 54, 37, 0.3); /* Легкий фон для выделения */
+  border-radius: 12px;
+}
+
+.saveBtn {
+  background-color: #a95f2c;
+  color: white;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease; /* Правка: добавлен transform для эффекта */
+  width: 100%; /* Правка: кнопка на всю ширину контейнера */
+  max-width: 400px; /* Правка: ограничение для больших экранов */
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); /* Правка: легкая тень для выделения */
+  margin-top: 1%;
+}
+
+.saveBtn:hover {
+  background-color: #a95f2c;
+  transform: scale(1.02); /* Правка: легкое увеличение при наведении */
+}
+
+.saveBtn:disabled { /* Правка: стиль для disabled состояния */
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ЛХ */
+.lxInput {
+  width: 60px;
+  padding: 4px 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #c4b59b;
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  text-align: center;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.lxInput:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+/* Допы */
+.dopsInput {
+  width: 60px;
+  padding: 4px 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #c4b59b;
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  text-align: center;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.dopsInput:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+/* СК и ЖК */
+.numberInput {
+  width: 40px;
+  padding: 4px 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #c4b59b;
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  text-align: center;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.numberInput:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+/* Роль (дропдаун) */
+.roleDropdown {
+  position: relative; /* ДОБАВЛЕНО: для лучшего контроля позиционирования */
+  width: 100px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #c4b59b;
+  user-select: none;
+  margin: 0 auto;
+}
+
+.roleDisplay {
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.roleDisplay:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+.dropdownArrow {
+  margin-left: 6px;
+  font-size: 0.8rem;
+  user-select: none;
+  color: #c4b59b;
+}
+
+.roleOptions {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  right: 0;
+  background-color: #4a3625;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 9999; /* УВЕЛИЧЕНО: с 1000 до 9999, чтобы быть поверх любых элементов */
+  box-shadow: 0 4px 8px rgba(169, 95, 44, 0.7);
+}
+
+.roleOption {
+  padding: 6px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #c4b59b;
+  user-select: none;
+}
+
+.roleOption:hover,
+.roleOption[aria-selected="true"] {
+  background-color: #a95f2c;
+  color: #2a1a12;
+}
+
+/* Скрываем playersList */
+.playersList {
+  display: none;
+}
+
+/* Таймер */
+.timerBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 15px;
+  border-radius: 12px;
+  gap: 20px;
+}
+
+.timerContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.timerTimeRunning {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #f28c3a;
+  user-select: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.timerTimePaused {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #a95f2c;
+  user-select: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.resetBtn {
+  background-color: #a95f2c;
+  color: white;
+  border: none;
+  padding: 6px 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(162, 102, 48, 0.6);
+  transition: filter 0.3s ease;
+  width: 50%;
+}
+
+.resetBtn:hover {
+  filter: brightness(1.1);
+}
+
+.timerButtons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.timerBtn {
+  background-color: #a95f2c;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(162, 102, 48, 0.6);
+  transition: filter 0.3s ease;
+  flex: 1 1 auto;
+  min-width: 45px;
+}
+
+.timerBtn:hover {
+  filter: brightness(1.1);
+}
+
+/* Голосование */
+.votingContainer {
+  margin-top: 2%;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  width: 100%;
+}
+
+.votingNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.playerVoteItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 5%;
+}
+
+.playerBtn, .selectedPlayerBtn {
+  padding: 10px 15px;
+  border: none;
+  background-color: #5a4635;
+  color: #c4b59b;
+  font-weight: 600;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  user-select: none;
+}
+
+.selectedPlayerBtn {
+  background-color: #a95f2c;
+  color: #2a1a12;
+}
+
+.playerBtn:hover {
+  background-color: #6b5645;
+}
+
+.votesCount {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f28c3a;
+}
+
+/* Клавиатура голосования */
+.keyboardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* Кнопки клавиатуры */
+.keyboardBtn {
+  padding: 5px 0;
+  border: none;
+  background-color: #a95f2c;
+  color: #2a1a12;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.3s ease;
+  user-select: none;
+}
+
+.keyboardBtn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.keyboardBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Кнопка backspace */
+.backspaceBtn {
+  padding: 8px 0;
+  border: none;
+  background-color: #a95f2c;
+  color: #2a1a12;
+  font-weight: 700;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  user-select: none;
+  grid-column: span 3;
+  text-align: center;
+}
+
+.backspaceBtn:hover:not(:disabled) {
+  background-color: #6b5645;
+  transform: scale(1.05);
+}
+
+.backspaceBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.saveVotingBtn {
+  background-color: #a95f2c;
+  color: #2a1a12;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(162, 102, 48, 0.6);
+  transition: filter 0.3s ease, transform 0.3s ease;
+  user-select: none;
+  display: block;
+  margin: 10px auto 0 auto;
+  max-width: 300px;
+}
+
+.saveVotingBtn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.saveVotingBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.noVotesText {
+  color: #c4b59b;
+  font-style: italic;
+  text-align: center;
+  margin: 20px 5em;
+}
+
+/* GameInfo под клавиатурой */
+.gameInfoWrapper {
+  width: 95%;
+  margin-top: 20px;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.gameInfoTable {
+  width: 95%;
+  border-collapse: collapse;
+  color: #c4b59b;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gameInfoTable th,
+.gameInfoTable td {
+  border: 1px solid #5a4635;
+  padding: 2px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.gameInfoTable th {
+  background-color: #a95f2c;
+  color: #2a1a12;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.gameInfoTable tbody tr:hover {
+  background-color: #5a4635;
+}
+
+/* Фазы (Стрельба, Дон, Шериф) */
+.phaseContainer {
+  background-color: transparent;
+  padding: 0;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.phaseContainer h3 {
+  color: #c4b59b;
+  font-weight: 700;
+  font-size: 1.3rem;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+/* Кнопки подсчета */
+.countButtons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.countBtn {
+  background-color: #a95f2c;
+  color: #2a1a12;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(162, 102, 48, 0.6);
+  transition: filter 0.3s ease, transform 0.3s ease;
+  user-select: none;
+}
+
+.countBtn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.countBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Вкладки под клавиатурой */
+.tabs {
+  display: flex;
+  margin-top: 25px;
+  border-bottom: 1px solid #5a4635;
+}
+
+.tab {
+  flex: 1;
+  padding: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: #ffffff;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.3s, background-color 0.3s;
+  user-select: none;
+}
+
+.tab:hover {
+  background-color: #5a4635;
+}
+
+.activeTab {
+  padding: 5px;
+  font-weight: bold;
+  color: #f28c3a;
+  font-size: 20px;
+  background-color: #4a3625;
+  border: none;
+}
+
+/* Компонент фолов */
+.foulsWrapper {
+  margin-top: 10px;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.foulsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  row-gap: 25px;
+  column-gap: 10px;
+}
+
+.foulCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #a95f2c;
+  border-radius: 6px;
+  background: #4a3625;
+  transition: background-color 0.3s;
+}
+
+.foulCard:hover {
+  background-color: #5a4635;
+}
+
+.playerNumber {
+  font-size: 12px;
+  font-weight: bold;
+  color: #c4b59b;
+  margin-bottom: 5px;
+}
+
+.foulCircles {
+  display: flex;
+  gap: 3px;
+}
+
+.foulCircle {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid #a95f2c;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  user-select: none;
+}
+
+.foulInactive {
+  background-color: #4a3625;
+}
+
+.foulActive {
+  background-color: #f28c3a;
+}
+
+.foulCircle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ДОБАВЛЕНО: Уведомления (successMessage и errorMessage) */
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+  max-width: 400px;
+  text-align: center;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ДОБАВЛЕНО: Модальное окно для сохранения (showSaveModal) */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(42, 26, 18, 0.8); /* Полупрозрачный фон */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10001;
+}
+
+.modalContent {
+  background-color: #4a3625;
+  border: 2px solid #a95f2c;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 6px 18px rgba(162, 102, 48, 0.5);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modalContent h2 {
+  color: #c4b59b;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.modalContent p {
+  color: #c4b59b;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  color: #c4b59b;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 10px;
+  background-color: #2a1a12;
+  border: 1.5px solid #a95f2c;
+  border-radius: 6px;
+  color: #c4b59b;
+  font-size: 1rem;
+  outline-offset: 2px;
+  outline-color: transparent;
+  transition: outline-color 0.3s ease;
+}
+
+.formGroup input:focus {
+  outline-color: #f28c3a;
+  background-color: #5a4635;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modalActions button {
+  flex: 1;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: filter 0.3s ease, transform 0.2s ease;
+}
+
+.modalActions button[type="button"] {
+  background-color: #5a4635;
+  color: #c4b59b;
+}
+
+.modalActions button[type="submit"] {
+  background-color: #a95f2c;
+  color: #2a1a12;
+}
+
+.modalActions button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.modalActions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Адаптивность: на узких экранах вернуться к вертикальному расположению */
+@media (max-width: 900px) {
+  .gameWrapper {
+    flex-direction: column;
+    gap: 15px;
+    overflow: visible; /* ДОБАВЛЕНО: чтобы dropdowns не обрезались на мобильных */
+  }
+
+  .playersTable {
+    display: none; /* Скрываем таблицу на мобильных */
+  }
+
+  .playersList {
+    display: block;
+    max-height: none;
+  }
+
+  .timerBlock {
+    gap: 15px;
+    flex: none;
+  }
+
+  /* Правки для адаптивности кнопки "Сохранить" */
+  .saveButtonContainer {
+    margin-top: 15px; /* Уменьшаем отступ на мобильных */
+  }
+
+  .saveBtn {
+    font-size: 1.1rem;
+    padding: 10px 24px;
+  }
+}
+
+/* ДОБАВЛЕНО: Улучшения для очень узких экранов (< 600px) */
+@media (max-width: 600px) {
+  .gameWrapper {
+    padding: 10px;
+    margin: 10px;
+  }
+
+  .rightColumn {
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  .contentContainer {
+    padding: 10px;
+  }
+
+  .keyboardGrid {
+    grid-template-columns: repeat(2, 1fr); /* Меньше колонок для узких экранов */
+    max-width: 250px;
+  }
+
+  .tabs {
+    font-size: 18px;
+  }
+
+  .foulsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); /* Уменьшаем размер карточек */
+  }
+
+  .modalContent {
+    padding: 15px;
+    max-width: 300px;
+  }
+
+  .modalActions {
+    flex-direction: column; /* Кнопки друг под другом */
+  }
+}

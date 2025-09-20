@@ -1,0 +1,633 @@
+/* HomePage.module.css */
+
+.container {
+  position: relative;
+  z-index: 1; /* поднять над секцией клубов */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(90deg, #2a1a12, #3a231a, #2a1a12);
+  color: white;
+  /* overflow: hidden;  Убрано, чтобы содержимое не обрезалось */
+  box-sizing: border-box;
+}
+
+.content {
+  position: relative;
+  max-width: 700px;
+  margin: 0 auto;
+  text-align: center;
+  z-index: 1;
+  color: white;
+  box-sizing: border-box;
+}
+
+.container::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(circle 650px at 10% 20%, #E1652B, transparent 80%),
+    radial-gradient(circle 700px at 90% 40%, #E38C33, transparent 80%),
+    radial-gradient(circle 700px at 10% 80%, #e37433, transparent 80%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(50px);
+  z-index: 0;
+}
+
+.title {
+  font-weight: 900;
+  font-size: 4.5rem;
+  line-height: 1.2;
+  margin-bottom: 20px;
+  margin-top: 10%;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  text-align: center;
+}
+
+.description {
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  line-height: 1.4;
+  max-width: 600px;
+  margin: 0 auto 40px auto;
+  font-weight: 500;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.button {
+  background: linear-gradient(90deg, #f08c3f 0%, #7a6ff1 100%);
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-weight: 700;
+  font-size: 1.3rem;
+  padding: 16px 48px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(240, 140, 63, 0.7);
+  display: block;
+  margin: 0 auto;
+  margin-top: 80px;
+  box-sizing: border-box;
+}
+
+.button:hover {
+  opacity: 0.85;
+}
+
+/* =================== Увеличенный футер =================== */
+.footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 100px;
+  display: flex;
+  color: #d6b886;
+  font-size: 1.3rem;
+  font-weight: 600;
+  border-top: 1.5px solid #d6b886;
+  border-bottom: 1.5px solid #d6b886;
+  background: rgba(0, 0, 0, 0.25);
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+
+.footerItem {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 20px 30px;
+  border-left: 1.5px solid #d6b886;
+  min-width: 200px;
+  box-sizing: border-box;
+}
+
+.footerItem:first-child {
+  border-left: none;
+}
+
+.icon {
+  margin-right: 16px;
+  flex-shrink: 0;
+  stroke: #d6b886;
+  width: 32px;
+  height: 32px;
+}
+
+/* =================== Секция "Наши клубы" =================== */
+.clubsSection {
+  position: relative;
+  z-index: 0; /* ниже контейнера */
+  margin-top: 10%; /* увеличен отступ сверху, чтобы не было наложения */
+  background: transparent;
+  padding: 80px 50px; /* увеличено */
+  border-radius: 12px;
+  border: none;
+  max-width: 1000px; /* увеличено для большего размера */
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: none;
+  margin-bottom: 5%;
+  box-sizing: border-box;
+}
+
+.clubsTitle {
+  text-align: center;
+  font-weight: 900;
+  font-size: 3.5rem; /* увеличено */
+  margin-bottom: 50px; /* увеличено */
+  color: #ffffff;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: 'Arial Black', Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.clubsList {
+  display: flex;
+  flex-direction: column;
+  gap: 40px; /* увеличено */
+  box-sizing: border-box;
+}
+
+.clubCard {
+  display: flex;
+  align-items: center;
+  background: rgba(20, 10, 5, 0.85);
+  padding: 50px 60px; /* увеличено */
+  border-radius: 20px;
+  border: 2px solid #e08c3f;
+  box-shadow: 0 0 10px 2px rgba(224, 140, 63, 0.4);
+  transition: box-shadow 0.3s ease, background-color 0.3s ease;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.clubCard:hover {
+  background: rgba(30, 12, 6, 0.95);
+  box-shadow: 0 0 15px 4px #f08c3f;
+}
+
+.clubIcon {
+  width: 150px; /* увеличено */
+  height: 150px; /* увеличено */
+  border-radius: 8px;
+  margin-right: 30px; /* увеличено */
+  object-fit: contain;
+  border: 2px solid #f08c3f;
+  background-color: rgba(26, 26, 46, 0.5);
+  filter: none;
+  box-sizing: border-box;
+}
+
+.clubInfo {
+  flex-grow: 1;
+  color: #f0e6d2;
+  font-size: 18px; /* увеличено */
+  line-height: 1.5;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+.clubName {
+  font-weight: 700;
+  font-size: 32px; /* увеличено */
+  margin-bottom: 12px; /* увеличено */
+  color: #f08c3f;
+  text-shadow: none;
+  box-sizing: border-box;
+}
+
+.clubDetails {
+  white-space: pre-line;
+  color: #d6c9b8;
+  font-size: 20px; /* увеличено */
+  box-sizing: border-box;
+}
+
+.socialLinks {
+  display: flex;
+  gap: 25px; /* увеличено */
+  align-items: center;
+  background: rgba(128, 128, 128, 0.3);
+  padding: 15px 20px; /* увеличено */
+  border-radius: 8px;
+  margin-left: 15px; /* увеличено */
+  box-sizing: border-box;
+}
+
+.socialLink {
+  color: #999;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+  font-size: 2rem; /* увеличено */
+  box-sizing: border-box;
+}
+
+.socialLink:hover {
+  color: #f08c3f;
+}
+
+/* =================== Секция "Множество мероприятий" =================== */
+.eventsSection {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  height: auto; 
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding-bottom: 5%;
+  
+}
+
+.y{
+  background-color: #e08c3f;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+  font-weight: 700;
+}
+
+.eventsRow {
+  display: flex;
+  margin-top: 10%;
+  flex-direction: row;
+  gap: 95px;
+  justify-content: center;
+  height: auto;
+  scroll-behavior: smooth; 
+}
+
+.eventsRow::-webkit-scrollbar {
+  height: 0px;
+}
+
+.eventsRow::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 0px;
+}
+
+.eventsTitle {
+  position: relative;
+  font-size: 60px;
+  font-weight: 700;
+  margin-bottom: 40px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  z-index: 2;
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+.eventCard {
+  background: rgba(20, 10, 5, 0.85);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 0 8px transparent;
+  align-items: center;
+  outline: none;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px; /* минимальная ширина для адекватного размера */
+  max-width: 250px; /* максимальная ширина, чтобы не было слишком больших */
+  box-sizing: border-box;
+  
+}
+
+.eventCard:focus {
+  box-shadow: 0 0 12px #f08c3f;
+}
+
+.eventCard:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 12px #f08c3f;
+}
+
+.activeEventCard {
+  border: 2px solid #f08c3f;
+  box-shadow: 0 0 16px #f08c3f;
+  transform: scale(1.2);
+}
+
+.eventImage {
+  width: 100%;
+  object-fit: cover;
+  margin-bottom: 8px;
+  user-select: none;
+  border-radius: 10px 10px 0 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.eventText {
+  text-align: center;
+  top:-20;
+  color: #f0e6d2;
+  padding: 0 10px 10px;
+  flex-grow: 1;
+  box-sizing: border-box;
+}
+
+.eventText strong {
+  display: block;
+  font-size: 1.1rem;
+  
+  color: #f08c3f;
+}
+
+.eventText p {
+  font-size: 0.9rem;
+  margin: 0;
+  color: #d6c9b8;
+}
+
+/* Медиа-запросы для мобильных устройств */
+@media (max-width: 768px) {
+  .container {
+    padding: 20px;
+  }
+  
+  .content {
+    max-width: 100%;
+  }
+  
+  .title {
+    font-size: 2.5rem;
+  }
+  
+  .description {
+    font-size: 1rem;
+    padding: 12px 18px;
+  }
+  
+  .button {
+    font-size: 1.1rem;
+    padding: 14px 40px;
+  }
+  
+  .footer {
+    flex-direction: column;
+    margin-top: 40px;
+  }
+  
+  .footerItem {
+    padding: 15px 20px;
+    border-left: none;
+    border-top: 1.5px solid #d6b886;
+  }
+  
+  .footerItem:first-child {
+    border-top: none;
+  }
+
+  .clubsSection {
+    padding: 50px 30px; /* увеличено для мобильных */
+  }
+  
+  .clubsTitle {
+    font-size: 2.8rem; /* увеличено */
+  }
+  
+  .clubCard {
+    flex-direction: column;
+    text-align: center;
+    padding: 50px 40px; /* увеличено */
+  }
+  
+  .clubIcon {
+    width: 120px; /* увеличено для мобильных */
+    height: 120px; /* увеличено для мобильных */
+    margin: 0 0 30px 0; /* увеличено */
+  }
+  
+  .clubInfo {
+    margin-bottom: 30px; /* увеличено */
+  }
+  
+  .socialLinks {
+    justify-content: center;
+  }
+
+  /* Медиа-запросы для карусели */
+  .eventsSection {
+    margin: 20px 0;
+    padding-top: 40px;
+    height: auto;
+  }
+
+  .eventsTitle {
+    font-size: 28px;
+    margin-bottom: 24px;
+  }
+
+  .eventsRow {
+    gap: 20px; /* увеличено для мобильных */
+  }
+
+  .eventCard {
+    min-width: 150px;
+    padding: 10px;
+  }
+
+  .eventText strong {
+    font-size: 1rem;
+  }
+
+  .eventText p {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .clubsTitle {
+    font-size: 2.4rem; /* увеличено */
+  }
+  
+  .clubName {
+    font-size: 28px; /* увеличено */
+  }
+  
+  .clubDetails {
+    font-size: 18px; /* увеличено */
+  }
+  
+  .clubIcon {
+    width: 100px; /* увеличено для очень маленьких экранов */
+    height: 100px; /* увеличено для очень маленьких экранов */
+  }
+  
+  .clubCard {
+    padding: 40px 30px; /* увеличено */
+  }
+  
+  .socialLink {
+    font-size: 1.8rem; /* увеличено */
+  }
+
+  /* Медиа-запросы для карусели */
+  .eventsRow {
+    gap: 16px; /* для очень маленьких экранов */
+  }
+
+  .eventCard {
+    min-width: 120px;
+  }
+
+  .eventText strong {
+    font-size: 0.9rem;
+  }
+
+  .eventText p {
+    font-size: 0.7rem;
+  }
+}
+
+/* =================== Стили для компонента Footer =================== */
+.footerComponent {
+  background-color: #3a231a;
+  color: #fff;
+  padding: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.footerLeft {
+  flex: 1;
+}
+
+.footerOwner {
+  font-weight: bold;
+}
+
+.footerCopyright {
+  font-size: 0.9em;
+}
+
+.footerNav {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.footerLink {
+  margin: 0 10px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  text-decoration: underline;
+}
+
+.footerContacts {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.footerIconLink {
+  margin-left: 10px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.footerIconLink:hover {
+  color: #ccc;
+}
+
+.footerPhone {
+  margin-left: 10px;
+}
+
+.footerAction {
+  margin-left: 20px;
+}
+
+.footerButton {
+  background-color: #f08c3f;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.footerButton:hover {
+  background-color: #e07a2f;
+}
+
+/* Адаптивность для футера */
+@media (max-width: 768px) {
+  .footerComponent {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .footerNav {
+    justify-content: center;
+    margin: 10px 0;
+  }
+
+  .footerContacts {
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .footerAction {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .footerComponent {
+    padding: 15px;
+  }
+
+  .footerLink {
+    margin: 0 5px;
+    font-size: 0.9em;
+  }
+
+  .footerButton {
+    padding: 8px 16px;
+    font-size: 0.9em;
+  }
+}
