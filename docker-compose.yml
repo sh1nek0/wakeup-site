@@ -1,3 +1,5 @@
+version: '3.8'
+
 networks:
   dev:
 
@@ -19,8 +21,8 @@ services:
     networks:
       - dev
     dns:
-    - 8.8.8.8
-    - 1.1.1.1
+      - 8.8.8.8
+      - 1.1.1.1
 
   frontend:
     build: ./wakeup
