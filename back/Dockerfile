@@ -1,8 +1,10 @@
-FROM python:3.9.0-slim
+FROM python:3.9-alpine
 
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+RUN apk add --no-cache gcc musl-dev
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --trusted-host pypi.python.org --trusted-host pypi.org -r requirements.txt
 
 COPY . .
-
-CMD [ "python", "main.py" ]
+CMD ["python", "main.py"]
