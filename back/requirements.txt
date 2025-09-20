@@ -1,4 +1,4 @@
-fastapi==0.104.1
+fastapi==0.104.0
 pydantic==2.5.0
 sqlalchemy==2.0.23
 passlib[bcrypt]==1.7.4
