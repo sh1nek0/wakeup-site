@@ -1,5 +1,4 @@
-version: '3.8'
-
+# УДАЛИТЕ version: '3.8' - она устарела
 networks:
   dev:
 
@@ -18,12 +17,7 @@ services:
 
   backend:
     build: ./back
-    networks:
-      - dev
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    network_mode: host
+    network_mode: host  # теперь можно использовать
 
   frontend:
     build: ./wakeup
