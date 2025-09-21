@@ -15,16 +15,16 @@ services:
     networks:
       - dev
 
-backend:
-  build: ./back
-  networks:
-    - dev
-  dns:
-    - 8.8.8.8
-    - 1.1.1.1
-  extra_hosts:
-    - "pypi.org:151.101.0.223"
-    - "pypi.python.org:151.101.0.223"
+  backend:
+    build: ./back
+    networks:
+      - dev
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "pypi.org:151.101.0.223"
+      - "pypi.python.org:151.101.0.223"
 
   frontend:
     build: ./wakeup
