@@ -23,6 +23,7 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    network_mode: host
 
   frontend:
     build: ./wakeup
