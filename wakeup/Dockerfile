@@ -6,6 +6,7 @@ RUN npm ci --include=dev
 
 FROM node:18-alpine as build
 WORKDIR /app
+RUN npm install
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
