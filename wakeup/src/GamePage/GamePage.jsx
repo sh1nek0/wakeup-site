@@ -563,7 +563,7 @@ const Game = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/getGameData/${gameId}`);
+      const response = await fetch(`/api/getGameData/${gameId}`);
       if (response.status === 404) {
         // Игра не найдена, инициализируем по умолчанию (уже сделано в useState)
         setLoading(false);
@@ -644,7 +644,7 @@ const Game = () => {
     };
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/saveGameData', {
+      const response = await fetch('/api/saveGameData', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

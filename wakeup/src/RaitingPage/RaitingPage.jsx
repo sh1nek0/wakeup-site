@@ -195,7 +195,7 @@ export default function RatingPage() {
     setPlayersLoading(true);
     setPlayersError(null);
     try {
-      const response = await fetch(`http://localhost:8000/getRating?limit=${itemsPerPage}&offset=${startIndex}`);
+      const response = await fetch(`/api/getRating?limit=${itemsPerPage}&offset=${startIndex}`);
       if (!response.ok) {
         throw new Error(`Ошибка HTTP: ${response.status}`);
       }
@@ -239,7 +239,7 @@ export default function RatingPage() {
     setGamesLoading(true);
     setGamesError(null);
     try {
-      const response = await fetch(`http://localhost:8000/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}`);  // Исправлено
+      const response = await fetch(`/api/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}`);
       if (!response.ok) {
         throw new Error(`Ошибка HTTP: ${response.status}`);
       }
@@ -284,7 +284,7 @@ export default function RatingPage() {
     setDetailedStatsLoading(true);
     setDetailedStatsError(null);
     try {
-      const response = await fetch(`http://localhost:8000/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}`);
+      const response = await fetch(`/api/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}`);
       if (!response.ok) {
         throw new Error(`Ошибка HTTP: ${response.status}`);
       }
@@ -354,7 +354,7 @@ export default function RatingPage() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`http://localhost:8000/deleteGame/${deleteGameId}`, {
+        const response = await fetch(`/api/deleteGame/${deleteGameId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

@@ -1,2 +1,25 @@
-venv/
-node_modules/
+# Файл с секретами
+.env
+
+# Зависимости Frontend
+/wakeup/node_modules
+/wakeup/build
+/wakeup/.pnp
+/wakeup/.pnp.js
+/wakeup/coverage
+
+# Логи
+/wakeup/npm-debug.log*
+/wakeup/yarn-debug.log*
+/wakeup/yarn-error.log*
+
+# Зависимости и временные файлы Backend
+/back/__pycache__/
+/back/database.db
+/back/.venv/
+/back/venv/
+/back/env/
+
+# Системные файлы
+.DS_Store
+Thumbs.db

@@ -18,7 +18,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # Настройки для JWT и паролей
-SECRET_KEY = "your-secret-key-here"  # Замените на реальный секретный ключ (генерируйте случайно)
+SECRET_KEY = "8733f690a7f235a4d3a1c85d3b80476f2516279dabffc2af09ff3d90247fb196"  # Замените на реальный секретный ключ (генерируйте случайно)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
