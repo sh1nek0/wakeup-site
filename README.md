@@ -2,9 +2,9 @@
 
 
 <p align="left">
-  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/react.svg?sanitize=true&color=61DAFB" alt="React" height="180"/>
-  <img src="https://raw.githubusercontent.com/tiangolo/fastapi/master/docs/en/docs/img/logo-margin/logo-teal.png" alt="FastAPI" height="180"/>
-  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/docker.svg?sanitize=true&color=2496ED" alt="Docker" height="180"/>
+  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/react.svg?sanitize=true&color=61DAFB" alt="React" height="128"/>
+  <img src="https://raw.githubusercontent.com/tiangolo/fastapi/master/docs/en/docs/img/logo-margin/logo-teal.png" alt="FastAPI" height="128"/>
+  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/docker.svg?sanitize=true&color=2496ED" alt="Docker" height="128"/>
 </p>
 Веб-платформа для клубов спортивной мафии "WakeUp Mafia". Сайт предоставляет функционал для ведения статистики игр, отображения рейтинга игроков и анонсирования мероприятий.
 
