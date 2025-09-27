@@ -5,10 +5,11 @@
   z-index: 1; /* поднять над секцией клубов */
   min-height: 100vh;
   display: flex;
+  
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(90deg, #2a1a12, #3a231a, #2a1a12);
+  background-color: #1F1F1F;
   color: white;
   /* overflow: hidden;  Убрано, чтобы содержимое не обрезалось */
   box-sizing: border-box;
@@ -508,126 +509,5 @@
 
   .eventText p {
     font-size: 0.7rem;
-  }
-}
-
-/* =================== Стили для компонента Footer =================== */
-.footerComponent {
-  background-color: #3a231a;
-  color: #fff;
-  padding: 25px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.footerLeft {
-  flex: 1;
-}
-
-.footerOwner {
-  font-weight: bold;
-}
-
-.footerCopyright {
-  font-size: 0.9em;
-}
-
-.footerNav {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.footerLink {
-  margin: 0 10px;
-  color: #fff;
-  text-decoration: none;
-}
-
-.footerLink:hover {
-  text-decoration: underline;
-}
-
-.footerContacts {
-  flex: 1;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.footerIconLink {
-  margin-left: 10px;
-  color: #fff;
-  text-decoration: none;
-}
-
-.footerIconLink:hover {
-  color: #ccc;
-}
-
-.footerPhone {
-  margin-left: 10px;
-}
-
-.footerAction {
-  margin-left: 20px;
-}
-
-.footerButton {
-  background-color: #f08c3f;
-  color: #fff;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.footerButton:hover {
-  background-color: #e07a2f;
-}
-
-/* Адаптивность для футера */
-@media (max-width: 768px) {
-  .footerComponent {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .footerNav {
-    justify-content: center;
-    margin: 10px 0;
-  }
-
-  .footerContacts {
-    justify-content: center;
-    margin-top: 10px;
-  }
-
-  .footerAction {
-    margin-left: 0;
-    margin-top: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  .footerComponent {
-    padding: 15px;
-  }
-
-  .footerLink {
-    margin: 0 5px;
-    font-size: 0.9em;
-  }
-
-  .footerButton {
-    padding: 8px 16px;
-    font-size: 0.9em;
   }
 }

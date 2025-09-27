@@ -11,20 +11,6 @@ import Dec from "../EventPrew/Dec-main.png";
 import Junior from "../EventPrew/Junior.png";
 import Rock from "../EventPrew/Rock.png";
 
-const footerData = {
-  ownerName: "Долматович Ростислав",
-  copyright: "Copyright © Долматович Ростислав",
-  infoLinks: [
-    { label: "Политика конфиденциальности", url: "/" },
-    { label: "Условия использования", url: "/" },
-  ],
-  contacts: {
-    telegram: "https://t.me/ret1w",
-    vk: "https://vk.com/ret1w",
-    phone: "+7 (925) 155-25-64",
-  }
-};
-
 const clubs = [
   {
     id: 1,
@@ -80,49 +66,10 @@ const events = [
     backgroundUrl: "linear-gradient(150deg, #dac9b8ee 30%, #892727ff 100%)"
   },
 ];
-const Footer = ({ data }) => {
-  return (
-    <footer className={styles.footerComponent}>
-      <div className={styles.footerLeft}>
-        <div className={styles.footerOwner}>{data.ownerName}</div>
-        <div className={styles.footerCopyright}>{data.copyright}</div>
-      </div>
 
-      <nav className={styles.footerNav}>
-        {data.infoLinks.map(({ label, url }) => (
-          <a key={label} href={url} className={styles.footerLink}>
-            {label}
-          </a>
-        ))}
-      </nav>
 
-      <div className={styles.footerContacts}>
-        <a
-          href={data.contacts.telegram}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Telegram"
-          className={styles.footerIconLink}
-        >
-          <TelegramIcon />
-        </a>
-        <a
-          href={data.contacts.vk}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="VK"
-          className={styles.footerIconLink}
-        >
-          <VkIcon />
-        </a>
-        <span className={styles.footerPhone}>{data.contacts.phone}</span>
-      </div>
-    </footer>
-  );
-};
-
-const TelegramIcon = () => <img src={tg} alt="Telegram" width="24" height="24" />;
-const VkIcon = () => <img src={vk} alt="VK" width="24" height="24" />;
+const TelegramIcon = () => <img src={tg} alt="Telegram" width="40" height="40" />;
+const VkIcon = () => <img src={vk} alt="VK" width="40" height="40" />;
 
 
 
@@ -328,10 +275,10 @@ const HomePage = () => {
         wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\
       </div>
 
+     
     </div>
   );
 };
 
-export {Footer,HomePage};
 
 export default HomePage;
