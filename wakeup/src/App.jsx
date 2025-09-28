@@ -8,6 +8,7 @@ import EventsPage from "./EventPage/EventPage.jsx";
 import  Footer from "./Footer/Footer.jsx";
 import TR from "./testRaiting/TR.jsx";
 import RoadToBreak from "./BTS/BTS.jsx";
+import Game from "./Event/Event.jsx";
 
 const footerData = {
   ownerName: "© 2025 Company",
@@ -32,6 +33,7 @@ export function App(props) {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/events" element={<EventsPage />} />
       <Route path="/BTS" element={<RoadToBreak />}/>
+      <Route path="/Event/:evenId" element={<Game />} />
     </Routes>
    <Footer data={footerData} />
    </>

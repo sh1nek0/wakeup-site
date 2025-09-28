@@ -19,19 +19,29 @@
   border-right: 1px solid #303030;
 }
 
+/* Ссылка-обёртка карточки: убрать подчёркивание и сделать кликабельным весь блок */
+.page a,
+.page a:visited,
+.page a:hover,
+.page a:focus {
+  text-decoration: none;
+  color: inherit;
+  display: block;          /* чтобы ссылка занимала всю карточку */
+}
+
 /* ===========================
    Хедер как на макете
    =========================== */
 .headerContainer {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr minmax(260px, 320px); /* колонка с описанием справа */
-  gap: 16px;                                       /* ближе друг к другу */
+  grid-template-columns: 1fr minmax(260px, 320px);
+  gap: 16px;
   align-items: start;
   padding: 24px 0 12px;
   margin-bottom: 12px;
-  overflow: hidden;                                 /* свечение не выходит наружу */
-  border-radius: 0;                                 /* без скруглений */
+  overflow: hidden;
+  border-radius: 0;
 }
 
 .pageTitle {
@@ -42,16 +52,16 @@
   letter-spacing: .5px;
   line-height: 1;
   position: relative;
-  z-index: 1;                                       /* поверх свечения */
+  z-index: 1;
 }
 
 .pageSubtitle {
-  margin: 4px 0 0;                                  /* ближе к заголовку */
+  margin: 4px 0 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.3;
   position: relative;
-  z-index: 1;                                       /* поверх свечения */
+  z-index: 1;
 }
 
 /* синеватое свечение справа, внутри контейнера */
@@ -70,7 +80,7 @@
   );
   filter: blur(4px);
   opacity: .75;
-  z-index: 0;                                       /* за текстом */
+  z-index: 0;
 }
 
 /* ===========================
@@ -82,10 +92,10 @@
   height: 190px;
   background: var(--card);
   margin: 0 0 14px 0;
-  overflow: hidden;                                  /* диагональ не вылезает */
-  border-top: 3px solid transparent;                 /* у первой карточки оранж. линия */
+  overflow: hidden;                 /* диагональ не вылезает */
+  border-top: 3px solid transparent;
   border-bottom: 1px solid #1f1f1f;
-  border-radius: 0;                                  /* без скруглений */
+  border-radius: 0;
 }
 
 .card:first-child {
@@ -188,7 +198,7 @@
     padding-bottom: 10px;
   }
 
-  .headerContainer::after { display: none; }         /* на мобильных без свечения */
+  .headerContainer::after { display: none; }     /* на мобильных без свечения */
 
   .card { flex-direction: column; height: auto; }
   .leftBlock { clip-path: none; padding: 14px 14px 10px; }

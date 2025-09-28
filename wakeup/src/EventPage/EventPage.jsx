@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import styles from './EventPage.module.css';
 import CCC from '../CCC.png';
+import { NavLink } from "react-router-dom";
 
 function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
   const [imageOk, setImageOk] = useState(true);
@@ -62,7 +63,7 @@ export default function EventsPage() {
       </div>
 
       {events.map((e) => (
-        <EventCardDetailed key={e.id} {...e} />
+        <NavLink to={"/Event/"+e.id}><EventCardDetailed key={e.id} {...e} /></NavLink>
       ))}
     </div>
   );
