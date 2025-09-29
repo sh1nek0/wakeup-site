@@ -1,11 +1,9 @@
-FROM python:3.9-slim-bullseye
+# wakeup-site/site/back/Dockerfile
+
+# --- ИЗМЕНЕНИЕ: Используем полную версию образа, а не slim ---
+FROM python:3.9-bullseye
 
 WORKDIR /app
-
-# Устанавливаем системные зависимости (если нужны для pip)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
@@ -14,5 +12,4 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
-# ИСПРАВЛЕНО: Правильная команда для запуска FastAPI в продакшене
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

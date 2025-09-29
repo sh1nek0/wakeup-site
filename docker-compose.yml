@@ -1,10 +1,4 @@
-version: '3.8'
-
-networks:
-  dev:
-
-# volumes: # --- УДАЛИТЕ ЭТОТ БЛОК ЦЕЛИКОМ ---
-#   backend_data:
+# wakeup-site/site/docker-compose.yml
 
 services:
   nginx:
@@ -12,40 +6,26 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443"
     volumes:
       - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
       - "/etc/letsencrypt:/etc/letsencrypt:ro"
-      - "/etc/letsencrypt:/etc/letsencrypt:ro"
-    depends_on:
+    restart: always
+    depends_on: # <--- ДОБАВИТЬ ЭТОТ БЛОК
       - backend
       - frontend
-    networks:
-      - dev
-    restart: always
-    restart: always
 
   backend:
     build:
       context: ./back
+      network: host
     env_file:
       - ./.env
     volumes:
-      # --- ЗАМЕНИТЕ СТРОКУ С backend_data НА ЭТУ ---
       - ./data:/app/data
-    networks:
-      - dev
     restart: always
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
 
   frontend:
     build:
       context: ./wakeup
-    networks:
-      - dev
+      network: host
     restart: always
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4

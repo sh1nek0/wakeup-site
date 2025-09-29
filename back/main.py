@@ -158,7 +158,6 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://wakeupmafia.site", "https://wakeupmafia.site"],  # Разрешить запросы с вашего React-сервера
-    allow_origins=["http://wakeupmafia.site", "https://wakeupmafia.site"],  # Разрешить запросы с вашего React-сервера
     allow_credentials=True,
     allow_methods=["*"],  # Разрешить все методы (GET, POST и т.д.)
     allow_headers=["*"],  # Разрешить все заголовки
