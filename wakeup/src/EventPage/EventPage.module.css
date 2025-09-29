@@ -1,154 +1,197 @@
+/* ===========================
+   Страница / контейнер
+   =========================== */
 .page {
-  padding: 50px 50px; /* Отступы от краёв страницы */
-  background-color: #2c1810;
+  --cut: 120px;               /* ширина скошенного края */
+  --stripe: #ff6f00;          /* оранжевый акцент */
+  --bg: #1f1f1f;
+  --card: #2b2b2b;
+  --text: #ffffff;
+  --muted: #bdbdbd;
+
+  background: var(--bg);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 23px;
   min-height: 100vh;
+
+  border-left: 1px solid #303030;
+  border-right: 1px solid #303030;
 }
 
-.card {
-  display: flex;
-  background-color: #2c1810;
-  border: 2px solid #ffb74d;
-  border-radius: 8px;
-  padding: 0;
-  margin: 20px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  gap: 0;
-  /* max-height: 10%;  Убрано, чтобы карточка могла быть выше */
-  height: 350px; /* Например, фиксированная высота карточки */
-  overflow: hidden; /* Чтобы ничего не выходило за пределы */
+/* ===========================
+   Хедер как на макете
+   =========================== */
+.headerContainer {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 320px); /* колонка с описанием справа */
+  gap: 16px;                                       /* ближе друг к другу */
+  align-items: start;
+  padding: 24px 0 12px;
+  margin-bottom: 12px;
+  overflow: hidden;                                 /* свечение не выходит наружу */
+  border-radius: 0;                                 /* без скруглений */
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.leftBlock {
-  flex: 0 0 40%;
-  background-color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.pageTitle {
   margin: 0;
-  padding: 0;
-  overflow: hidden;
-  height: 100%; /* Занять всю высоту карточки */
+  color: var(--text);
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 800;
+  letter-spacing: .5px;
+  line-height: 1;
+  position: relative;
+  z-index: 1;                                       /* поверх свечения */
 }
 
-.image {
-  width: 100%;
-  height: 100%; /* Занять всю высоту левого блока */
-  border-radius: 0;
-  object-fit: cover;
-  margin: 0;
-  display: block;
+.pageSubtitle {
+  margin: 4px 0 0;                                  /* ближе к заголовку */
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.3;
+  position: relative;
+  z-index: 1;                                       /* поверх свечения */
 }
 
-.leftBlock.noImage {
-  background-color: #444;
-}
-
-.urlLink {
-  color: #2c1810;
-  text-decoration: none;
-  font-weight: bold;
-  font-size: 0.9rem;
-  transition: color 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* синеватое свечение справа, внутри контейнера */
+.headerContainer::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: min(36vw, 320px);
   height: 100%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 85% 35%,
+    rgba(90,120,255,.38) 0 55%,
+    transparent 70%
+  );
+  filter: blur(4px);
+  opacity: .75;
+  z-index: 0;                                       /* за текстом */
 }
 
-.urlLink:hover {
-  color: #ff6f00;
+/* ===========================
+   Карточка события
+   =========================== */
+.card {
+  position: relative;
+  display: flex;
+  height: 190px;
+  background: var(--card);
+  margin: 0 0 14px 0;
+  overflow: hidden;                                  /* диагональ не вылезает */
+  border-top: 3px solid transparent;                 /* у первой карточки оранж. линия */
+  border-bottom: 1px solid #1f1f1f;
+  border-radius: 0;                                  /* без скруглений */
 }
 
-.rightBlock {
-  flex: 1;
-  background-color: #4e342e;
-  padding: 0;
-  border-radius: 4px;
-  color: #000;
+.card:first-child {
+  border-top-color: var(--stripe);
+}
+
+/* левая часть с наклонённым правым краем */
+.leftBlock {
+  flex: 1 1 auto;
+  padding: 18px 22px;
+  color: var(--text);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  margin: 0;
-  height: 100%; /* Занять всю высоту карточки */
-  overflow: auto; /* Если контента много, появится скролл */
+  justify-content: space-between;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
+  position: relative;
+  z-index: 1;
+}
+
+/* диагональная оранжевая полоса */
+.orangeStripe {
+  position: absolute;
+  left: 59%;
+  width: 14px;
+  height: 100%;
+  background: var(--stripe);
+  transform: skewX(-30deg);
+  z-index: 2;
+  opacity: .98;
+}
+
+/* правая часть — фото со скошенным левым краем */
+.rightBlock {
+  flex: 0 0 45%;
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%);
+  overflow: hidden;
+}
+
+.rightBlock.noImage { background: #333; }
+
+.imageContainer { position: relative; width: 100%; height: 100%; display: flex; }
+.image { width: 100%; height: 100%; object-fit: cover; }
+
+/* дата поверх изображения справа сверху */
+.dateBox {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  padding: 6px 12px;
+  background: rgba(0,0,0,.38);
+  color: #fff;
+  font-weight: 800;
+  font-size: .95rem;
+  border-radius: 4px;
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+  z-index: 3;
+}
+
+/* текстовые блоки в левой части */
+.headerRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .title {
-  color: #ffb74d;
-  margin: 0 0 8px 0;
-  font-size: 1.2rem;
-  text-align: center;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fff;
 }
 
-.description {
-  width: 80%;
-  margin-left: 10%;
-  color: #c4b59b;
-  text-align: center;
-  text-transform: uppercase;
+.locationUnderTitle {
+  font-size: .9rem;
+  color: var(--muted);
 }
 
-.details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: center;
+.meta {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .82rem;
+  letter-spacing: .2px;
 }
 
-.detailItem {
-  font-size: 0.9rem;
+/* ===========================
+   Адаптив
+   =========================== */
+@media (max-width: 900px) {
+  .page { --cut: 100px; }
+  .orangeStripe { left: 58%; }
 }
 
-.detailItem strong {
-  color: #ff6f00;
-}
-
-.status {
-  color: #d32f2f;
-  font-weight: bold;
-}
-
-/* Мобильная версия */
 @media (max-width: 768px) {
-  .card {
-    flex-direction: column;
-    padding: 0;
-    height: auto; /* Высота по содержимому */
+  .headerContainer {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding-bottom: 10px;
   }
 
-  .leftBlock {
-    flex: 0 0 auto;
-    margin: 0 0 0 0;
-    width: 100%;
-    min-height: 100px;
-    background-color: transparent;
-    height: auto; /* Высота по содержимому */
-  }
+  .headerContainer::after { display: none; }         /* на мобильных без свечения */
 
-  .image {
-    height: auto; /* Адаптивная высота */
-  }
-
-  .rightBlock {
-    padding: 0;
-    height: auto;
-  }
-
-  .title {
-    font-size: 1rem;
-  }
-
-  .description {
-    font-size: 0.9rem;
-  }
-
-  .detailItem {
-    font-size: 0.8rem;
-  }
+  .card { flex-direction: column; height: auto; }
+  .leftBlock { clip-path: none; padding: 14px 14px 10px; }
+  .rightBlock { clip-path: none; height: 180px; flex-basis: auto; }
+  .orangeStripe { display: none; }
 }

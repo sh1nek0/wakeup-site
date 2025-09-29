@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { useParams } from 'react-router-dom'; 
+import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
-import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../AuthContext';  // Импорт контекста
+import { AuthContext } from '../AuthContext';
 
-// --- Компоненты (добавлены или исправлены) ---
+/* ==========================
+   ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
+   ========================== */
 
 const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }) => {
   const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
@@ -22,13 +23,13 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
         </thead>
         <tbody>
           <tr>
-            <td>Заголосовали</td>
+            <td>Ушел</td>
             {days.map((day, i) => (
               <td key={i}>{votingResults[day]?.votes || ''}</td>
             ))}
           </tr>
           <tr>
-            <td>Стрельба</td>
+            <td>Умер</td>
             {days.map((day, i) => (
               <td key={i}>{shootingResults[day]?.result || ''}</td>
             ))}
@@ -55,23 +56,39 @@ const FoulsComponent = ({ players, onIncrementFoul }) => {
   return (
     <div className={styles.foulsWrapper}>
       <div className={styles.foulsGrid}>
-        {players.map((player) => (
-          <div key={player.id} className={styles.foulCard}>
-            <div className={styles.playerNumber}>{player.id}</div>
-            <div className={styles.foulCircles}>
-              {[1, 2, 3].map((foulIndex) => (
-                <button
-                  key={foulIndex}
-                  type="button"
-                  onClick={() => onIncrementFoul(player.id)}
-                  disabled={player.fouls >= foulIndex}
-                  className={`${styles.foulCircle} ${player.fouls >= foulIndex ? styles.foulActive : styles.foulInactive}`}
-                  aria-label={`Добавить фол игроку ${player.id}, фол ${foulIndex}`}
-                />
-              ))}
+        {players.map((player) => {
+          const atMax = player.fouls >= 3;
+          return (
+            <div
+              key={player.id}
+              className={styles.foulCard}
+              role="button"
+              tabIndex={0}
+              aria-disabled={atMax}
+              aria-label={`Добавить фол игроку ${player.id}`}
+              onClick={() => !atMax && onIncrementFoul(player.id)}
+              onKeyDown={(e) => {
+                if (!atMax && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onIncrementFoul(player.id);
+                }
+              }}
+              style={atMax ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+            >
+              <div className={styles.playerNumber}>{player.id}</div>
+              <div className={styles.foulCircles}>
+                {[1, 2, 3].map((foulIndex) => (
+                  <span
+                    key={foulIndex}
+                    className={`${styles.foulCircle} ${
+                      player.fouls >= foulIndex ? styles.foulActive : styles.foulInactive
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -132,18 +149,14 @@ const RoleDropdown = ({ value, onChange, roles }) => {
   );
 };
 
-// --- Переписанный компонент BadgeDropdown (выпадающее меню) ---
+// Выпадающий список для цвета бейджа
 const BadgeDropdown = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  // Опции для выбора
   const options = [
     { label: 'Красные', value: 'red' },
     { label: 'Черные', value: 'black' },
-    { label: 'Ничья', value: 'drow' }
+    { label: 'Ничья', value: 'drow' },
   ];
-
-  // Текущее отображаемое значение
   const currentLabel = options.find((opt) => opt.value === value)?.label || 'Красные';
 
   const handleSelect = (selectedValue) => {
@@ -152,7 +165,7 @@ const BadgeDropdown = ({ value, onChange }) => {
   };
 
   return (
-    <div className={styles.roleDropdown}> {/* Используем существующие стили для консистентности */}
+    <div className={styles.roleDropdown}>
       <div
         className={styles.roleDisplay}
         onClick={() => setIsOpen(!isOpen)}
@@ -198,72 +211,58 @@ const BadgeDropdown = ({ value, onChange }) => {
   );
 };
 
+/* ================
+   ОСНОВНОЙ КОМПОНЕНТ
+   ================ */
+
 const Game = () => {
   const { gameId } = useParams();
   const { eventId } = useParams();
   const navigate = useNavigate();
+
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [maxTime, setMaxTime] = useState(null);
-  // Получаем данные из AuthContext
-  const { user, isAuthenticated } = useContext(AuthContext);
-  // Вычисляем isAdmin на основе user.role
-  const isAdmin = user && user.role === 'admin';
 
-  const handleStartVoting = () => {
-    // Очистим голосование, сбросим состояния
-    setSelectedPlayerId(null);
-    setIsCounting(false);
-    setRound(1);
-    setFirstRoundCandidates([]);
-    setCurrentPhase('voting');
-  };
+  const { user } = useContext(AuthContext);
+  const isAdmin = user && user.role === 'admin';
 
   const [players, setPlayers] = useState(
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
       name: `Игрок ${i + 1}`,
       fouls: 0,
-      lx: "",
+      lx: '',
       role: '-',
       plus: 2.5,
       sk: 0,
       jk: 0,
     }))
   );
-
   const roles = ['мирный', 'мафия', 'дон', 'шериф'];
 
-  // --- Добавлено для голосования ---
-  const [votes, setVotes] = useState([]); // массив объектов { playerId, votesCount }
+  // Голосование
+  const [votes, setVotes] = useState([]); // { playerId, votesCount }
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
-  const [isCounting, setIsCounting] = useState(false); // новое состояние для режима подсчета
-  const [round, setRound] = useState(1); // раунд голосования: 1, 2 или 3
-
-  // --- Новое состояние для отслеживания кандидатов первого раунда ---
+  const [isCounting, setIsCounting] = useState(false);
+  const [round, setRound] = useState(1);
   const [firstRoundCandidates, setFirstRoundCandidates] = useState([]);
 
-  // --- Добавлено для сохранения голосования ---
+  // Итоги/фазы
   const [currentDay, setCurrentDay] = useState('Д.1');
   const [votingResults, setVotingResults] = useState({});
-
-  // --- Новые состояния для фаз ---
-  const [currentPhase, setCurrentPhase] = useState('nominating'); //  'nominating', 'voting', 'shooting', 'don', 'sheriff'
+  const [currentPhase, setCurrentPhase] = useState('nominating'); // 'nominating' | 'voting' | 'shooting' | 'don' | 'sheriff'
   const [shootingResults, setShootingResults] = useState({});
   const [donResults, setDonResults] = useState({});
   const [sheriffResults, setSheriffResults] = useState({});
+  const [activeTab, setActiveTab] = useState('gameInfo');
+  const [badgeColor, setBadgeColor] = useState('red');
 
-  // --- Новое состояние для вкладок ---
-  const [activeTab, setActiveTab] = useState('gameInfo'); // 'gameInfo' или 'fouls'
-
-  // --- Новое состояние для BadgeDropdown ---
-  const [badgeColor, setBadgeColor] = useState('red'); // 'red' или 'black'
-
-  // --- Новые состояния для загрузки и ошибок ---
+  // Загрузка/ошибки
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [serverUnavailable, setServerUnavailable] = useState(false);
 
-  // --- Новые состояния для модала и аутентификации (добавлено) ---
+  // Модал/уведомления
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [adminNickname, setAdminNickname] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -271,7 +270,33 @@ const Game = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // --- Функция для показа уведомлений (добавлено) ---
+  // 🔎 refs для автофокуса и «антипрыга» вкладок
+  const firstVoteBtnRef = useRef(null);
+
+  const tabPanelsRef = useRef(null);
+  const gameInfoPanelRef = useRef(null);
+  const foulsPanelRef = useRef(null);
+  const [tabHeight, setTabHeight] = useState(0);
+
+  const recalcTabHeight = () => {
+    const h1 = gameInfoPanelRef.current?.offsetHeight || 0;
+    const h2 = foulsPanelRef.current?.offsetHeight || 0;
+    const maxH = Math.max(h1, h2);
+    if (maxH && tabHeight !== maxH) setTabHeight(maxH);
+  };
+
+  useLayoutEffect(() => {
+    recalcTabHeight();
+    const onResize = () => recalcTabHeight();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useLayoutEffect(() => {
+    recalcTabHeight();
+  }, [activeTab, players, votingResults, shootingResults, donResults, sheriffResults]);
+
   const showMessage = (message, isError = false) => {
     if (isError) {
       setErrorMessage(message);
@@ -286,12 +311,11 @@ const Game = () => {
     }, 5000);
   };
 
-  // --- Функция для открытия модала (добавлено) ---
-  const openSaveModal = () => {
-    setShowSaveModal(true);
-  };
+  const openSaveModal = () => setShowSaveModal(true);
 
-  // --- Таймер ---
+  /* ==========
+     ТАЙМЕР
+     ========== */
   useEffect(() => {
     let interval = null;
     if (isRunning) {
@@ -315,137 +339,93 @@ const Game = () => {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const toggleTimer = () => {
-    setIsRunning(!isRunning);
-  };
-
+  const toggleTimer = () => setIsRunning(!isRunning);
   const resetTimer = () => {
     setIsRunning(false);
     setTime(0);
     setMaxTime(null);
   };
-
   const startTimerLimited = (seconds) => {
     setTime(0);
     setMaxTime(seconds);
     setIsRunning(true);
   };
 
-  // --- Управление игроками ---
-  const handleNameChange = (id, value) => {
+  /* =================
+     УПРАВЛЕНИЕ ФОРМОЙ
+     ================= */
+  const handleNameChange = (id, value) =>
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, name: value } : p)));
+  const incrementFouls = (id) =>
     setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, name: value } : player))
+      prev.map((p) => (p.id === id && p.fouls < 3 ? { ...p, fouls: p.fouls + 1 } : p))
     );
-  };
-
-  const handleFoulsChange = (id, value) => {
-    const numValue = Math.max(0, Math.min(3, parseInt(value) || 0)); // Ограничить до 3
-    setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, fouls: numValue } : player))
-    );
-  };
-
-  const incrementFouls = (id) => {
-    setPlayers((prev) =>
-      prev.map((player) => {
-        if (player.id === id && player.fouls < 3) {
-          return { ...player, fouls: player.fouls + 1 };
-        }
-        return player;
-      })
-    );
-  };
-
-  const decrementFouls = (id) => {
-    setPlayers((prev) =>
-      prev.map((player) =>
-        player.id === id ? { ...player, fouls: Math.max(0, player.fouls - 1)} : player
-      )
-    );
-  };
-
-  const handleRoleChange = (id, role) => {
-    setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, role } : player))
-    );
-  };
-
-  const handleLxChange = (id, value) => {
-    setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, lx: value } : player))
-    );
-  };
-
+  const handleRoleChange = (id, role) =>
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, role } : p)));
+  const handleLxChange = (id, value) =>
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, lx: value } : p)));
   const handlePlusChange = (id, value) => {
     const numValue = parseFloat(value) || 0;
-    setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, plus: numValue } : player))
-    );
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, plus: numValue } : p)));
   };
-
   const handleSkChange = (id, value) => {
     const numValue = Math.max(0, parseInt(value) || 0);
-    setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, sk: numValue } : player))
-    );
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, sk: numValue } : p)));
   };
-
   const handleJkChange = (id, value) => {
     const numValue = Math.max(0, parseInt(value) || 0);
-    setPlayers((prev) =>
-      prev.map((player) => (player.id === id ? { ...player, jk: numValue } : player))
-    );
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, jk: numValue } : p)));
   };
 
-  // --- Новое: обработчик клика по номеру для выставления на голосование ---
+  /* ============================
+     ВЫСТАВЛЕНИЕ/ГОЛОСОВАНИЕ
+     ============================ */
   const handlePlayerNumberClick = (playerId) => {
     if (!votes.some((v) => v.playerId === playerId)) {
       setVotes((prev) => [...prev, { playerId, votesCount: 0 }]);
-      // Если еще никто не выбран, выбрать нового игрока
-      if (selectedPlayerId === null) {
-        setSelectedPlayerId(playerId);
-      }
-      // Иначе оставить текущий выбор
+      if (selectedPlayerId === null) setSelectedPlayerId(playerId);
     }
   };
-
-  // --- Выбор игрока для изменения голосов ---
-  const handleSelectPlayer = (playerId) => {
-    setSelectedPlayerId(playerId);
-  };
-
-  // --- Управление голосами ---
-  const handleVoteChange = (playerId, increment) => {
+  const handleSelectPlayer = (playerId) => setSelectedPlayerId(playerId);
+  const handleVoteChange = (playerId, increment) =>
     setVotes((prev) =>
       prev.map((v) => (v.playerId === playerId ? { ...v, votesCount: v.votesCount + increment } : v))
     );
-  };
-
   const handleVoteButtonClick = (increment) => {
     if (selectedPlayerId === null) return;
     handleVoteChange(selectedPlayerId, increment);
-    // После добавления голосов автоматически перейти к следующему игроку
     const currentIndex = votes.findIndex((v) => v.playerId === selectedPlayerId);
     if (currentIndex !== -1) {
       const nextIndex = (currentIndex + 1) % votes.length;
       setSelectedPlayerId(votes[nextIndex].playerId);
     }
   };
-
   const handleBackspace = () => {
     if (selectedPlayerId === null) return;
     setVotes((prev) => prev.filter((v) => v.playerId !== selectedPlayerId));
-    // После удаления выбрать первого оставшегося, если есть
-    const remainingVotes = votes.filter((v) => v.playerId !== selectedPlayerId);
-    if (remainingVotes.length > 0) {
-      setSelectedPlayerId(remainingVotes[0].playerId);
-    } else {
-      setSelectedPlayerId(null);
-    }
+    const remaining = votes.filter((v) => v.playerId !== selectedPlayerId);
+    setSelectedPlayerId(remaining[0]?.playerId ?? null);
   };
 
-  // --- Модифицированная логика подсчета с условным третьим раундом ---
+  const handleStartVoting = () => {
+    setSelectedPlayerId(null);
+    setIsCounting(false);
+    setRound(1);
+    setFirstRoundCandidates([]);
+    setCurrentPhase('voting');
+  };
+
+  // 🔥 Автофокус на первом кандидате после перехода в фазу голосования
+  useEffect(() => {
+    if (currentPhase === 'voting' && votes.length > 0) {
+      setSelectedPlayerId((prev) => (prev === null ? votes[0].playerId : prev));
+      const id = requestAnimationFrame(() => {
+        firstVoteBtnRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(id);
+    }
+  }, [currentPhase, votes]);
+
   const handleCount = () => {
     const voted = votes.filter((v) => v.votesCount > 0);
     if (voted.length === 0) {
@@ -455,61 +435,37 @@ const Game = () => {
     const maxVotes = Math.max(...voted.map((v) => v.votesCount));
     const candidates = voted.filter((v) => v.votesCount === maxVotes);
     if (candidates.length === 1) {
-      // Есть большинство, записать его
       saveResult([candidates[0].playerId]);
     } else {
-      // Равное количество голосов
       if (round === 1) {
-        // Первый раунд: сохранить кандидатов, перейти ко второму
-        setFirstRoundCandidates(candidates.map(c => c.playerId));
-        const resetVotes = candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 }));
-        setVotes(resetVotes);
+        setFirstRoundCandidates(candidates.map((c) => c.playerId));
+        setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
         setRound(2);
-        setIsCounting(false); // Продолжить голосование
+        setIsCounting(false);
       } else if (round === 2) {
-        // Второй раунд: проверить, изменился ли список кандидатов
-        const currentCandidatesIds = candidates.map(c => c.playerId);
-        const isSameCandidates = firstRoundCandidates.length === currentCandidatesIds.length &&
-          firstRoundCandidates.every(id => currentCandidatesIds.includes(id));
-        if (isSameCandidates) {
-          // Список кандидатов не изменился: пропустить третий раунд, обработать как в третьем
-          if (voted.length === votes.length) {
-            // Все выставленные кандидаты получили голоса: показать кнопки "Оставили" / "Подняли"
-            setIsCounting(true);
-          } else {
-            // Не все: выгнать кандидатов
-            saveResult(currentCandidatesIds);
-          }
+        const currentIds = candidates.map((c) => c.playerId);
+        const same =
+          firstRoundCandidates.length === currentIds.length &&
+          firstRoundCandidates.every((id) => currentIds.includes(id));
+        if (same) {
+          if (voted.length === votes.length) setIsCounting(true);
+          else saveResult(currentIds);
         } else {
-          // Список кандидатов изменился: перейти к третьему раунду
-          const resetVotes = candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 }));
-          setVotes(resetVotes);
+          setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
           setRound(3);
-          setIsCounting(false); // Продолжить голосование
+          setIsCounting(false);
         }
       } else if (round === 3) {
-        // Третий раунд: последний шанс
-        if (voted.length === votes.length) {
-          // Все выставленные кандидаты получили голоса: показать кнопки "Оставили" / "Подняли"
-          setIsCounting(true);
-        } else {
-          // Не все: выгнать кандидатов
-          saveResult(candidates.map((c) => c.playerId));
-        }
+        if (voted.length === votes.length) setIsCounting(true);
+        else saveResult(candidates.map((c) => c.playerId));
       }
     }
   };
 
-  const handleLeft = () => {
-    // "Оставили" - поставить прочерк
-    saveResult([]);
-  };
-
+  const handleLeft = () => saveResult([]);
   const handleRaised = () => {
-    // "Подняли" - сохранить всех оставшихся кандидатов
     const voted = votes.filter((v) => v.votesCount > 0);
-    const playerIds = voted.map((v) => v.playerId);
-    saveResult(playerIds);
+    saveResult(voted.map((v) => v.playerId));
   };
 
   const saveResult = (playerIds) => {
@@ -518,101 +474,91 @@ const Game = () => {
       ...prev,
       [currentDay]: { votes: voteSummary },
     }));
-    // Очистить голоса после сохранения
     setVotes([]);
     setSelectedPlayerId(null);
     setIsCounting(false);
-    setRound(1); // Сбросить раунд
-    setFirstRoundCandidates([]); // Сбросить кандидатов первого раунда
-    // Перейти к следующему этапу: Стрельба
+    setRound(1);
+    setFirstRoundCandidates([]);
     setCurrentPhase('shooting');
   };
 
-  // --- Новые функции для других фаз ---
+  /* =========
+     ФАЗЫ НОЧИ
+     ========= */
   const handlePhaseButtonClick = (value, phase) => {
     const result = value === 'miss' ? '-' : value.toString();
-    const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5']; // Исправлено на 5 дней
+    const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
     if (phase === 'shooting') {
-      setShootingResults((prev) => ({
-        ...prev,
-        [currentDay]: { result },
-      }));
+      setShootingResults((prev) => ({ ...prev, [currentDay]: { result } }));
       setCurrentPhase('don');
     } else if (phase === 'don') {
-      setDonResults((prev) => ({
-        ...prev,
-        [currentDay]: { result },
-      }));
+      setDonResults((prev) => ({ ...prev, [currentDay]: { result } }));
       setCurrentPhase('sheriff');
     } else if (phase === 'sheriff') {
-      setSheriffResults((prev) => ({
-        ...prev,
-        [currentDay]: { result },
-      }));
-      // После шерифа перейти к следующему дню и обратно к голосованию
+      setSheriffResults((prev) => ({ ...prev, [currentDay]: { result } }));
       const nextIndex = days.indexOf(currentDay) + 1;
-      if (nextIndex < days.length) {
-        setCurrentDay(days[nextIndex]);
-      }
+      if (nextIndex < days.length) setCurrentDay(days[nextIndex]);
       setCurrentPhase('nominating');
     }
   };
 
-  // Функция для получения данных игры
+  /* ==========================
+     ЗАГРУЗКА ДАННЫХ ИЗ СЕРВЕРА
+     ========================== */
+  const bootstrapEmptyGame = () => {
+    setVotingResults({});
+    setShootingResults({});
+    setDonResults({});
+    setSheriffResults({});
+    setCurrentDay('Д.1');
+    setCurrentPhase('nominating');
+    setBadgeColor('red');
+  };
+
   const fetchGameData = async () => {
     setLoading(true);
-    setError(null);
+    setServerUnavailable(false);
     try {
       const response = await fetch(`/api/getGameData/${gameId}`);
       if (response.status === 404) {
-        // Игра не найдена, инициализируем по умолчанию (уже сделано в useState)
-        setLoading(false);
+        bootstrapEmptyGame();
         return;
       }
       if (!response.ok) {
         throw new Error(`Ошибка сервера: ${response.status}`);
       }
       const data = await response.json();
-      // Распарсить данные и заполнить состояния
-      if (data.players) {
-        setPlayers(data.players);
-      }
+      if (data.players) setPlayers(data.players);
       if (data.gameInfo) {
         setVotingResults(data.gameInfo.votingResults || {});
         setShootingResults(data.gameInfo.shootingResults || {});
         setDonResults(data.gameInfo.donResults || {});
         setSheriffResults(data.gameInfo.sheriffResults || {});
       }
-      if (data.currentDay) {
-        setCurrentDay(data.currentDay);
-      }
-      if (data.currentPhase) {
-        setCurrentPhase(data.currentPhase);
-      }
-      if (data.badgeColor) {
-        setBadgeColor(data.badgeColor);
-      }
-      // Другие поля, если есть
-    } catch (error) {
-      setError(error.message);
+      if (data.currentDay) setCurrentDay(data.currentDay);
+      if (data.currentPhase) setCurrentPhase(data.currentPhase);
+      if (data.badgeColor) setBadgeColor(data.badgeColor);
+    } catch (err) {
+      console.warn('⚠️ Сервер недоступен. Открываем пустую игру:', err.message);
+      bootstrapEmptyGame();
+      setServerUnavailable(true);
     } finally {
       setLoading(false);
     }
   };
 
-  // useEffect для загрузки данных при монтировании
   useEffect(() => {
     fetchGameData();
-  }, [gameId]); // Зависит от gameId, чтобы перезагружать при изменении
+  }, [gameId]);
 
-  // --- Обновленная функция для сохранения данных на сервер (добавлено) ---
+  /* =======================
+     СОХРАНЕНИЕ НА СЕРВЕРЕ
+     ======================= */
   const handleSave = async () => {
     if (!adminNickname || !adminPassword) {
       showMessage('Пожалуйста, заполните все поля для аутентификации.', true);
       return;
     }
-
-    // Валидация ролей (из вашего кода)
     const errors = [];
     players.forEach((player) => {
       if (player.role === '-' || player.role.trim() === '') {
@@ -620,24 +566,22 @@ const Game = () => {
       }
     });
     if (errors.length > 0) {
-      showMessage(`Ошибки валидации: ${errors.join('; ')} Пожалуйста, заполните все роли перед сохранением.`, true);
+      showMessage(
+        `Ошибки валидации: ${errors.join('; ')} Пожалуйста, заполните все роли перед сохранением.`,
+        true
+      );
       return;
     }
 
     setIsSaving(true);
     const dataToSave = {
-      admin_nickname: adminNickname,  // Добавлено для соответствия бэкенду
-      admin_password: adminPassword,  // Добавлено для соответствия бэкенду
+      admin_nickname: adminNickname,
+      admin_password: adminPassword,
       gameId,
       eventId,
       players,
       fouls: players.map(({ id, fouls }) => ({ playerId: id, fouls })),
-      gameInfo: {
-        votingResults,
-        shootingResults,
-        donResults,
-        sheriffResults,
-      },
+      gameInfo: { votingResults, shootingResults, donResults, sheriffResults },
       currentDay,
       currentPhase,
       badgeColor,
@@ -646,19 +590,17 @@ const Game = () => {
     try {
       const response = await fetch('/api/saveGameData', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
       });
 
       if (response.ok) {
         const result = await response.json();
-        showMessage(result.message);  // Успех
+        showMessage(result.message);
         setShowSaveModal(false);
         setAdminNickname('');
         setAdminPassword('');
-        setTimeout(() => navigate('/'), 500);  // Переход после успеха
+        setTimeout(() => navigate('/'), 500);
       } else {
         let errorMsg = 'Неизвестная ошибка';
         if (response.status === 400) {
@@ -681,32 +623,43 @@ const Game = () => {
     }
   };
 
-  // Если загрузка, показать индикатор
+  /* =========
+     РЕНДЕР
+     ========= */
   if (loading) {
     return <div>Загрузка данных игры...</div>;
   }
 
-  // Если ошибка, показать ошибку
-  if (error) {
-    return <div>Ошибка загрузки: {error}</div>;
-  }
-
   return (
     <>
-      {/* Уведомления (добавлено) */}
+      {/* уведомления */}
+      {serverUnavailable && (
+        <div
+          className={styles.notification}
+          style={{ backgroundColor: '#333', color: 'white', padding: '10px', marginBottom: '10px' }}
+        >
+          Сервер недоступен. Открыта пустая игра. Сохранение может быть недоступно.
+        </div>
+      )}
       {successMessage && (
-        <div className={styles.notification} style={{ backgroundColor: 'green', color: 'white', padding: '10px', marginBottom: '10px' }}>
+        <div
+          className={styles.notification}
+          style={{ backgroundColor: 'green', color: 'white', padding: '10px', marginBottom: '10px' }}
+        >
           {successMessage}
         </div>
       )}
       {errorMessage && (
-        <div className={styles.notification} style={{ backgroundColor: 'red', color: 'white', padding: '10px', marginBottom: '10px' }}>
+        <div
+          className={styles.notification}
+          style={{ backgroundColor: 'red', color: 'white', padding: '10px', marginBottom: '10px' }}
+        >
           {errorMessage}
         </div>
       )}
 
       <div className={styles.gameWrapper}>
-        {/* Список игроков (замена таблицы) */}
+        {/* Таблица игроков */}
         <table className={styles.playersTable} aria-label="Таблица игроков">
           <thead>
             <tr>
@@ -806,7 +759,7 @@ const Game = () => {
           </tbody>
         </table>
 
-        {/* Правый столбец */}
+        {/* Правая колонка */}
         <div className={styles.rightColumn}>
           <div className={styles.contentContainer}>
             {/* Таймер */}
@@ -838,14 +791,11 @@ const Game = () => {
               </div>
             </div>
 
-            {/* Голосование или другие фазы */}
-            {/* Фаза выставления */}
+            {/* Фазы */}
             {currentPhase === 'nominating' && (
               <div className={styles.votingContainer}>
                 <nav aria-label="Список игроков для выставления" className={styles.votingNav}>
-                  {votes.length === 0 && (
-                    <p className={styles.noVotesText}>Нет выбранных игроков для выставления.</p>
-                  )}
+                  {votes.length === 0 && <p className={styles.noVotesText}>Нет выбранных игроков для выставления.</p>}
                   {votes.map(({ playerId, votesCount }) => (
                     <div key={playerId} className={styles.playerVoteItem}>
                       <button
@@ -862,12 +812,8 @@ const Game = () => {
                   ))}
                 </nav>
 
-                <div
-                  role="grid"
-                  aria-label="Цифровая клавиатура для выставления"
-                  className={styles.keyboardGrid}
-                >
-                  {[1,2,3,4,5,6,7,8,9,10,0].map((num) => (
+                <div role="grid" aria-label="Цифровая клавиатура для выставления" className={styles.keyboardGrid}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => (
                     <button
                       key={num}
                       type="button"
@@ -878,18 +824,11 @@ const Game = () => {
                       {num}
                     </button>
                   ))}
-
-                  <button
-                    type="button"
-                    onClick={handleBackspace}
-                    className={styles.keyboardBtn}
-                    aria-label="Удалить игрока из выставления"
-                  >
+                  <button type="button" onClick={handleBackspace} className={styles.keyboardBtn} aria-label="Удалить игрока из выставления">
                     ⮾
                   </button>
                 </div>
 
-                {/* Кнопка перехода к голосованию */}
                 <button
                   type="button"
                   onClick={handleStartVoting}
@@ -901,18 +840,18 @@ const Game = () => {
                 </button>
               </div>
             )}
+
             {currentPhase === 'voting' && (
               <div className={styles.votingContainer}>
                 <nav aria-label="Список игроков для голосования" className={styles.votingNav}>
-                  {votes.length === 0 && (
-                    <p className={styles.noVotesText}>Нет выбранных игроков для голосования.</p>
-                  )}
-                  {votes.map(({ playerId, votesCount }) => {
+                  {votes.length === 0 && <p className={styles.noVotesText}>Нет выбранных игроков для голосования.</p>}
+                  {votes.map(({ playerId, votesCount }, index) => {
                     const isSelected = playerId === selectedPlayerId;
                     return (
                       <div key={playerId} className={styles.playerVoteItem}>
                         <button
                           type="button"
+                          ref={index === 0 ? firstVoteBtnRef : null}
                           onClick={() => handleSelectPlayer(playerId)}
                           className={isSelected ? styles.selectedPlayerBtn : styles.playerBtn}
                           aria-current={isSelected ? 'true' : undefined}
@@ -926,12 +865,8 @@ const Game = () => {
                   })}
                 </nav>
 
-                <div
-                  role="grid"
-                  aria-label="Цифровая клавиатура для голосования"
-                  className={styles.keyboardGrid}
-                >
-                  {[1,2,3,4,5,6,7,8,9,10,0].map((num) => (
+                <div role="grid" aria-label="Цифровая клавиатура для голосования" className={styles.keyboardGrid}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => (
                     <button
                       key={num}
                       type="button"
@@ -943,19 +878,17 @@ const Game = () => {
                       {num}
                     </button>
                   ))}
-
                   <button
                     type="button"
                     onClick={handleBackspace}
                     disabled={selectedPlayerId === null}
                     className={styles.keyboardBtn}
-                    aria-label={`Удалить игрока из голосования`}
+                    aria-label="Удалить игрока из голосования"
                   >
                     ⮾
                   </button>
                 </div>
 
-                {/* Кнопки подсчета */}
                 {!isCounting ? (
                   <button
                     type="button"
@@ -968,12 +901,7 @@ const Game = () => {
                   </button>
                 ) : (
                   <div className={styles.countButtons}>
-                    <button
-                      type="button"
-                      onClick={handleLeft}
-                      className={styles.countBtn}
-                      aria-label="Оставили - поставить прочерк"
-                    >
+                    <button type="button" onClick={handleLeft} className={styles.countBtn} aria-label="Оставили - поставить прочерк">
                       Оставили
                     </button>
                     <button
@@ -993,21 +921,12 @@ const Game = () => {
               <div className={styles.phaseContainer}>
                 <h3>Стрельба</h3>
                 <div className={styles.keyboardGrid}>
-                  {[1,2,3,4,5,6,7,8,9,10].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handlePhaseButtonClick(num, 'shooting')}
-                      className={styles.keyboardBtn}
-                    >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'shooting')} className={styles.keyboardBtn}>
                       {num}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => handlePhaseButtonClick('miss', 'shooting')}
-                    className={styles.keyboardBtn}
-                  >
+                  <button type="button" onClick={() => handlePhaseButtonClick('miss', 'shooting')} className={styles.keyboardBtn}>
                     Промах
                   </button>
                 </div>
@@ -1018,13 +937,8 @@ const Game = () => {
               <div className={styles.phaseContainer}>
                 <h3>Дон</h3>
                 <div className={styles.keyboardGrid}>
-                  {[1,2,3,4,5,6,7,8,9,10].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handlePhaseButtonClick(num, 'don')}
-                      className={styles.keyboardBtn}
-                    >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'don')} className={styles.keyboardBtn}>
                       {num}
                     </button>
                   ))}
@@ -1036,13 +950,8 @@ const Game = () => {
               <div className={styles.phaseContainer}>
                 <h3>Шериф</h3>
                 <div className={styles.keyboardGrid}>
-                  {[1,2,3,4,5,6,7,8,9,10].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handlePhaseButtonClick(num, 'sheriff')}
-                      className={styles.keyboardBtn}
-                    >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'sheriff')} className={styles.keyboardBtn}>
                       {num}
                     </button>
                   ))}
@@ -1050,6 +959,7 @@ const Game = () => {
               </div>
             )}
 
+            {/* Вкладки и содержимое */}
             <div className={styles.tabs}>
               <button
                 type="button"
@@ -1069,39 +979,62 @@ const Game = () => {
               </button>
             </div>
 
-            {/* Условное отображение GameInfo или FoulsComponent */}
-            {activeTab === 'gameInfo' && (
-              <GameInfo votingResults={votingResults} shootingResults={shootingResults} donResults={donResults} sheriffResults={sheriffResults} />
-            )}
-            {activeTab === 'fouls' && (
-              <FoulsComponent players={players} onIncrementFoul={incrementFouls} />
-            )}
+            {/* АНТИПРЫГ: обе панели всегда в DOM, одна видима */}
+            <div
+              className={styles.tabPanels}
+              ref={tabPanelsRef}
+              style={{ height: tabHeight ? `${tabHeight}px` : 'auto' }}
+            >
+              <div
+                ref={gameInfoPanelRef}
+                className={`${styles.panel} ${activeTab === 'gameInfo' ? styles.visiblePanel : styles.hiddenPanel}`}
+              >
+                <GameInfo
+                  votingResults={votingResults}
+                  shootingResults={shootingResults}
+                  donResults={donResults}
+                  sheriffResults={sheriffResults}
+                />
+              </div>
+
+              <div
+                ref={foulsPanelRef}
+                className={`${styles.panel} ${activeTab === 'fouls' ? styles.visiblePanel : styles.hiddenPanel}`}
+              >
+                <FoulsComponent players={players} onIncrementFoul={incrementFouls} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Кнопка сохранения под таблицей игроков и правой колонкой */}
+      {/* Кнопка сохранения + выбор победителя */}
       <div className={styles.saveButtonContainer}>
         <BadgeDropdown value={badgeColor} onChange={setBadgeColor} />
         <button
           type="button"
-          onClick={openSaveModal}  // Открываем модал вместо прямого сохранения
+          onClick={openSaveModal}
           className={styles.saveBtn}
           aria-label="Сохранить данные игры"
-          disabled={!isAdmin}  // Кнопка выключена для не-админов
+          disabled={!isAdmin}
           title={!isAdmin ? 'Только администратор может сохранять данные' : undefined}
         >
           Сохранить
         </button>
       </div>
 
-      {/* Модальное окно для аутентификации (добавлено) */}
+      {/* Модал авторизации сохранения */}
       {showSaveModal && (
         <div className={styles.modalOverlay} onClick={() => setShowSaveModal(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h2>Сохранить игру</h2>
             <p>Введите credentials админа для подтверждения:</p>
-            <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSave();
+              }}
+            >
               <div className={styles.formGroup}>
                 <label htmlFor="adminNickname">Nickname админа:</label>
                 <input

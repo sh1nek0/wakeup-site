@@ -5,19 +5,18 @@ import HomePage from "./HomePage/HomePage.jsx"
 import RatingPage from "./RaitingPage/RaitingPage.jsx";
 import LoginPage from "./LoginPage/LoginPage.jsx";
 import EventsPage from "./EventPage/EventPage.jsx";
-import { Footer } from "./HomePage/HomePage.jsx";
+import  Footer from "./Footer/Footer.jsx";
+import TR from "./testRaiting/TR.jsx";
+import RoadToBreak from "./BTS/BTS.jsx";
 
 const footerData = {
-  ownerName: "Долматович Ростислав",
-  copyright: "Copyright © Долматович Ростислав",
-  infoLinks: [
-    { label: "Политика конфиденциальности", url: "/" },
-    { label: "Условия использования", url: "/" },
-  ],
+  ownerName: "© 2025 Company",
+  copyright: "Ростислав Долматович",
+  adress: "г.Москва г.Зеленоград Юности 11",
+  
   contacts: {
     telegram: "https://t.me/ret1w",
     vk: "https://vk.com/ret1w",
-    phone: "+7 (925) 155-25-64",
   }
 };
 
@@ -32,6 +31,7 @@ export function App(props) {
       <Route path="/Rating/:ratingId" element={<RatingPage/>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/events" element={<EventsPage />} />
+      <Route path="/BTS" element={<RoadToBreak />}/>
     </Routes>
    <Footer data={footerData} />
    </>

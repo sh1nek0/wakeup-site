@@ -1,5 +1,7 @@
 # Файл с секретами
 .env
+data
+*.db
 
 # Зависимости Frontend
 /wakeup/node_modules

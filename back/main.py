@@ -1,3 +1,8 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer
@@ -12,15 +17,23 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 
 # Настройка базы данных (SQLite для примера; замените на вашу БД, если нужно)
-DATABASE_URL = "sqlite:///./database.db"  # Или "postgresql://user:password@localhost/dbname"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # Устанавливаем значение по умолчанию, если переменная не найдена
+    DATABASE_URL = "sqlite:///data/database.db" 
+    
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 # Настройки для JWT и паролей
-SECRET_KEY = "8733f690a7f235a4d3a1c85d3b80476f2516279dabffc2af09ff3d90247fb196"  # Замените на реальный секретный ключ (генерируйте случайно)
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("Необходимо установить переменную окружения SECRET_KEY")
+
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -132,7 +145,7 @@ app = FastAPI()
 # CORS middleware для разрешения запросов с React (localhost:3000) (без изменений)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Разрешить запросы с вашего React-сервера
+    allow_origins=["http://wakeupmafia.site", "https://wakeupmafia.site"],  # Разрешить запросы с вашего React-сервера
     allow_credentials=True,
     allow_methods=["*"],  # Разрешить все методы (GET, POST и т.д.)
     allow_headers=["*"],  # Разрешить все заголовки

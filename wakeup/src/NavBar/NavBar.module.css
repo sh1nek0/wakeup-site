@@ -1,25 +1,27 @@
-/* NavBar.module.css */
-
 .navbar {
-  background: linear-gradient(90deg, #2a1a12, #3a231a, #2a1a12);
+  background: #303030;
   padding: 12px 24px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: #c4b59b;
+  color: #ffffff;
   user-select: none;
+  max-width: 1200px; /* Максимальная ширина */
+  margin: 0 auto; /* Центрирование по горизонтали */
+  display: flex; /* Для align-items */
+  align-items: center;
 }
 
 .navbarContainer {
-  max-width: 1200px;
   margin: 0 auto;
+  width: 100%; /* Использует всю доступную ширину внутри navbar */
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-between; /* Логотип слева, меню/кнопка справа */
 }
 
 .navbarLogo {
   font-weight: 700;
   font-size: 20px;
-  color: #c4b59b;
+  color: #ffffff;
   cursor: default;
   user-select: text;
 }
@@ -27,10 +29,19 @@
 .navbarLogo a {
   text-decoration: none;
   color: inherit; /* чтобы цвет не изменился */
+  display: flex; /* Добавлено: делает ссылку flex-контейнером для выравнивания */
+  align-items: center; /* Добавлено: выравнивает картинку и текст по центру вертикально */
+  gap: 10px; /* Добавлено: отступ 10px между картинкой и текстом */
+}
+
+.navbarLogo img {
+  width: 24px; /* Добавлено: фиксированный размер картинки */
+  height: 24px; /* Добавлено: фиксированный размер картинки */
+  object-fit: contain; /* Добавлено: сохраняет пропорции картинки */
 }
 
 .logoHighlight {
-  color: #f28c3a; /* оранжевый цвет WakeUp */
+  color: #ffffff; /* оранжевый цвет WakeUp */
 }
 
 .navbarMenu {
@@ -54,23 +65,15 @@
 }
 
 .navbarLoginBtn {
-  background: linear-gradient(90deg, #f28c3a, #a95f2c);
-  border: none;
-  border-radius: 20px;
   color: white;
   font-weight: 600;
   font-size: 16px;
-  padding: 8px 24px;
   cursor: pointer;
   transition: background 0.3s ease;
   user-select: none;
   text-decoration: none; /* чтобы ссылка выглядела как кнопка */
   display: inline-block;
   text-align: center;
-}
-
-.navbarLoginBtn:hover {
-  background: linear-gradient(90deg, #d9790d, #7b4b1a);
 }
 
 .navbarItem a {
@@ -127,4 +130,23 @@
   cursor: pointer;
   margin-left: 10px;
   font-size: 14px;
+}
+
+/* Мобильная адаптация (опционально, если нужно) */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 12px;
+    max-width: 100%; /* На мобильных — полная ширина */
+  }
+
+  .navbarContainer {
+    flex-direction: column; /* Или адаптируйте под гамбургер-меню */
+    gap: 10px;
+  }
+
+  .navbarMenu {
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center; /* Меню по центру на мобильных */
+  }
 }

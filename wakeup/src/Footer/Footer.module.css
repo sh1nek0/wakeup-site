@@ -1,0 +1,107 @@
+.footerComponent {
+  background: #303030;
+  padding: 12px 24px;
+  font-family: 'Hikasami', sans-serif;
+  color: white;
+  user-select: none;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 0;
+}
+
+.footerContainer {
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Прижимает footerLeft к левому краю, footerRight к правому */
+}
+
+.footerOwner {
+  font-weight: 400;
+  font-size: 10px;
+  color: rgb(136, 136, 136);
+  cursor: default;
+  user-select: text;
+}
+
+.footerCopyright {
+  color: white;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.footerAdress {
+  color: white;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.footerContacts {
+  display: flex;
+  gap: 10px;
+}
+
+.footerIconLink {
+  transition: opacity 0.3s ease;
+}
+
+.footerIconLink:hover {
+  opacity: 0.8;
+}
+
+.footerIconLink img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Секции для структуры */
+.footerLeft,
+.footerRight {
+  display: flex;
+  align-items: center;
+}
+
+.footerLeft {
+  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: flex-start; /* Прижимает элементы к верхнему краю колонки */
+  align-items: flex-start; /* Добавлено: прижимает содержимое к левому краю секции */
+  text-align: left; /* Выравнивание текста по левому краю */
+}
+
+.footerRight {
+  flex-shrink: 0;
+  flex-direction: column;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .footerComponent {
+    padding: 12px;
+    max-width: 100%;
+  }
+
+  .footerContainer {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footerContacts {
+    justify-content: center;
+  }
+
+  .footerLeft {
+    order: 1;
+    text-align: center; /* На мобильных центрируем текст для лучшей читаемости */
+    align-items: center; /* Центрируем вертикально на мобильных */
+  }
+
+  .footerRight {
+    order: 2;
+  }
+}
