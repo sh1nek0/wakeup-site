@@ -9,6 +9,7 @@ import  Footer from "./Footer/Footer.jsx";
 import TR from "./testRaiting/TR.jsx";
 import RoadToBreak from "./BTS/BTS.jsx";
 import Game from "./Event/Event.jsx";
+import React, { useEffect } from 'react';
 
 const footerData = {
   ownerName: "© 2025 Company",
@@ -23,6 +24,8 @@ const footerData = {
 
 
 export function App(props) {
+  useEffect(() => {
+        document.title = "WakeUp Mafia";})
   return (
     <>
     <NavBar />
