@@ -16,10 +16,6 @@ const qualifiedNow = [
     // { id: 3, nick: "Neo", from: "Финал миникланов", avatar: avatarPlaceholder },
 ];
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 65d93eb3354d9d38ad50827b4ad7ec0a96b2a007
 export default function RoadPoster() {
   const hasQualified = qualifiedNow && qualifiedNow.length > 0;
 
