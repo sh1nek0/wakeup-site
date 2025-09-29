@@ -1,0 +1,407 @@
+/* =============== базовые цвета темы =============== */
+:root {
+  --bg: #1f1f1f;
+  --panel: #262626;
+  --panel-2: #2d2d2d;
+  --panel-3: #303030;
+  --line: #3c3c3c;
+  --text: #eaeaea;
+  --muted: #bdbdbd;
+  --accent: #ff6f00;
+  --accent-2: #6e61ff;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+/* чтобы ни один элемент не «выпирал» из контейнеров */
+.pageWrap *, .pageWrap *::before, .pageWrap *::after {
+  box-sizing: border-box;
+}
+
+/* =============== страница =============== */
+.pageWrap {
+  max-width: 1200px;
+  margin: 24px auto 80px;
+  padding: 0 24px;
+  color: var(--text);
+  background: transparent;
+}
+
+/* =============== верхняя часть =============== */
+.header { margin-bottom: 22px; }
+.title {
+  font-size: clamp(28px, 4vw, 56px);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+/* сетка верхних панелей */
+.topGrid {
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 18px;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.infoCard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  min-height: 120px;
+  box-shadow: var(--shadow);
+}
+.caption {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.value {
+  font-size: clamp(18px, 2.1vw, 26px);
+  font-weight: 700;
+}
+
+/* большая кнопка обсуждения */
+.discussBtn {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  border: 1px solid var(--accent);
+  background: #2a1d12;
+  color: #ffd8b2;
+  font-weight: 800;
+  font-size: clamp(16px, 1.8vw, 20px);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.discussBtn:hover { filter: brightness(1.05); }
+
+/* правая колонка */
+.rightCol {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 18px;
+}
+
+.personCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--panel-3);
+  border: 2px solid var(--accent);
+  flex: 0 0 auto;
+}
+.personMeta { display: grid; gap: 4px; }
+.personName { font-weight: 800; font-size: 20px; }
+.personRole { color: var(--muted); }
+
+.feeCard {
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.fee {
+  font-size: clamp(22px, 3vw, 36px);
+  font-weight: 800;
+  margin: 8px 0 16px;
+}
+.primaryBtn,
+.primaryBtnDisabled {
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 18px;
+  color: #1a1a1a;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform .08s ease, filter .2s ease;
+}
+.primaryBtn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.primaryBtnDisabled { opacity: .55; cursor: not-allowed; }
+
+/* =============== участники =============== */
+.qualifiedWrap { margin-top: 36px; }
+.h2 {
+  font-size: clamp(22px, 2.5vw, 34px);
+  font-weight: 800;
+  margin: 16px 0 12px;
+}
+.emptyHint {
+  color: var(--muted);
+  padding: 14px 0;
+}
+.emptyHintSmall {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.qualifiedGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+}
+.qualifiedCard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+}
+.qualifiedAvatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  margin-bottom: 10px;
+  background: var(--panel-3);
+}
+.qualifiedNick { font-weight: 700; }
+.qualifiedFrom { color: var(--muted); font-size: 14px; }
+
+/* =============== команды/пары =============== */
+.teamsWrap { margin-top: 28px; }
+
+/* список под формой (одна колонка: форма, ниже — список карточек) */
+.teamsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+/* левая форма */
+.teamForm {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden; /* обрезаем внутренности по радиусу */
+}
+.formRow { width: 100%; }
+.formLabel { color: var(--muted); margin-bottom: 6px; }
+
+.input {
+  display: block;
+  width: 100%;
+  max-width: 100%; /* не шире контейнера */
+  background: var(--panel-3);
+  border: 1.5px solid var(--accent);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 16px;
+  outline: none;
+}
+.input:focus { box-shadow: 0 0 0 2px rgba(255,111,0,.35); }
+
+.membersPool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto; /* длинные чипсы не ломают ширину */
+  padding-bottom: 4px;
+}
+.memberBtn, .memberBtnSelected {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: #2b2b2b;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.memberBtnSelected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255,111,0,.18) inset;
+}
+.memberAvatar {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--panel-3);
+}
+.hint { color: var(--muted); font-size: 14px; }
+
+/* список карточек пар/команд — несколько в ряд с переносами */
+.teamsList{
+  display: flex;
+  flex-wrap: wrap;          /* перенос карточек на новые строки */
+  gap: 14px;
+  align-content: flex-start;
+  align-items: flex-start;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+/* карточка имеет ширину по контенту и не тянется */
+.teamCard{
+  display: inline-flex;     /* высота = по содержимому */
+  flex-direction: column;
+  flex: 0 0 auto;           /* не растягивать в строке */
+  width: fit-content;       /* ширина по контенту */
+  max-width: min(100%, 520px); /* но не шире контейнера */
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+}
+.teamHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.teamName { font-weight: 800; font-size: 20px; }
+.deleteBtn {
+  background: #3a2222;
+  border: 1px solid #733333;
+  color: #ffdede;
+  font-weight: 800;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.deleteBtn:hover { filter: brightness(1.05); }
+
+.teamMembers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.teamMember {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2b2b2b;
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+.teamMember .memberAvatar { width: 20px; height: 20px; }
+
+/* =============== вкладки результатов (если используются) =============== */
+.tabs {
+  display: inline-flex;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.tab,
+.tabActive {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 10px 10px 0 0;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+.tab:hover { background: var(--panel-2); }
+.tabActive {
+  background: var(--panel-2);
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.tabPanel { margin-top: 14px; }
+.placeholder {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+/* =============== результаты / таблица =============== */
+.resultsWrap { margin-top: 34px; }
+.tableOnly { margin-top: 10px; }
+
+.tableWrapper {
+  margin-top: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.detailedStatsTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 880px;
+  font-size: 15px;
+}
+.detailedStatsTable thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  color: var(--text);
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 700;
+}
+.detailedStatsTable tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  white-space: nowrap;
+}
+.currentUserRow { background: rgba(255,111,0,.08); }
+.link { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+
+/* пейджинг */
+.pagination {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 14px 0 0;
+}
+.detailedPagination { margin-top: 12px; }
+.pageBtn {
+  min-width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+.pageBtn[disabled] { opacity: .5; cursor: not-allowed; }
+.pageActive { background: var(--accent); color: #1b1b1b; border-color: var(--accent); }
+.pageArrow { font-size: 18px; }
+
+/* =============== адаптив =============== */
+@media (max-width: 1024px) {
+  .topGrid { grid-template-columns: 1fr; }
+  .infoGrid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .infoGrid { grid-template-columns: 1fr; }
+  .discussBtn { text-align: center; }
+}

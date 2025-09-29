@@ -3,6 +3,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer
@@ -27,7 +32,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+
 # Настройки для JWT и паролей
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("Необходимо установить переменную окружения SECRET_KEY")
+
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("Необходимо установить переменную окружения SECRET_KEY")
@@ -145,6 +157,7 @@ app = FastAPI()
 # CORS middleware для разрешения запросов с React (localhost:3000) (без изменений)
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["http://wakeupmafia.site", "https://wakeupmafia.site"],  # Разрешить запросы с вашего React-сервера
     allow_origins=["http://wakeupmafia.site", "https://wakeupmafia.site"],  # Разрешить запросы с вашего React-сервера
     allow_credentials=True,
     allow_methods=["*"],  # Разрешить все методы (GET, POST и т.д.)

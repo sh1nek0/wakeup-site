@@ -51,7 +51,7 @@ const LoginPage = () => {
     }
 
     try {
-      const endpoint = isLogin ? '/api/login' : '/api/register';
+      const endpoint = isLogin ? 'localhost:8000/login' : 'localhost:8000/register';
       const payload = isLogin
         ? { nickname: formData.nickname, password: formData.password }
         : { email: formData.email, nickname: formData.nickname, password: formData.password, club: formData.club };

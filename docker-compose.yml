@@ -12,14 +12,17 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "443:443"
     volumes:
       - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+      - "/etc/letsencrypt:/etc/letsencrypt:ro"
       - "/etc/letsencrypt:/etc/letsencrypt:ro"
     depends_on:
       - backend
       - frontend
     networks:
       - dev
+    restart: always
     restart: always
 
   backend:

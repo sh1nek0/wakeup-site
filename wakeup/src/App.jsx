@@ -8,6 +8,11 @@ import EventsPage from "./EventPage/EventPage.jsx";
 import  Footer from "./Footer/Footer.jsx";
 import TR from "./testRaiting/TR.jsx";
 import RoadToBreak from "./BTS/BTS.jsx";
+<<<<<<< HEAD
+=======
+import Game from "./Event/Event.jsx";
+import React, { useEffect } from 'react';
+>>>>>>> 65d93eb3354d9d38ad50827b4ad7ec0a96b2a007
 
 const footerData = {
   ownerName: "© 2025 Company",
@@ -22,6 +27,8 @@ const footerData = {
 
 
 export function App(props) {
+  useEffect(() => {
+        document.title = "WakeUp Mafia";})
   return (
     <>
     <NavBar />
@@ -32,6 +39,10 @@ export function App(props) {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/events" element={<EventsPage />} />
       <Route path="/BTS" element={<RoadToBreak />}/>
+<<<<<<< HEAD
+=======
+      <Route path="/Event/:evenId" element={<Game />} />
+>>>>>>> 65d93eb3354d9d38ad50827b4ad7ec0a96b2a007
     </Routes>
    <Footer data={footerData} />
    </>
