@@ -3,16 +3,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer
+from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, ForeignKey
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 import uvicorn
 
 import json
@@ -20,6 +15,27 @@ from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+from fastapi import Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        nickname: str = payload.get("sub")
+        if nickname is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.nickname == nickname).first()
+    db.close()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 # Настройка базы данных (SQLite для примера; замените на вашу БД, если нужно)
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -31,15 +47,7 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-
-
 # Настройки для JWT и паролей
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("Необходимо установить переменную окружения SECRET_KEY")
-
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("Необходимо установить переменную окружения SECRET_KEY")
@@ -49,7 +57,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Модель таблицы User (добавлены club и update_ai)
+# Вспомогательные функции для паролей (перемещены выше, чтобы избежать ошибки)
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+# Модель таблицы User (добавлены club, update_ai и avatar)
 class User(Base):
     __tablename__ = "users"
 
@@ -60,7 +75,7 @@ class User(Base):
     role = Column(String, default="user")  # Поле роли с дефолтным значением "user"
     club = Column(String, nullable=True)  # Новое поле для клуба (WakeUp | MIET, etc.)
     update_ai = Column(DateTime, nullable=True, default=None)  # Новое поле для даты обновления AI
-
+    avatar = Column(String, nullable=True)  # Новое поле для аватара
 
 # Модель таблицы Game (без изменений)
 class Game(Base):
@@ -71,12 +86,107 @@ class Game(Base):
     event_id = Column(String, index=True)  # Столбец для привязки к событиям (как строка)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+# Новая модель для событий (турниров)
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(String, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    dates = Column(String, nullable=False)  # Даты как строка (например, "22.11.2025 – 23.11.2025")
+    location = Column(String, nullable=False)
+    type = Column(String, nullable=False)  # "solo" | "pair" | "team"
+    participants_limit = Column(Integer, nullable=False)
+    participants_count = Column(Integer, default=0)  # Можно вычислять динамически
+    fee = Column(Float, nullable=False)
+    currency = Column(String, default="₽")
+    gs_name = Column(String, nullable=False)
+    gs_role = Column(String, default="ГС турнира")
+    gs_avatar = Column(String, nullable=True)  # URL или путь к аватару
+    org_name = Column(String, nullable=False)
+    org_role = Column(String, default="Организатор")
+    org_avatar = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+# Новая модель для команд
+class Team(Base):
+    __tablename__ = "teams"
+
+    id = Column(String, primary_key=True, index=True)  # Уникальный ID команды
+    event_id = Column(String, ForeignKey("events.id"), nullable=False)
+    name = Column(String, nullable=False)
+    members = Column(Text, nullable=False)  # JSON-строка с массивом ID участников (например, "[1,2,3]")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Связь с Event (опционально, для удобства)
+    event = relationship("Event", backref="teams")
 
 # Создание таблиц (запустите один раз; при изменении модели может потребоваться миграция)
 Base.metadata.create_all(bind=engine)
 
-# Логика для назначения роли "admin" первому пользователю в базе данных
-# (если он существует и его роль не "admin", обновляем её)
+# Тестовые данные: вставка демо-данных, если они не существуют
+db = SessionLocal()
+try:
+    # Проверить, есть ли уже данные
+    if db.query(Event).count() == 0:
+        # Демо-событие
+        demo_event = Event(
+            id="2",
+            title="Cyber Couple Cup",
+            dates="22.11.2025 – 23.11.2025",
+            location="Физтех, Долгопрудный, ул. Институтская 9",
+            type="pair",
+            participants_limit=40,
+            participants_count=15,  # Обновить на основе участников
+            fee=1700,
+            currency="₽",
+            gs_name="Антон Третьяков",
+            gs_role="ГС турнира",
+            gs_avatar="",
+            org_name="Долматович Ростислав",
+            org_role="Организатор",
+            org_avatar=""
+        )
+        db.add(demo_event)
+
+    if db.query(User).count() <=10:
+        # Демо-участники
+        demo_users = [
+            User(email="alfa@example.com", nickname="Alfa", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
+            User(email="bravo@example.com", nickname="Bravo", hashed_password=get_password_hash("password"), club="North Lights", avatar=""),
+            User(email="charlie@example.com", nickname="Charlie", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+            User(email="delta@example.com", nickname="Delta", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
+            User(email="echo@example.com", nickname="Echo", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+            User(email="alfa2@example.com", nickname="Alfa2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
+            User(email="bravo2@example.com", nickname="Bravo2", hashed_password=get_password_hash("password"), club="North Lights", avatar=""),
+            User(email="charlie2@example.com", nickname="Charlie2", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+            User(email="delta2@example.com", nickname="Delta2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
+            User(email="echo2@example.com", nickname="Echo2", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+            User(email="alfa3@example.com", nickname="Alfa3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
+            User(email="bravo3@example.com", nickname="Bravo3", hashed_password=get_password_hash("password"), club="North Lights", avatar=""),
+            User(email="charlie3@example.com", nickname="Charlie3", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+            User(email="delta3@example.com", nickname="Delta3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
+            User(email="echo3@example.com", nickname="Echo3", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+        ]
+        for user in demo_users:
+            db.add(user)
+
+    if db.query(Team).count() == 0:
+        # Демо-команды (пары, поскольку type="pair") — добавлены уникальные id
+        demo_teams = [
+            Team(id="team_1", event_id="2", name="FrostBite", members=json.dumps([1, 2])),  # Alfa и Bravo
+            Team(id="team_2", event_id="2", name="IceStorm", members=json.dumps([3, 4])),  # Charlie и Delta
+            Team(id="team_3", event_id="2", name="SnowWolf", members=json.dumps([5, 6])),  # Echo и Alfa2
+        ]
+        for team in demo_teams:
+            db.add(team)
+    db.commit()
+    print("Тестовые данные добавлены")
+except Exception as e:
+    db.rollback()
+    print(f"Ошибка добавления тестовых данных: {str(e)}")
+finally:
+    db.close()
+
 db = SessionLocal()
 try:
     first_user = db.query(User).first()
@@ -89,8 +199,6 @@ except Exception as e:
 finally:
     db.close()
 
-
-# Pydantic модель для валидации входящего JSON для игр (обновлена: добавлены поля для админа)
 class SaveGameData(BaseModel):
     gameId: str = Field(..., description="Идентификатор игры (теперь первичный ключ)")
     players: list[dict] = Field(...,
@@ -99,15 +207,11 @@ class SaveGameData(BaseModel):
     gameInfo: dict = Field(..., description="Информация по игре")
     badgeColor: str = Field(..., description="Цвет бейджа")
     eventId: str = Field(..., description="ID события для привязки (как строка)")
-    admin_nickname: str = Field(..., description="Никнейм админа для аутентификации")  # Новое поле
-    admin_password: str = Field(..., description="Пароль админа для аутентификации")  # Новое поле
-
 
 # Новая Pydantic модель для удаления игры (с проверкой админа)
 class DeleteGameRequest(BaseModel):
     admin_nickname: str = Field(..., description="Никнейм админа для аутентификации")
     admin_password: str = Field(..., description="Пароль админа для аутентификации")
-
 
 # Pydantic модели для пользователей (добавлено club в UserCreate)
 class UserCreate(BaseModel):
@@ -116,11 +220,9 @@ class UserCreate(BaseModel):
     password: str
     club: str  # Новое поле для клуба (опциональное; сделайте str, если обязательное)
 
-
 class UserLogin(BaseModel):
     nickname: str
     password: str
-
 
 # Новая Pydantic модель для запроса на повышение пользователя до админа
 class PromoteAdminRequest(BaseModel):
@@ -129,15 +231,10 @@ class PromoteAdminRequest(BaseModel):
     target_email: str = Field(..., description="Email пользователя, которого нужно сделать админом")
     target_nickname: str = Field(..., description="Никнейм пользователя, которого нужно сделать админом")
 
-
-# Вспомогательные функции для паролей (без изменений)
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
+class CreateTeamRequest(BaseModel):
+    event_id: str = Field(..., description="ID события")
+    name: str = Field(..., description="Название команды/пары")
+    members: list[int] = Field(..., description="Список ID участников")
 
 # Вспомогательные функции для JWT (без изменений)
 def create_access_token(data: dict, expires_delta: timedelta = None):
@@ -150,19 +247,17 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
 # FastAPI приложение (без изменений)
 app = FastAPI()
 
 # CORS middleware для разрешения запросов с React (localhost:3000) (без изменений)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://wakeupmafia.site", "https://wakeupmafia.site"],  # Разрешить запросы с вашего React-сервера
+    allow_origins=["*"],  # Разрешить запросы с вашего React-сервера
     allow_credentials=True,
     allow_methods=["*"],  # Разрешить все методы (GET, POST и т.д.)
     allow_headers=["*"],  # Разрешить все заголовки
 )
-
 
 # Эндпоинт для регистрации (обновлён: добавлена обработка club и update_ai)
 @app.post("/register")
@@ -218,7 +313,6 @@ async def register(user: UserCreate):
     finally:
         db.close()
 
-
 # Эндпоинт для входа (без изменений)
 @app.post("/login")
 async def login(user: UserLogin):
@@ -253,19 +347,12 @@ async def login(user: UserLogin):
     finally:
         db.close()
 
-
 # Новый эндпоинт для повышения пользователя до админа (только админы могут использовать)
 @app.post("/promote_admin")
-async def promote_admin(request: PromoteAdminRequest):
+async def promote_admin(request: PromoteAdminRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        # Проверка админа: найти по nickname и проверить пароль и роль
-        admin_user = db.query(User).filter(User.nickname == request.admin_nickname).first()
-        if not admin_user:
-            raise HTTPException(status_code=400, detail="Админ с таким nickname не найден")
-        if not verify_password(request.admin_password, admin_user.hashed_password):
-            raise HTTPException(status_code=400, detail="Неверный пароль админа")
-        if admin_user.role != "admin":
+        if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
 
         # Найти целевого пользователя по email и nickname
@@ -288,7 +375,6 @@ async def promote_admin(request: PromoteAdminRequest):
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
     finally:
         db.close()
-
 
 # Получить список пользователей (с опциональным фильтром по event_id)
 @app.get("/getUsers")
@@ -327,20 +413,82 @@ async def get_users(event_id: str = None):
     finally:
         db.close()
 
-
-# Сохранить данные игры (обновлено: добавлена проверка админа)
-@app.post("/saveGameData")
-async def save_game_data(data: SaveGameData):
-    print(SaveGameData)
+# Новый эндпоинт для получения информации по событию
+@app.get("/getEvent/{event_id}")
+async def get_event(event_id: str):
     db = SessionLocal()
     try:
-        # Проверка админа: найти по nickname и проверить пароль и роль
-        admin_user = db.query(User).filter(User.nickname == data.admin_nickname).first()
-        if not admin_user:
-            raise HTTPException(status_code=400, detail="Админ с таким nickname не найден")
-        if not verify_password(data.admin_password, admin_user.hashed_password):
-            raise HTTPException(status_code=400, detail="Неверный пароль админа")
-        if admin_user.role != "admin":
+        # Получить событие по ID
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Событие не найдено")
+
+        # Получить участников (всех User, или можно добавить связь с событием, если нужно фильтровать)
+        participants = db.query(User).all()
+        participants_list = [
+            {
+                "id": p.id,
+                "nick": p.nickname,
+                "avatar": p.avatar or "",
+                "club": p.club
+            }
+            for p in participants
+        ]
+
+        # Получить команды для этого события
+        teams = db.query(Team).filter(Team.event_id == event_id).all()
+        teams_list = []
+        for t in teams:
+            members_ids = json.loads(t.members)  # Парсим JSON-строку в список ID
+            members = [
+                {"id": mid, "nick": db.query(User).filter(User.id == mid).first().nickname if db.query(User).filter(User.id == mid).first() else "Неизвестный"}
+                for mid in members_ids
+            ]
+            teams_list.append({
+                "id": t.id,
+                "name": t.name,
+                "members": members
+            })
+
+        # Сформировать ответ в формате, ожидаемом фронтендом
+        event_data = {
+            "title": event.title,
+            "dates": event.dates,
+            "location": event.location,
+            "type": event.type,
+            "participantsLimit": event.participants_limit,
+            "participantsCount": event.participants_count,
+            "fee": event.fee,
+            "currency": event.currency,
+            "gs": {
+                "name": event.gs_name,
+                "role": event.gs_role,
+                "avatar": event.gs_avatar
+            },
+            "org": {
+                "name": event.org_name,
+                "role": event.org_role,
+                "avatar": event.org_avatar
+            },
+            "participants": participants_list,
+            "teams": teams_list
+        }
+
+        return event_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения данных события: {str(e)}")
+    finally:
+        db.close()
+
+# Сохранить данные игры (обновлено: добавлена проверка админа через JWT)
+@app.post("/saveGameData")
+async def save_game_data(data: SaveGameData, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
 
         # Определяем победившую команду на основе badgeColor
@@ -398,7 +546,6 @@ async def save_game_data(data: SaveGameData):
     finally:
         db.close()
 
-
 # Эндпоинт для получения данных игры (без изменений)
 @app.get("/getGameData/{gameId}")
 async def get_game_data(gameId: str):
@@ -418,19 +565,12 @@ async def get_game_data(gameId: str):
     finally:
         db.close()
 
-
-# Новый эндпоинт для удаления игры (только админы могут использовать)
+# Новый эндпоинт для удаления игры (только админы могут использовать, с JWT)
 @app.delete("/deleteGame/{gameId}")
-async def delete_game(gameId: str, request: DeleteGameRequest):
+async def delete_game(gameId: str, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        # Проверка админа: найти по nickname и проверить пароль и роль
-        admin_user = db.query(User).filter(User.nickname == request.admin_nickname).first()
-        if not admin_user:
-            raise HTTPException(status_code=400, detail="Админ с таким nickname не найден")
-        if not verify_password(request.admin_password, admin_user.hashed_password):
-            raise HTTPException(status_code=400, detail="Неверный пароль админа")
-        if admin_user.role != "admin":
+        if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
 
         # Найти игру по gameId
@@ -451,7 +591,6 @@ async def delete_game(gameId: str, request: DeleteGameRequest):
         raise HTTPException(status_code=500, detail=f"Ошибка удаления игры: {str(e)}")
     finally:
         db.close()
-
 
 @app.get("/getGames")
 async def get_games(limit: int = 10, offset: int = 0):
@@ -484,7 +623,6 @@ async def get_games(limit: int = 10, offset: int = 0):
         raise HTTPException(status_code=500, detail=f"Ошибка получения списка игр: {str(e)}")
     finally:
         db.close()
-
 
 @app.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"),
@@ -552,7 +690,6 @@ async def get_rating(limit: int = Query(10, description="Количество э
         raise HTTPException(status_code=500, detail=f"Ошибка получения рейтинга: {str(e)}")
     finally:
         db.close()
-
 
 @app.get("/getDetailedStats")
 async def get_detailed_stats(
@@ -730,6 +867,96 @@ async def get_detailed_stats(
         raise HTTPException(status_code=500, detail=f"Ошибка получения детальной статистики: {str(e)}")
     finally:
         db.close()
+
+@app.post("/createTeam")
+async def create_team(request: CreateTeamRequest, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        # Проверить существование события
+        event = db.query(Event).filter(Event.id == request.event_id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Событие не найдено")
+
+        # Определить размер команды
+        team_size = 2 if event.type == "pair" else 5  # Предполагаем 5 для team; можно сделать динамичным
+        min_team_size = team_size // 2 if event.type == "team" else team_size  # Минимум половина для team
+
+        # Валидация размера команды
+        if event.type == "pair" and len(request.members) != 2:
+            raise HTTPException(status_code=400, detail="Для парного турнира требуется ровно 2 участника")
+        elif event.type == "team" and not (min_team_size <= len(request.members) <= team_size):
+            raise HTTPException(status_code=400, detail=f"Для командного турнира требуется от {min_team_size} до {team_size} участников")
+        elif event.type == "solo":
+            raise HTTPException(status_code=400, detail="Создание команд не поддерживается для личного турнира")
+
+        # Проверить, что все участники существуют
+        members = db.query(User).filter(User.id.in_(request.members)).all()
+        if len(members) != len(request.members):
+            raise HTTPException(status_code=400, detail="Один или несколько участников не найдены")
+
+        # Проверка прав: если не админ, должен включать себя
+        if current_user.role != "admin" and current_user.id not in request.members:
+            raise HTTPException(status_code=403, detail="Вы можете создавать команду только с участием себя")
+
+        # Проверить, что участники не в других командах этого события
+        existing_teams = db.query(Team).filter(Team.event_id == request.event_id).all()
+        assigned_ids = set()
+        for t in existing_teams:
+            assigned_ids.update(json.loads(t.members))
+        if any(mid in assigned_ids for mid in request.members):
+            raise HTTPException(status_code=400, detail="Один или несколько участников уже в другой команде")
+
+        # Сгенерировать уникальный ID команды
+        import uuid
+        team_id = f"team_{uuid.uuid4().hex[:8]}"
+
+        # Создать команду
+        new_team = Team(
+            id=team_id,
+            event_id=request.event_id,
+            name=request.name,
+            members=json.dumps(request.members)
+        )
+        db.add(new_team)
+        db.commit()
+
+        return {"message": "Команда создана успешно", "team_id": team_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка создания команды: {str(e)}")
+    finally:
+        db.close()
+
+# Новый эндпоинт для удаления команды (только админы)
+@app.delete("/deleteTeam/{team_id}")
+async def delete_team(team_id: str, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
+
+        # Найти команду
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Команда не найдена")
+
+        # Удалить команду
+        db.delete(team)
+        db.commit()
+
+        return {"message": f"Команда {team_id} удалена успешно"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка удаления команды: {str(e)}")
+    finally:
+        db.close()
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=4)

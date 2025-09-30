@@ -1,38 +1,7 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
 import { AuthContext } from "../AuthContext";
-
-/* --- демо-данные --- */
-const demoTournament = {
-  title: "Cyber Couple Cup",
-  dates: "22.11.2025 – 23.11.2025",
-  location: "Физтех, Долгопрудный, ул. Институтская 9",
-  type: "pair", // "solo" | "pair" | "team"
-  participantsLimit: 40,
-  participantsCount: 5,
-  fee: 1700,
-  currency: "₽",
-  gs: { name: "Антон Третьяков", role: "ГС турнира", avatar: "" },
-  org: { name: "Долматович Ростислав", role: "Организатор", avatar: "" },
-};
-
-const demoParticipants = [
-  { id: 1, nick: "Alfa", avatar: "", club: "Polar Cats" },
-  { id: 2, nick: "Bravo", avatar: "", club: "North Lights" },
-  { id: 3, nick: "Charlie", avatar: "", club: "Aurora" },
-  { id: 4, nick: "Delta", avatar: "", club: "Polar Cats" },
-  { id: 5, nick: "Echo", avatar: "", club: "Aurora" },
-  { id: 6, nick: "Alfa", avatar: "", club: "Polar Cats" },
-  { id: 7, nick: "Bravo", avatar: "", club: "North Lights" },
-  { id: 8, nick: "Charlie", avatar: "", club: "Aurora" },
-  { id: 9, nick: "Delta", avatar: "", club: "Polar Cats" },
-  { id: 10, nick: "Echo", avatar: "", club: "Aurora" },
-  { id: 11, nick: "Alfa", avatar: "", club: "Polar Cats" },
-  { id: 12, nick: "Bravo", avatar: "", club: "North Lights" },
-  { id: 13, nick: "Charlie", avatar: "", club: "Aurora" },
-  { id: 14, nick: "Delta", avatar: "", club: "Polar Cats" },
-  { id: 15, nick: "Echo", avatar: "", club: "Aurora" },
-];
+import { useLocation, useParams } from "react-router-dom";
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
@@ -45,17 +14,67 @@ const stubAvatar =
   );
 
 export default function Game({
-  tournament = demoTournament,
-  participants: participantsProp = demoParticipants,
+  tournament: tournamentProp,
+  participants: participantsProp,
   initialTeams,
 }) {
-  const { isAdmin, user } =
-    useContext(AuthContext) ?? { isAdmin: false, user: null };
+  const { isAdmin, user } = useContext(AuthContext) ?? { isAdmin: false, user: null };
   const currentUserId = user?.id ?? null;
+  const { evenId } = useParams(); // Предполагаем, что evenId передается в URL как /event/:evenId
 
-  /* участники/команды */
-  const [participants] = useState(participantsProp);
-  const [teams, setTeams] = useState(initialTeams ?? []);
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  // State для данных события
+  const [tournament, setTournament] = useState(tournamentProp || {});
+  const [participants, setParticipants] = useState(participantsProp || []);
+  const [teams, setTeams] = useState(initialTeams || []);
+  const [detailedStatsData, setDetailedStatsData] = useState([]);
+  const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
+  const [detailedStatsTotalPages, setDetailedStatsTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  // Получение данных по событию
+  
+  useEffect(() => {
+    if (!evenId) return;
+
+    setLoading(true);
+    fetch(`http://localhost:8000/getEvent/${evenId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Ошибка загрузки данных события");
+        return res.json();
+      })
+      .then((data) => {
+        setTournament(data);
+        setParticipants(data.participants || []);
+        setTeams(data.teams || []);
+      })
+      .catch((err) => {
+        console.error("Ошибка:", err);
+        // Можно показать сообщение об ошибке пользователю
+      })
+      .finally(() => setLoading(false));
+  }, [evenId]);
+
+  // Получение детальной статистики (личный зачёт)
+  // useEffect(() => {
+  //   fetch(`http://localhost:8000/getDetailedStats?limit=100&offset=0`) // Пример: получить все или с пагинацией
+  //     .then((res) => {
+  //       if (!res.ok) throw new Error("Ошибка загрузки статистики");
+  //       return res.json();
+  //     })
+  //     .then((data) => {
+  //       setDetailedStatsData(data.players || []);
+  //       setDetailedStatsTotalPages(Math.ceil((data.total_count || 0) / 10)); // Предполагаем PAGE_SIZE=10
+  //     })
+  //     .catch((err) => {
+  //       console.error("Ошибка:", err);
+  //     });
+  // }, []);
 
   const teamSize = useMemo(() => {
     if (tournament.type === "pair") return 2;
@@ -63,7 +82,7 @@ export default function Game({
     return 1;
   }, [tournament.type]);
 
-  const assignedIds = new Set(teams.flatMap((t) => t.members));
+  const assignedIds = new Set(teams.flatMap((t) => t.members.map(m => m.id)));
   const freeParticipants = participants.filter((p) => !assignedIds.has(p.id));
 
   /* форма создания */
@@ -100,7 +119,7 @@ export default function Game({
       {
         id: `team_${Date.now()}`,
         name: teamName.trim(),
-        members: [...selectedIds],
+        members: selectedIds.map(id => ({ id, nick: participants.find(p => p.id === id)?.nick || "Неизвестный" })),
       },
     ]);
     setTeamName("");
@@ -112,52 +131,7 @@ export default function Game({
     setTeams((prev) => prev.filter((t) => t.id !== id));
   };
 
-  /* ===== демо-данные для таблицы личного зачёта ===== */
-  const detailedStatsRaw = [
-    { nickname: "Alfa", games: 8, points: 87.5 },
-    { nickname: "Bravo", games: 8, points: 82.0 },
-    { nickname: "Charlie", games: 8, points: 79.25 },
-    { nickname: "Delta", games: 6, points: 70.0 },
-    { nickname: "Echo1", games: 5, points: 62.5 },
-    { nickname: "Echo2", games: 5, points: 62.5 },
-    { nickname: "Echo3", games: 5, points: 62.5 },
-    { nickname: "Echo4", games: 5, points: 62.5 },
-    { nickname: "Echo5", games: 5, points: 62.5 },
-    { nickname: "Echo6", games: 5, points: 62.5 },
-    { nickname: "Echo7", games: 5, points: 62.5 },
-    { nickname: "Echo8", games: 5, points: 62.5 },
-  ];
-
-  const detailedStatsData = detailedStatsRaw.map((r) => ({
-    nickname: r.nickname,
-    totalPoints: r.points,
-    bonuses: 0,
-    penalties: 0,
-    gamesPlayed: {
-      peaceful: r.games,
-      mafia: 0,
-      red: 0,
-      don: 0,
-      sk: 0,
-      jk: 0,
-    },
-    wins: {
-      peaceful: Math.floor(r.games / 2),
-      mafia: 0,
-      red: 0,
-      don: 0,
-      sk: 0,
-      jk: 0,
-    },
-    role_plus: { peaceful: [0], mafia: [], red: [], don: [], sk: [], jk: [] },
-  }));
-
-  const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
-  const detailedStatsTotalPages = Math.max(
-    1,
-    Math.ceil(detailedStatsData.length / PAGE_SIZE)
-  );
   const handleDetailedStatsPageChange = (p) =>
     setDetailedStatsCurrentPage(
       Math.min(Math.max(1, p), detailedStatsTotalPages)
@@ -165,6 +139,10 @@ export default function Game({
 
   /* ===== вкладки результатов ===== */
   const [activeTab, setActiveTab] = useState(1);
+
+  if (loading) {
+    return <div>Загрузка...</div>; // Простой индикатор загрузки
+  }
 
   return (
     <section className={styles.pageWrap}>
@@ -214,32 +192,32 @@ export default function Game({
         <aside className={styles.rightCol}>
           <div className={styles.personCard}>
             <img
-              src={tournament.gs.avatar || stubAvatar}
-              alt={tournament.gs.name}
+              src={tournament.gs?.avatar || stubAvatar}
+              alt={tournament.gs?.name}
               className={styles.avatar}
             />
             <div className={styles.personMeta}>
-              <div className={styles.personName}>{tournament.gs.name}</div>
-              <div className={styles.personRole}>{tournament.gs.role}</div>
+              <div className={styles.personName}>{tournament.gs?.name}</div>
+              <div className={styles.personRole}>{tournament.gs?.role}</div>
             </div>
           </div>
 
           <div className={styles.personCard}>
             <img
-              src={tournament.org.avatar || stubAvatar}
-              alt={tournament.org.name}
+              src={tournament.org?.avatar || stubAvatar}
+              alt={tournament.org?.name}
               className={styles.avatar}
             />
             <div className={styles.personMeta}>
-              <div className={styles.personName}>{tournament.org.name}</div>
-              <div className={styles.personRole}>{tournament.org.role}</div>
+              <div className={styles.personName}>{tournament.org?.name}</div>
+              <div className={styles.personRole}>{tournament.org?.role}</div>
             </div>
           </div>
 
           <div className={styles.feeCard}>
             <div className={styles.caption}>Стоимость участия</div>
             <div className={styles.fee}>
-              {tournament.fee.toLocaleString()} {tournament.currency}
+              {tournament.fee?.toLocaleString()} {tournament.currency}
             </div>
             <button
               type="button"
@@ -376,19 +354,16 @@ export default function Game({
                     )}
                   </div>
                   <div className={styles.teamMembers}>
-                    {t.members.map((mid) => {
-                      const m = participants.find((pp) => pp.id === mid);
-                      return (
-                        <div className={styles.teamMember} key={mid}>
-                          <img
-                            src={m?.avatar || stubAvatar}
-                            alt={m?.nick || "Player"}
-                            className={styles.memberAvatar}
-                          />
-                          <span>{m?.nick ?? "Игрок"}</span>
-                        </div>
-                      );
-                    })}
+                    {t.members.map((m) => (
+                      <div className={styles.teamMember} key={m.id}>
+                        <img
+                          src={participants.find(p => p.id === m.id)?.avatar || stubAvatar}
+                          alt={m.nick}
+                          className={styles.memberAvatar}
+                        />
+                        <span>{m.nick}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))
@@ -424,7 +399,7 @@ export default function Game({
           {activeTab === 1 && (
             <div className={styles.tableOnly}>
               <DetailedStatsTable
-                data={detailedStatsData}
+                data={detailedStatsData.slice((detailedStatsCurrentPage - 1) * PAGE_SIZE, detailedStatsCurrentPage * PAGE_SIZE)}
                 currentPage={detailedStatsCurrentPage}
                 totalPages={detailedStatsTotalPages}
                 onPageChange={handleDetailedStatsPageChange}

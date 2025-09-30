@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Footer.module.css';
-import tg from '../tg.png'; // Импорт изображения для Telegram
-import vk from '../vk.png'; // Импорт изображения для VK
+import tg from '../images/tg.png'; // Импорт изображения для Telegram
+import vk from '../images/vk.png'; // Импорт изображения для VK
 
 // Функции иконок (вынесены сюда, без width/height — размер теперь в CSS)
 const TelegramIcon = () => <img src={tg} alt="Telegram" />;

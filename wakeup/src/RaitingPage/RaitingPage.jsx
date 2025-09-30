@@ -6,6 +6,9 @@ import defaultAvatar from '../NavBar/avatar.png';
 
 const tabs = ['Общая сводка', 'Игры', 'Статистика'];
 
+const baseURL = "http://localhost:8000"
+
+
 export default function RatingPage() {
   const [activeTab, setActiveTab] = useState('Общая сводка');
 
@@ -114,7 +117,7 @@ const { isAdmin } = useContext(AuthContext);
     setPlayersError(null);
     try {
       const res = await fetch(
-        `/api/getRating?limit=${itemsPerPage}&offset=${startIndex}`
+        baseURL+`/getRating?limit=${itemsPerPage}&offset=${startIndex}`
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();

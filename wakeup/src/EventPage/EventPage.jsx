@@ -1,7 +1,7 @@
 // EventsPage.jsx
 import React, { useState } from 'react';
 import styles from './EventPage.module.css';
-import CCC from '../CCC.png';
+import CCC from '../images/CCC.png';
 import { NavLink } from "react-router-dom";
 
 function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {

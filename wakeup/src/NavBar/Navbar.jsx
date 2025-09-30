@@ -4,7 +4,7 @@ import styles from './NavBar.module.css';
 import { NavLink } from "react-router-dom";
 import { AuthContext } from '../AuthContext';
 import defaultAvatar from "./avatar.png";
-import wh from "../WhiteHeart.png"
+import wh from "../images/WhiteHeart.png"
 
 const Navbar = () => {
   const { user, isAuthenticated, isAdmin, logout } = useContext(AuthContext);

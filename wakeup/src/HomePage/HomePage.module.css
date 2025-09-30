@@ -1,513 +1,772 @@
-/* HomePage.module.css */
+/* =========================
+   ФОНТЫ (из первого файла) — Глобальные
+   ========================= */
 
-.container {
-  position: relative;
-  z-index: 1; /* поднять над секцией клубов */
-  min-height: 100vh;
-  display: flex;
-  
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+/* =========================
+   ГЛОБАЛЬНЫЕ (приоритет — первый файл)
+   ========================= */
+* {
+  font-family: 'Hikasami', sans-serif;
+  color: #FFFFFF;
+  box-sizing: border-box;           /* добавили из второго — безопасно */
+}
+body {
+  background-color: #1F1F1F;        /* оставляем фон первого файла */
+  margin: 0;                        /* из второго — нормализуем */
+  min-height: 100dvh;               /* из второго — безопасно */
+}
+
+/* =========================
+   БАЗОВАЯ СЕТКА/КОНТЕЙНЕРЫ (из первого) — Глобальные, если используются вне компонента
+   ========================= */
+.page-wrapper {
+  margin-top: 0;
   background-color: #1F1F1F;
-  color: white;
-  /* overflow: hidden;  Убрано, чтобы содержимое не обрезалось */
-  box-sizing: border-box;
-}
-
-.content {
-  position: relative;
-  max-width: 700px;
-  margin: 0 auto;
-  text-align: center;
-  z-index: 1;
-  color: white;
-  box-sizing: border-box;
-}
-
-.container::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image:
-    radial-gradient(circle 650px at 10% 20%, #E1652B, transparent 80%),
-    radial-gradient(circle 700px at 90% 40%, #E38C33, transparent 80%),
-    radial-gradient(circle 700px at 10% 80%, #e37433, transparent 80%);
-  background-repeat: no-repeat;
-  background-size: cover;
-  filter: blur(50px);
-  z-index: 0;
-}
-
-.title {
-  font-weight: 900;
-  font-size: 4.5rem;
-  line-height: 1.2;
-  margin-bottom: 20px;
-  margin-top: 10%;
-  max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
-  white-space: normal;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  text-align: center;
-}
-
-.description {
-  background-color: rgba(0, 0, 0, 0.6);
-  padding: 16px 24px;
-  border-radius: 8px;
-  font-size: 1.2rem;
-  line-height: 1.4;
-  max-width: 600px;
-  margin: 0 auto 40px auto;
-  font-weight: 500;
-  color: #fff;
-  box-sizing: border-box;
-}
-
-.button {
-  background: linear-gradient(90deg, #f08c3f 0%, #7a6ff1 100%);
-  border: none;
-  border-radius: 30px;
-  color: white;
-  font-weight: 700;
-  font-size: 1.3rem;
-  padding: 16px 48px;
-  cursor: pointer;
-  transition: opacity 0.3s;
-  position: relative;
-  z-index: 1;
-  box-shadow: 0 4px 12px rgba(240, 140, 63, 0.7);
-  display: block;
-  margin: 0 auto;
-  margin-top: 80px;
-  box-sizing: border-box;
-}
-
-.button:hover {
-  opacity: 0.85;
-}
-
-/* =================== Увеличенный футер =================== */
-.footer {
-  position: relative;
-  z-index: 1;
-  margin-top: 100px;
-  display: flex;
-  color: #d6b886;
-  font-size: 1.3rem;
-  font-weight: 600;
-  border-top: 1.5px solid #d6b886;
-  border-bottom: 1.5px solid #d6b886;
-  background: rgba(0, 0, 0, 0.25);
   width: 100%;
-  justify-content: center;
-  flex-wrap: wrap;
-  box-sizing: border-box;
+  border-color: #303030;
 }
-
-.footerItem {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding: 20px 30px;
-  border-left: 1.5px solid #d6b886;
-  min-width: 200px;
-  box-sizing: border-box;
-}
-
-.footerItem:first-child {
-  border-left: none;
-}
-
-.icon {
-  margin-right: 16px;
-  flex-shrink: 0;
-  stroke: #d6b886;
-  width: 32px;
-  height: 32px;
-}
-
-/* =================== Секция "Наши клубы" =================== */
-.clubsSection {
-  position: relative;
-  z-index: 0; /* ниже контейнера */
-  margin-top: 10%; /* увеличен отступ сверху, чтобы не было наложения */
-  background: transparent;
-  padding: 80px 50px; /* увеличено */
-  border-radius: 12px;
-  border: none;
-  max-width: 1000px; /* увеличено для большего размера */
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: none;
-  margin-bottom: 5%;
-  box-sizing: border-box;
-}
-
-.clubsTitle {
-  text-align: center;
-  font-weight: 900;
-  font-size: 3.5rem; /* увеличено */
-  margin-bottom: 50px; /* увеличено */
-  color: #ffffff;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-family: 'Arial Black', Arial, sans-serif;
-  box-sizing: border-box;
-}
-
-.clubsList {
-  display: flex;
-  flex-direction: column;
-  gap: 40px; /* увеличено */
-  box-sizing: border-box;
-}
-
-.clubCard {
-  display: flex;
-  align-items: center;
-  background: rgba(20, 10, 5, 0.85);
-  padding: 50px 60px; /* увеличено */
-  border-radius: 20px;
-  border: 2px solid #e08c3f;
-  box-shadow: 0 0 10px 2px rgba(224, 140, 63, 0.4);
-  transition: box-shadow 0.3s ease, background-color 0.3s ease;
-  position: relative;
-  box-sizing: border-box;
-}
-
-.clubCard:hover {
-  background: rgba(30, 12, 6, 0.95);
-  box-shadow: 0 0 15px 4px #f08c3f;
-}
-
-.clubIcon {
-  width: 150px; /* увеличено */
-  height: 150px; /* увеличено */
-  border-radius: 8px;
-  margin-right: 30px; /* увеличено */
-  object-fit: contain;
-  border: 2px solid #f08c3f;
-  background-color: rgba(26, 26, 46, 0.5);
-  filter: none;
-  box-sizing: border-box;
-}
-
-.clubInfo {
-  flex-grow: 1;
-  color: #f0e6d2;
-  font-size: 18px; /* увеличено */
-  line-height: 1.5;
-  font-weight: 500;
-  box-sizing: border-box;
-}
-
-.clubName {
-  font-weight: 700;
-  font-size: 32px; /* увеличено */
-  margin-bottom: 12px; /* увеличено */
-  color: #f08c3f;
-  text-shadow: none;
-  box-sizing: border-box;
-}
-
-.clubDetails {
-  white-space: pre-line;
-  color: #d6c9b8;
-  font-size: 20px; /* увеличено */
-  box-sizing: border-box;
-}
-
-.socialLinks {
-  display: flex;
-  gap: 25px; /* увеличено */
-  align-items: center;
-  background: rgba(128, 128, 128, 0.3);
-  padding: 15px 20px; /* увеличено */
-  border-radius: 8px;
-  margin-left: 15px; /* увеличено */
-  box-sizing: border-box;
-}
-
-.socialLink {
-  color: #999;
-  transition: color 0.3s ease;
-  display: flex;
-  align-items: center;
-  font-size: 2rem; /* увеличено */
-  box-sizing: border-box;
-}
-
-.socialLink:hover {
-  color: #f08c3f;
-}
-
-/* =================== Секция "Множество мероприятий" =================== */
-.eventsSection {
-  position: relative;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  height: auto; 
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding-bottom: 5%;
-  
-}
-
-.y{
-  background-color: #e08c3f;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  white-space: nowrap;
+.header {
+  margin-left: 267px;
+  margin-right: 267px;
+  margin-top: 0px;
   max-width: 100%;
   font-weight: 700;
+  background-color: #303030;
+  padding: 10px 15px;
+  top: 0;
+  /* position: fixed;
+  z-index: 1000;  */
 }
 
-.eventsRow {
-  display: flex;
-  margin-top: 10%;
-  flex-direction: row;
-  gap: 95px;
-  justify-content: center;
-  height: auto;
-  scroll-behavior: smooth; 
+/* =========================
+   БАЗОВАЯ СЕТКА/КОНТЕЙНЕРЫ (локальные для компонента)
+   ========================= */
+.container {
+  margin: 0 auto;
+  height: 100%;
+  border-color: #303030;
+  border: 2px;
 }
 
-.eventsRow::-webkit-scrollbar {
-  height: 0px;
-}
-
-.eventsRow::-webkit-scrollbar-thumb {
-  background-color: #555;
-  border-radius: 0px;
-}
-
-.eventsTitle {
-  position: relative;
-  font-size: 60px;
-  font-weight: 700;
-  margin-bottom: 40px;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
-  white-space: normal;
-  overflow-wrap: break-word;
-  word-break: break-word;
+/* =========================
+   КОНТЕНТ-БЛОК 1 (из первого)
+   ========================= */
+.content-box-one {
+  margin: 0 auto;
+  border: 1px solid #303030;
+  font-weight: 100;
   z-index: 2;
-  background: rgba(0,0,0,0.3);
-  border-radius: 12px;
-  padding: 5px;
-  box-sizing: border-box;
+  position: relative;
+  margin-top: 0;
+  border-top: none;
+  max-width: 1200px;
+}
+.comment-top {
+  display: flex;
+  justify-content: end;
+  color: #5e5e5e;
+  font-weight: 100;
+  letter-spacing: 20px;
+  margin-top: 0;
+  padding-top: 10px;
+}
+.comment-bottom {
+  display: flex;
+  color: #5e5e5e;
+  font-weight: 100;
+  letter-spacing: 20px;
+  margin-left: 20px;
+}
+.title {
+  font-size: 40px;
+  font-weight: 800;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.row-content-1 {
+  display: flex;
+  max-width: 50%;
+  text-align: center;
+  flex-direction: column;
+  gap: 20px;
+}
+.row-content-2 {
+  display: flex;
+  max-width: 50%;
+  text-align: center;
+  flex-direction: column;
+  gap: 20px;
+  justify-content: end;
+}
+.content-box-one_center-content {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 35px;
+}
+.card-img {
+  width: 90%;
 }
 
-.eventCard {
-  background: rgba(20, 10, 5, 0.85);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 0 8px transparent;
-  align-items: center;
-  outline: none;
-  border: 2px solid transparent;
+/* =========================
+   ДЕКОР/ФОНЫ (из первого)
+   ========================= */
+.background-numberone {
+  position: absolute;
+  transform: translate(0, 0);
+  top: 30%;
+  opacity: 1;
+  z-index: 0;
+  max-width: 200px;
+  pointer-events: none;
+}
+
+.background-numbertwo {
+  position: absolute;
+  transform: translate(0, 0);
+  top: 125%;
+  margin-left: calc(1250px - var(--second-img));
+  margin-right: 0;
+  opacity: 1;
+  z-index: 0;
+  max-width: 150px;
+  pointer-events: none;
+}
+.line {
+  background-color: #303030;
+  height: 1px;
+  position: relative;
+  top: -1px;
+}
+.circle-empty {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: none;
+  border: 1px solid #303030;
+  position: absolute;
+  transform: (100,100);
+  right: 16em;
+  top: 47em;
+}
+.circle-grad,
+.circle-grad2,
+.circle-grad3 {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: #5D43DD;
+  filter: blur(70px);
+  position: absolute;
+}
+.circle-grad { opacity: 40%; right: 16em; top: 47em; }
+.circle-grad2 { opacity: 60%; right: 80%; top: 130%; }
+.circle-grad3 { opacity: 30%; right: 16em; top: 160%; filter: blur(50px); }
+.background-numberfour {
+  position: absolute;
+  transform: translate(0, 0);
+  top: 260%;
+  opacity: 1;
+  z-index: 0;
+  max-width: 200px;
+  pointer-events: none;
+}
+
+/* =========================
+   КОНТЕНТ-БЛОК 2 (из первого)
+   ========================= */
+.content-box-two {
+  text-align: left;
+  margin: 0 auto;
+  border: 1px solid #303030;
+  font-weight: 100;
+  z-index: 2;
+  position: relative;
+  margin-top: 0;
+  border-top: none;
   display: flex;
   flex-direction: column;
-  min-width: 220px; /* минимальная ширина для адекватного размера */
-  max-width: 250px; /* максимальная ширина, чтобы не было слишком больших */
-  box-sizing: border-box;
-  
+  gap: 40px;
+  max-width: 1200px;
 }
 
-.eventCard:focus {
-  box-shadow: 0 0 12px #f08c3f;
+.club-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+  margin: 0px 50px;
+}
+.rostik-doebalsya {
+  display: flex;
+  justify-content: space-evenly;
+  gap: 110px;
+  align-items: center;
+}
+.club-social {
+  display: flex;
+  align-items: end;
+  gap: 30px;
+}
+.club-subtitle {
+  font-size: 24px;
+  max-width: 300px;
+}
+.club-description {
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+.adress {
+  font-size: 15px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  font-weight: 100;
+  color: #929292da;
+}
+.club-title {
+  margin-left: 50px;
+  font-size: 40px;
+  font-weight: 800;
+  display: flex;
+}
+.club-title h4 { margin-bottom: 0px; }
+.rules-box {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+.rules-title {
+  font-size: 24px;
+  margin-bottom: 5px;
+  font-weight: 600;
 }
 
-.eventCard:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 12px #f08c3f;
+/* ============================================================
+   КАРУСЕЛЬ №1 «Турниры» (из первого файла) — НАМЕСТНО СКОУПИМ
+   ============================================================ */
+:root {
+  --accent-bt: #303030;
+  --card-w: 200px;     /* базовая ширина слайда для карусели №1 */
+  --card-h: 320px;     /* базовая высота слайда для карусели №1 */
+  --active-grow: 1.25; /* активный = 125% ширины и высоты */
+  --gap: 24px;         /* расстояние между карточками */
+  --second-img:350px
+}
+.content-box-three {
+  border: 1px solid #303030; border-top: none;
+  background: #2a1240; transition: background .6s ease;
+  overflow: hidden; position: relative;
+  margin: 0 auto;
+  padding-top: 20px;
+  padding-bottom: 50px;
+  max-width: 1200px;
 }
 
-.activeEventCard {
-  border: 2px solid #f08c3f;
-  box-shadow: 0 0 16px #f08c3f;
-  transform: scale(1.2);
-}
-
-.eventImage {
-  width: 100%;
-  object-fit: cover;
-  margin-bottom: 8px;
-  user-select: none;
-  border-radius: 10px 10px 0 0;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
-
-.eventText {
+.rules-description{
+  margin: 20px auto;
+  max-width: 800px;
   text-align: center;
-  top:-20;
-  color: #f0e6d2;
-  padding: 0 10px 10px;
-  flex-grow: 1;
-  box-sizing: border-box;
 }
 
-.eventText strong {
+.title-tournament {
+  font-size: 46px; text-align: right; margin: 0 50px; padding-top: 10px; font-weight: 800;
+}
+.carousel-box {
+  display: grid; grid-template-columns: 1fr 2fr; gap: 48px;
+  align-items: start; margin: 0 50px 90px;
+}
+.text-block { max-width: 520px; padding-top: 60px; color: #fff; }
+.text-block h2 { margin: 0 0 14px; font-size: 48px; line-height: 1.05; }
+.text-block p { margin: 0; line-height: 1.45; opacity: .9; }
+
+.cta{
+  --stroke:      #ff9900;      /* цвет линии */
+  --glow:        rgb(255, 153, 1);
+  --line-h:      6px;          /* толщина линий */
+  --ext:         15px;        /* насколько нижняя линия уходит вправо */
+  --skew:        30deg;       /* наклон под форму кнопки */
+  --slash-len:   74px;         /* длина диагональной линии */
+  --slash-rot:   -40deg;       /* дополнительный поворот диагонали */
+
+  position: relative;
+  z-index: 0;                  /* создаём свой стек */
+  margin-top: 28px;
+  padding: 14px 22px;
+  background: var(--accent-bt);
+  color: #fff;
+  font-weight: 700;
+  border: 0;
+  cursor: pointer;
+
+  /* скошенный правый торец кнопки */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10%) 100%, 0 100%);
+}
+
+/* НИЖНЯЯ ЛИНИЯ + свечение */
+.cta::after{
+  content:"";
+  position:absolute;
+  left:0;
+  width: calc(100% + var(--ext));
+  height: var(--line-h);
+  bottom: calc(-1 * var(--line-h));      /* под кнопкой */
+  background: var(--stroke);
+  /* transform: skewX(var(--skew)); */
+  
+  z-index:-1;
+  /* свечение вокруг линии */
+  box-shadow:
+    0 0 10px var(--glow),
+    0 0 18px var(--glow),
+    0 0 28px var(--glow);
+}
+
+/* ДИАГОНАЛЬНАЯ ЛИНИЯ у правого торца */
+.cta::before{
+  content:"";
+  position:absolute;
+  right: -60px;                          /* выносим чуть за кнопку */
+  width: var(--slash-len);
+  height: var(--line-h);
+  bottom: calc(-1 * var(--line-h) + 1px); 
+  background: var(--stroke);
+  transform: skewX(var(--skew)) rotate(var(--slash-rot));
+  transform-origin: left center;
+  border-radius: 2px;
+  z-index:-1;
+  box-shadow:
+    0 0 16px var(--glow),
+    0 0 16px var(--glow),
+    0 0 24px var(--glow);
+}
+
+/* Контейнер окна карусели №1 */
+.carousel-wrapper {
+  width: calc(var(--card-w) * 3 + var(--gap) * 2);
+  height: calc(var(--card-h) * var(--active-grow));
+  display: flex; flex-direction: column; justify-content: flex-end;
+  margin-left: auto; /* прижимаем вправо */
+}
+.viewport {
+  width: 100%; height: 100%;
+  overflow: hidden; position: relative;
+}
+.viewport::-webkit-scrollbar { display: none; }
+
+.carousel {
+  height: 100%;
+  display: flex; align-items: flex-end;
+  gap: var(--gap);
+  transition: transform .6s ease;
+  will-change: transform;
+}
+.slide {
+  width: var(--card-w);
+  height: calc(100% / var(--active-grow));
+  flex-shrink: 0; cursor: pointer;
+  border-radius: 0px; overflow: hidden;
+  transition: width .35s ease, height .35s ease, box-shadow .25s ease, opacity .25s ease;
+  box-shadow: 0 12px 24px rgba(0,0,0,.35);
+  opacity: .95; display: block; background: #000;
+}
+.slide > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.slide.active {  /* Исправлено: .active вместо :active */
+  width: calc(var(--card-w) * var(--active-grow));
+  height: 100%;
+  box-shadow: 0 22px 40px rgba(0,0,0,.45);
+  opacity: 1;
+}
+
+/* Точки карусели №1 — жёстко scoped, чтобы не пересекались со второй */
+.content-box-three .dots {
+  display: flex; gap: 16px; justify-content: center; margin: 0 auto; max-width: 1200px;
+}
+.content-box-three .dot {
+  margin: 20px auto;
+  width: 10px; height: 10px;
+  background: rgba(255,255,255,.45);
+  transition: background .2s ease, transform .2s ease;
+}
+.content-box-three .dot.active { background: #fff; transform: scale(1.1); }
+
+/* ============================================================
+   КАРУСЕЛЬ №2 «Карты/Роли» (всё изолировано через .wrap)
+   ============================================================ */
+
+/* локальные переменные для второй карусели:
+   ВНИМАНИЕ: JS читает переменные с documentElement, поэтому
+   здесь используются те же имена в CSS-оформлении, но JS
+   подхватит значения из :root (см. скрипт). Вёрстка остаётся верной. */
+.wrap {
+  --bg: #0f1113;
+  --text: #fff;
+  --muted: rgba(255,255,255,.78);
+  --accent: #1f1f1f;
+
+  --card-w: 260px;       /* влияет на чисто CSS размеры карт */
+  --card-h: 380px;
+  --active-scale: 1.28;
+
+  --overlap: 0.50;       /* чем больше — тем дальше карты друг от друга */
+}
+
+.wrap {
+  max-width: 1280px; margin: 0 auto; padding: 10px 10px 120px;  /* увеличил нижний padding для размещения точек внутри */
+  background: radial-gradient(90rem 46rem at 82% 58%, rgba(80,64,180,.34) 0%, transparent 55%), transparent;
+  color: var(--text);
+  position: relative;
+  overflow: visible;
+}
+.wrap .kicker { letter-spacing: .38em; color: rgba(255,255,255,.45); margin: 0 0 8px; }
+.wrap .h1 { font-size: 56px; line-height: 1.05; margin: 0 0 10px; font-weight: 800; }
+
+/* сетка секции второй карусели */
+.wrap .grid {
+  display: grid;
+  grid-template-columns: minmax(340px,1.15fr) minmax(320px,.85fr);
+  gap: 56px; align-items: center;
+}
+
+/* область карусели */
+.wrap .carousel-area { display: flex; flex-direction: column; align-items: center; }
+.wrap .stage {
+  width: 100%;
+  max-width: 860px;
+  padding-bottom: 0;
+  overflow: visible;
+  position: relative;
+  height: auto;
+  min-height: calc(var(--card-h) * var(--active-scale));
+}
+.wrap .rail {
+  position: absolute; inset: 0;
   display: block;
-  font-size: 1.1rem;
-  
-  color: #f08c3f;
+  transition: transform .6s ease;
+  will-change: transform;
 }
 
-.eventText p {
-  font-size: 0.9rem;
-  margin: 0;
-  color: #d6c9b8;
+/* карты */
+.wrap .card {
+  position: absolute; left: 50%; bottom: 0;
+  width: var(--card-w); height: var(--card-h);
+  transform: translateX(-50%);
+  border-radius: 28px;
+  overflow: hidden; background: #000;
+  box-shadow: 0 10px 20px rgba(0,0,0,.38);
+  cursor: pointer; user-select: none;
+  transition: transform .6s cubic-bezier(.2,.7,.2,1),
+              box-shadow .35s ease,
+              opacity .35s ease,
+              z-index .3s step-end;
+}
+.wrap .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wrap .card:not(.is-active) {
+  box-shadow: 0 16px 30px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.03) inset;
+}
+.wrap .card.is-active {
+  box-shadow: 0 22px 48px rgba(0,0,0,.62);
 }
 
-/* Медиа-запросы для мобильных устройств */
-@media (max-width: 768px) {
-  .container {
-    padding: 20px;
+/* точки второй карусели — только внутри .wrap */
+.wrap .dots {
+  display: flex; gap: 10px;
+  margin-top: 84px;
+  position: relative;
+  top: 54px;
+  z-index: 10;  /* увеличил z-index, чтобы точки всегда были сверху и не заходили на другие объекты */
+}
+.wrap .dot {
+  width: 12px; height: 12px; border-radius: 4px;
+  background: rgba(255,255,255,.35);
+  transition: background .2s ease;
+  cursor: pointer;
+}
+.wrap .dot.active { background: var(--accent); }
+
+/* правый столбец второй карусели */
+.wrap .info {
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+  border-radius: 28px; padding: 32px 32px 28px; backdrop-filter: blur(6px);
+}
+.wrap .title { font-size: 40px; line-height: 1.1; margin: 0 0 14px; font-weight: 800; }
+.wrap .desc { margin: 0; color: var(--muted); }
+.wrap .cta {
+  margin-top: 28px; padding: 16px 22px; border: 0;
+  background: var(--accent); color: #ffffff; font-weight: 800; font-size: 20px;
+  cursor: pointer;
+}
+
+/* ===================
+   АДАПТИВНОСТЬ
+   =================== */
+
+/* Скрываем декоративные элементы на больших экранах (уже есть, но расширим) */
+@media (max-width: 1900px) {
+  .circle-empty { width: 0; height: 0; }
+  .circle-grad { width: 0; height: 0; }
+}
+
+/* Планшеты и средние экраны */
+@media (max-width: 1200px) {
+  .header {
+    margin-left: 50px;
+    margin-right: 50px;
   }
-  
-  .content {
+  .content-box-one, .content-box-two, .content-box-three {
+    max-width: 100%;
+    padding: 0 20px;
+  }
+  .content-box-one_center-content {
+    flex-direction: column;
+    gap: 40px;
+    margin: 20px 0;
+  }
+  .row-content-1, .row-content-2 {
     max-width: 100%;
   }
-  
   .title {
-    font-size: 2.5rem;
+    font-size: 32px;
   }
-  
-  .description {
-    font-size: 1rem;
-    padding: 12px 18px;
-  }
-  
-  .button {
-    font-size: 1.1rem;
-    padding: 14px 40px;
-  }
-  
-  .footer {
+  .club-box {
     flex-direction: column;
-    margin-top: 40px;
+    gap: 20px;
+    margin: 0 20px;
   }
-  
-  .footerItem {
-    padding: 15px 20px;
-    border-left: none;
-    border-top: 1.5px solid #d6b886;
+  .rostik-doebalsya {
+    gap: 50px;
   }
-  
-  .footerItem:first-child {
-    border-top: none;
+  .club-title {
+    font-size: 32px;
+    margin-left: 20px;
   }
-
-  .clubsSection {
-    padding: 50px 30px; /* увеличено для мобильных */
+  .title-tournament {
+    font-size: 36px;
+    margin: 0 20px;
   }
-  
-  .clubsTitle {
-    font-size: 2.8rem; /* увеличено */
+  .carousel-box {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin: 0 20px 50px;
   }
-  
-  .clubCard {
-    flex-direction: column;
-    text-align: center;
-    padding: 50px 40px; /* увеличено */
+  .text-block {
+    padding-top: 20px;
+    max-width: 100%;
   }
-  
-  .clubIcon {
-    width: 120px; /* увеличено для мобильных */
-    height: 120px; /* увеличено для мобильных */
-    margin: 0 0 30px 0; /* увеличено */
+  .text-block h2 {
+    font-size: 36px;
   }
-  
-  .clubInfo {
-    margin-bottom: 30px; /* увеличено */
+  .carousel-wrapper {
+    margin: 0 auto;
   }
-  
-  .socialLinks {
-    justify-content: center;
+  .background-numberone, .background-numbertwo, .background-numberfour {
+    display: none;
   }
-
-  /* Медиа-запросы для карусели */
-  .eventsSection {
-    margin: 20px 0;
-    padding-top: 40px;
-    height: auto;
+  .circle-grad2, .circle-grad3 {
+    width: 0;
+    height: 0;
   }
-
-  .eventsTitle {
-    font-size: 28px;
-    margin-bottom: 24px;
-  }
-
-  .eventsRow {
-    gap: 20px; /* увеличено для мобильных */
-  }
-
-  .eventCard {
-    min-width: 150px;
-    padding: 10px;
-  }
-
-  .eventText strong {
-    font-size: 1rem;
-  }
-
-  .eventText p {
-    font-size: 0.8rem;
+  .rules-description {
+    max-width: 100%;
+    margin: 20px 20px;
   }
 }
 
+/* Маленькие планшеты и большие мобильные */
+@media (max-width: 768px) {
+  .header {
+    margin-left: 20px;
+    margin-right: 20px;
+    padding: 10px;
+  }
+  .comment-top, .comment-bottom {
+    font-size: 12px;
+    letter-spacing: 10px;
+  }
+  .title {
+    font-size: 24px;
+  }
+  .content-box-one_center-content {
+    margin: 10px 0;
+  }
+  .card-img {
+    width: 100%;
+  }
+  .club-box {
+    margin: 0 10px;
+  }
+  .club-subtitle {
+    font-size: 20px;
+  }
+  .club-description {
+    font-size: 12px;
+  }
+  .adress {
+    font-size: 14px;
+  }
+  .club-title {
+    font-size: 24px;
+    margin-left: 10px;
+  }
+  .rules-title {
+    font-size: 20px;
+  }
+  .title-tournament {
+    font-size: 28px;
+    text-align: center;
+    margin: 0 10px;
+  }
+  .carousel-box {
+    margin: 0 10px 30px;
+  }
+  .text-block h2 {
+    font-size: 28px;
+  }
+  .text-block p {
+    font-size: 14px;
+  }
+  .cta {
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+  /* Адаптация карусели турниров */
+  :root {
+    --card-w: 150px;
+    --card-h: 240px;
+    --gap: 16px;
+  }
+  .content-box-three {
+    padding-top: 10px;
+    padding-bottom: 30px;
+  }
+  .content-box-three .dots {
+    gap: 12px;
+  }
+  .line {
+    display: none;
+  }
+}
+
+/* Мобильные устройства */
 @media (max-width: 480px) {
-  .clubsTitle {
-    font-size: 2.4rem; /* увеличено */
+  .header {
+    margin-left: 10px;
+    margin-right: 10px;
   }
-  
-  .clubName {
-    font-size: 28px; /* увеличено */
+  .comment-top, .comment-bottom {
+    display: none; /* Скрываем комментарии на очень маленьких экранах */
   }
-  
-  .clubDetails {
-    font-size: 18px; /* увеличено */
+  .title {
+    font-size: 20px;
   }
-  
-  .clubIcon {
-    width: 100px; /* увеличено для очень маленьких экранов */
-    height: 100px; /* увеличено для очень маленьких экранов */
+  .content-box-one_center-content {
+    gap: 20px;
   }
-  
-  .clubCard {
-    padding: 40px 30px; /* увеличено */
+  .club-box {
+    margin: 0 5px;
   }
-  
-  .socialLink {
-    font-size: 1.8rem; /* увеличено */
+  .rostik-doebalsya {
+    flex-direction: column;
+    gap: 20px;
   }
+  .club-social {
+    gap: 20px;
+  }
+  .club-title {
+    font-size: 20px;
+    margin-left: 5px;
+  }
+  .rules-box {
+    padding: 0 10px;
+  }
+  .rules-title {
+    font-size: 18px;
+  }
+  .title-tournament {
+    font-size: 24px;
+    margin: 0 5px;
+  }
+  .carousel-box {
+    margin: 0 5px 20px;
+  }
+  .text-block {
+    padding-top: 10px;
+  }
+  .text-block h2 {
+    font-size: 24px;
+  }
+  .text-block p {
+    font-size: 12px;
+  }
+  .cta {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+  /* Адаптация карусели турниров */
+  :root {
+    --card-w: 120px;
+    --card-h: 180px;
+    --gap: 12px;
+  }
+  .content-box-three .dots {
+    gap: 8px;
+  }
+  .content-box-three .dot {
+    width: 8px;
+    height: 8px;
+  }
+}
 
-  /* Медиа-запросы для карусели */
-  .eventsRow {
-    gap: 16px; /* для очень маленьких экранов */
-  }
+/* Адаптив второй карусели (расширенная версия уже существующей) */
+@media (max-width: 1100px) {
+  .wrap { --card-w: 240px; --card-h: 350px; }
+  .wrap .h1 { font-size: 44px; }
+  .wrap .title { font-size: 34px; }
+  .circle-empty { width: 0; height: 0; }
+  .circle-grad { width: 0; height: 0; }
+}
+@media (max-width: 920px) {
+  .wrap .grid { grid-template-columns: 1fr; gap: 28px; }
+  .wrap .dots { top: 28px; margin-top: 28px; }
+  .wrap .h1 { font-size: 40px; }
+  .wrap .title { font-size: 30px; }
+  .circle-empty { width: 0; height: 0; }
+}
+@media (max-width: 520px) {
+  .wrap { --card-w: 206px; --card-h: 305px; padding: 28px 16px 120px; }  /* сохранил увеличенный нижний padding */
+  .wrap .h1 { font-size: 34px; }
+  .wrap .title { font-size: 28px; }
+  .wrap .dots { top: 32px; }
+  .wrap .info { padding: 24px 24px 20px; }
+  .wrap .cta { font-size: 18px; padding: 14px 20px; }
+  .circle-empty { width: 0; height: 0; }
+}
 
-  .eventCard {
-    min-width: 120px;
-  }
+/* Условие для показа сообщения о неподдерживаемом разрешении */
+.unsupported-message {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1F1F1F;
+  color: #FFFFFF;
+  font-size: 24px;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  flex-direction: column;
+}
 
-  .eventText strong {
-    font-size: 0.9rem;
+@media (max-width: 999px), (orientation: portrait) {
+  .unsupported-message {
+    display: flex;
   }
-
-  .eventText p {
-    font-size: 0.7rem;
+  body > *:not(.unsupported-message) {
+    display: none;
   }
 }

@@ -2,8 +2,8 @@ import React from "react";
 import s from "./BTS.module.css";
 
 // постер схемы (твоя картинка)
-import poster from "../BTS.png";
-import poster_m from "../BTSback.png"
+import poster from "../images/RTB.png";
+import poster_m from "../images/BTSback.png"
 
 // заглушка для аватарок (положи файл рядом с CSS/JSX или замени на свой URL)
 import avatarPlaceholder from "../NavBar/avatar.png";

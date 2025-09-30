@@ -1,284 +1,335 @@
 // HomePage.jsx
 import React, { useState, useRef, useEffect } from "react";
 import styles from "./HomePage.module.css";
-import tg from "../tg.png";
-import vk from "../vk.png";
-import mietLogo from "../MIETLOGO.png";
-import mipt from "../MIPT.png";
-import BTS from "../EventPrew/BTS.png";
-import CCC from "../EventPrew/CCC-prew.png";
-import Dec from "../EventPrew/Dec-main.png";
-import Junior from "../EventPrew/Junior.png";
-import Rock from "../EventPrew/Rock.png";
+import {NavLink} from "react-router-dom"
 
-const clubs = [
-  {
-    id: 1,
-    name: "WakeUp Mafia | MIET",
-    location: "г. Зеленоград, ул. Юности 11",
-    days: "Пятница - Суббота",
-    iconUrl: mietLogo,
-    telegramLink: "https://t.me/club_miet",
-    vkLink: "https://vk.com/club_miet",
-    leader: "Подкалюк Анна",
-  },
-  {
-    id: 2,
-    name: "WakeUp Mafia | MIPT",
-    location: "г. Долгопрудный, ул. Юности 11",
-    days: "Четверг - Суббота",
-    leader: "Подкалюк Анна",
-    iconUrl: mipt,
-    telegramLink: "https://t.me/club_mipt",
-    vkLink: "https://vk.com/club_mipt",
-  },
+import background1 from "../images/01BOX.png";
+import background2 from "../images/02BOX.png";
+import background4 from "../images/04BOX.png";
+import light1 from "../images/light1.png";
+import card1 from "../images/card1.png";
+import groupSitting from "../images/group_sitting.png";
+import light2 from "../images/light2.png";
+import mietLogo from "../images/Logo_MIET.png";
+import miptLogo from "../images/Logo_MIPT.png";
+import vkIcon from "../images/vk_icon.png";
+import tgIcon from "../images/tg_icon.png";
+import btsImg from "../images/BTS.png";
+import rockcupImg from "../images/rockcup.png";
+import mafImg from "../images/maf.png";
+import sherifImg from "../images/sherif.png";
+import mirImg from "../images/mir.png";
+import donImg from "../images/don.png";
+import CCC_prew from "../EventPrew/CCC-prew.png";
+import Junior_prew from "../EventPrew/Junior.png"
+import Dec_prew from "../EventPrew/Dec-main.png"
+
+
+const tournaments = [
+  { id:2, title: "Cyber Couple Cup", desc: "Парный турнир с трехлетней историей проводимый в честь вечной дружбы и сотрудничества между Физтехом и МИЭТом", color: "#1f1f1f", img: CCC_prew, btn_text:"Зарегистрироватсься", btn_to:"/Event/2" },
+  { id:3, title: "WakeUp.Junior", desc: "Первый шанс для молодых игроков в мафию почувстовать на себе дух соревнования и получить турьерный опыт", color: "#110C07", img: Junior_prew, btn_text:"Скоро регистрация", btn_to:"/"  },
+  { id:4, title: "Тематический", desc: "Стилистический турнир в личном зачете, погружающий в атмосферу выбранной темы", color: "#181312ff", img: rockcupImg, btn_text: "Скоро регистрация", btn_to:"/"   },
+  { id:5, title: "Турнир десяти", desc: "Традиционный закрытый турнир WakeUp Mafia, претепевший модифиакции прохода", color: "#1a1d1cff", img: Dec_prew, btn_text:"Подробнее", btn_to:"/Rating/1"   },
+  { id:6, title: "Break the Silence", desc: "главный турнир года, попасть в который смогут только лучшие игроки сезона", color: "#272232ff", img: btsImg, btn_text:"Подробнее", btn_to:"/BTS"   }
 ];
 
-const events = [
-  {
-    id: 4,
-    title: "Турнир Десяти",
-    imageUrl: Dec,
-    backgroundUrl: "linear-gradient(150deg, #070707ff 10%, #320404ff 20%, #ff9646ff 100%)"
-  },
-  {
-    id: 2,
-    title: "Cyber Couple Cup",
-    imageUrl: CCC,
-    backgroundUrl: "linear-gradient(135deg, #414040ff 0%, #4e2403ff 100%)"
-  },
-  {
-    id: 6,
-    title: "Break the Silence",
-    imageUrl: BTS,
-    backgroundUrl: "linear-gradient(150deg, #bf8ee7ff 30%, #560574ff 100%)"
-  },
-  {
-    id: 3,
-    title: "WakeUp.Junior",
-    imageUrl: Junior,
-    backgroundUrl: "linear-gradient(150deg, #E38C33 30%, #000000 100%)"
-  },
-  {
-    id: 5,
-    title: "Rock cup",
-    imageUrl: Rock,
-    backgroundUrl: "linear-gradient(150deg, #dac9b8ee 30%, #892727ff 100%)"
-  },
+const roles = [
+  { title: "Мафия", desc: "Вы — Мафия. Ваша цель: оставаться незамеченной днём и убирать игроков ночью. Держите легенду, говорите уверенно.", img: mafImg },
+  { title: "Шериф", desc: "Вы — Шериф. Каждую ночь проверяете одного игрока. Ведите дискуссию и защищайте мирных.", img: sherifImg },
+  { title: "Мирный житель", desc: "Вы — Мирный Житель. Сила — логика и наблюдательность. Доверяйте интуиции, но проверяйте фактами.", img: mirImg },
+  { title: "Дон", desc: "Вы — Дон. Руководите мафией и ищите шерифа. Задавайте темп и оставайтесь вне подозрений.", img: donImg }
 ];
-
-
-const TelegramIcon = () => <img src={tg} alt="Telegram" width="40" height="40" />;
-const VkIcon = () => <img src={vk} alt="VK" width="40" height="40" />;
-
-
 
 const HomePage = () => {
-  const [activeEventId, setActiveEventId] = useState(events[0].id);
-  const activeEvent = events.find((e) => e.id === activeEventId);
+  // Состояния для каруселей
+  const [activeTournament, setActiveTournament] = useState(0);
+  const [activeRole, setActiveRole] = useState(2); // Стартуем с "Мирный житель"
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Реф для контейнера с карточками
-  const eventsRowRef = useRef(null);
+  const carousel1Ref = useRef(null);
+  const rail2Ref = useRef(null);
 
-  // При изменении activeEventId скроллим контейнер, чтобы активная карточка была по центру
+  // Эффект для карусели турниров
   useEffect(() => {
-    if (!eventsRowRef.current) return;
+  // Обновление DOM для слайдов и трансформации
+  const carousel = carousel1Ref.current;
+  if (!carousel) return;
+  const slides = carousel.children;
+  Array.from(slides).forEach((slide, i) => slide.classList.toggle('active', i === activeTournament));
+  carousel.style.transform = `translateX(${computeTranslateX(activeTournament)}px)`;
 
-    const container = eventsRowRef.current;
-    const children = Array.from(container.children);
-    const activeIndex = events.findIndex((e) => e.id === activeEventId);
-    const activeCard = children[activeIndex];
-
-    if (activeCard) {
-      const containerRect = container.getBoundingClientRect();
-      const cardRect = activeCard.getBoundingClientRect();
-
-      const containerCenter = containerRect.left + containerRect.width / 2;
-      const cardCenter = cardRect.left + cardRect.width / 2;
-      const scrollOffset = cardCenter - containerCenter;
-
-      container.scrollBy({ left: scrollOffset, behavior: "smooth" });
-    }
-  }, [activeEventId]);
-
-  const handleEventClick = (eventId) => {
-    setActiveEventId(eventId);
-  };
-
-  const handleEventKeyDown = (e, eventId) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      setActiveEventId(eventId);
+  // Глобальный обработчик колесика для блокировки скролла и переключения слайдов
+  const handleGlobalWheel = (e) => {
+    if (isHovered) {
+      e.preventDefault();  // Блокируем скролл страницы при hover
+      if (e.deltaY > 0) {
+        nextSlide();  // Скролл вниз -> следующий слайд
+      } else {
+        prevSlide();  // Скролл вверх -> предыдущий слайд
+      }
     }
   };
+
+
+  // Добавляем слушатель на window
+  window.addEventListener('wheel', handleGlobalWheel, { passive: false });
+
+  // Очистка: убираем слушатель при размонтировании или изменении зависимостей
+  return () => {
+    window.removeEventListener('wheel', handleGlobalWheel);
+  };
+}, [activeTournament, isHovered]);  // Зависимости: activeTournament для DOM, isHovered для wheel
+
+
+  const computeTranslateX = (index) => {
+    const CARD_W = 200; // Из CSS
+    const GAP = 24;
+    return -index * (CARD_W + GAP);
+  };
+
+  // Эффект для карусели ролей
+  useEffect(() => {
+    const rail = rail2Ref.current;
+    if (!rail) return;
+    const cards = rail.children;
+    const CARD_W = 260;
+    const ACTIVE = 1.28;
+    const OVERLAP = 0.50;
+    const SHIFT = Math.round(CARD_W * OVERLAP);
+
+    Array.from(cards).forEach((card, i) => {
+      const k = i - activeRole;
+      const abs = Math.abs(k);
+      const scale = k === 0 ? ACTIVE : 1 - Math.min(0.08 + abs * 0.04, 0.22);
+      const x = k * SHIFT;
+      card.style.zIndex = 100 - abs;
+      card.style.opacity = abs > 2 ? 0.45 : 1;
+      card.style.transform = `translateX(calc(-50% + ${x}px)) scale(${scale})`;
+      card.classList.toggle('is-active', k === 0);
+    });
+  }, [activeRole]);
+
+  // Обработчики для каруселей
+  const goToTournament = (index) => {
+    setActiveTournament(index);
+  };
+
+  const goToRole = (index) => {
+    setActiveRole(index);
+  };
+
+
+const nextSlide = () => {
+  setActiveTournament((prev) => (prev + 1) % tournaments.length);  // Циклическое переключение
+};
+
+const prevSlide = () => {
+  setActiveTournament((prev) => (prev - 1 + tournaments.length) % tournaments.length);  // Циклическое переключение
+};
+
+// Обработчик колесика мыши
+const handleWheel = (e) => {
+  if (!isHovered) return;  // Если мышь не наведена на карусель, игнорируем событие
+  e.preventDefault();  // Предотвращаем скролл страницы только при hover
+  if (e.deltaY > 0) {
+    nextSlide();  // Скролл вниз -> следующий слайд
+  } else {
+    prevSlide();  // Скролл вверх -> предыдущий слайд
+  }
+};
 
   return (
     <div className={styles.container}>
-      <div className={styles.content}>
-        <h1 className={styles.title}>
-          Спортивная мафия <br /> МИЭТ и МФТИ
-        </h1>
-        <p className={styles.description}>
-          Присоединяйтесь к клубам спортивной мафии WakeUp Mafia — окунитесь в
-          захватывающий мир интеллектуально-психологической игры «Мафия»!
-        </p>
-        <button className={styles.button}>Присоединяйся к нам</button>
+
+      <div className={styles["unsupported-message"]}>Разрешение не поддерживается. Используйте экран шириной не менее 1000px в альбомной ориентации.</div>
+      
+      {/* Фоновое изображение */}
+      <div className={styles["background-numberone"]}>
+        <img src={background1} alt="" />
       </div>
 
-      <div className={styles.footer}>
-        <div className={styles.footerItem}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            className={styles.icon}
-            aria-hidden="true"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M7 21v-2a4 4 0 0 1 3-3.87" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          100 активных игроков
-        </div>
-        <div className={styles.footerItem}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            className={styles.icon}
-            aria-hidden="true"
-          >
-            <path d="M12 20h9" />
-            <path d="M12 4h9" />
-            <path d="M4 12h16" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          Развитие интеллекта и коммуникации
-        </div>
-        <div className={styles.footerItem}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            className={styles.icon}
-            aria-hidden="true"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          Игры каждую неделю
-        </div>
-      </div>
-
-      <section className={styles.clubsSection} aria-label="Наши клубы">
-        <h2 className={styles.clubsTitle}>НАШИ КЛУБЫ</h2>
-        <div className={styles.clubsList}>
-          {clubs.map((club) => (
-            <article key={club.id} className={styles.clubCard}>
-              <img
-                src={club.iconUrl}
-                alt={`${club.name} логотип`}
-                className={styles.clubIcon}
-                loading="lazy"
-              />
-              <div className={styles.clubInfo}>
-                <h3 className={styles.clubName}>{club.name}</h3>
-                <p className={styles.clubDetails}>
-                  Расположение: {club.location} <br />
-                  Игровые дни: {club.days} <br />
-                  {club.leader && <>Руководитель: {club.leader}</>}
-                </p>
-              </div>
-              <div className={styles.socialLinks}>
-                <a
-                  href={club.telegramLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Telegram ${club.name}`}
-                  className={styles.socialLink}
-                >
-                  <TelegramIcon />
-                </a>
-                <a
-                  href={club.vkLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`VK ${club.name}`}
-                  className={styles.socialLink}
-                >
-                  <VkIcon />
-                </a>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <div className={styles.y}>
-        wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\
-      </div>
-
-      <section
-        className={styles.eventsSection}
-        aria-label="Множество мероприятий"
-        style={{
-          background: activeEvent ? activeEvent.backgroundUrl : undefined,
-        }}
-      >
-        <div>
-          <h2 className={styles.eventsTitle}>МНОЖЕСТВО МЕРОПРИЯТИЙ</h2>
-          <div className={styles.eventsRow} ref={eventsRowRef}>
-            {events.map((event) => (
-              <div
-                key={event.id}
-                className={`${styles.eventCard} ${
-                  event.id === activeEventId ? styles.activeEventCard : ""
-                }`}
-                onClick={() => handleEventClick(event.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => handleEventKeyDown(e, event.id)}
-                aria-pressed={event.id === activeEventId}
-                aria-label={`Карточка мероприятия: ${event.title}`}
-              >
-                <img
-                  src={event.imageUrl}
-                  alt={event.title}
-                  className={styles.eventImage}
-                  loading="lazy"
-                  draggable={false}
-                />
-                <div className={styles.eventText}>
-                  <strong>{event.title}</strong>
-                </div>
-              </div>
-            ))}
+      {/* Контент-бокс один */}
+      <div className={styles["content-box-one"]}>
+        
+        <p className={styles["comment-top"]}>Ночь в городе...</p>
+        <div className={styles["content-box-one_center-content"]}>
+          <div className={styles["row-content-1"]}>
+            <div className={styles.title}>
+             СПОРТИВНАЯ МАФИЯ МИЭТ И МФТИ
+            </div>
+            <img src={light1} alt="" />
+            <div className={styles.description}>
+              <p>Спортивная мафия — это интеллектуальная баталия, где игроки воздействуют друг на друга словами, жестами и логикой. Здесь побеждает тот, кто лучше анализирует, убеждает и играет роль.</p>
+            </div>
+            <img src={card1} alt="" className={styles["card-img"]} />
+          </div>
+          <div className={styles["row-content-2"]}>
+            <div className={styles.title}>
+              WAKEUP MAFIA
+            </div>
+            <div className={styles.description}>
+              <p>Мы семейство клубов WakeUp занимающаяся развитием спортивной мафии в Москве и Московской области.<br /> Проводим турниры, рейтингоавые игры и ламповые вечера</p>
+            </div>
+            <img src={groupSitting} alt="" />
+            <a>Подробнее <br /> ↓</a>
           </div>
         </div>
-      </section>
-
-      <div className={styles.y}>
-        wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\wakeup mafia/\
+        <p className={styles["comment-bottom"]}>Просыпается мафия...</p>
       </div>
 
-     
+      {/* Геометрия */}
+      <div className={styles["geometry-1"]}>
+        <div className={styles.line}></div>
+        <div className={styles["circle-empty"]}></div>
+        <div className={styles["circle-grad"]}></div>
+      </div>
+
+      {/* Контент-бокс два: клубы и правила */}
+      <div className={styles["content-box-two"]}>
+        <div className={styles["club-title"]}>
+          <h4>СТУДЕНЧЕСКИЕ ОБЪЕДИНЕНИЯ</h4>
+        </div>
+        <div className={styles["club-box"]}>
+          <div className={styles["club-subtitle"]}>
+            <h4>WakeUp Mafia | MIET</h4>
+            <div className={styles["club-description"]}>
+              <p>Мы студенческий клуб, который распологается на територии МИЭТа. А все игры проходят в студенческом городке </p>
+               <p className={styles.adress}> Игровые дни: Пятница - Суббота</p>
+              <p className={styles.adress}>Зеленоград, ул. Юности 11</p>
+            </div>
+          </div>
+          <div className={styles["rostik-doebalsya"]}>
+            <div className={styles["club-logo"]}><img src={mietLogo} alt="" /></div>
+            <div className={styles["club-social"]}>
+              <a href="https://vk.com/wakeupmiet"><img src={vkIcon} alt="" /></a>
+              <a href="https://vk.com/wakeupmiet"><img src={tgIcon} alt="" /></a>
+            </div>
+          </div>
+        </div>
+        <div className={styles["club-box"]}>
+          <div className={styles["club-subtitle"]}>
+            <h4>WakeUp Mafia | MIPT</h4>
+            <div className={styles["club-description"]}>
+              <p>Мы студенческий клуб, который распологается на територии МФТИ. </p>
+              <p className={styles.adress}>Игровые дни: Четверг - Суббота</p>
+              <p className={styles.adress}>Долгопрудный,  Институтский переулок 9</p>
+            </div>
+          </div>
+          <div className={styles["rostik-doebalsya"]}>
+            <div className={styles["club-logo"]}><img src={miptLogo} alt="" /></div>
+            <div className={styles["club-social"]}>
+              <a href="https://vk.com/wakeupmipt"><img src={vkIcon} alt="" /></a>
+              <a href="https:/t.me/wakeupmafia"><img src={tgIcon} alt="" /></a>
+            </div>
+          </div>
+        </div>
+        <div className={styles["rules-box"]}>
+          <div className={styles["rules-title"]}>
+            Правила
+          </div>
+          <img src={light2} alt="" />
+          <div className={styles["rules-description"]}>
+            С этого года мы перешли на полностью обновленную редакцию правил МСЛ но приправленные функциональными нововедением и оптимизацией 
+          </div>
+        </div>
+      </div>
+
+      {/* Фоновое изображение 2 */}
+      <div className={styles["background-numbertwo"]}>
+        <img src={background2} alt="" />
+      </div>
+
+      {/* Геометрия 2 */}
+      <div className={styles.line}></div>
+      <div className={styles["circle-grad2"]}></div>
+      <div className={styles["circle-grad3"]}></div>
+
+
+{/* Карусель турниров */}
+<div className={styles["content-box-three"]} id="box1" style={{ background: tournaments[activeTournament].color }}>
+  <div className={styles["title-tournament"]}>Турниры</div>
+  <div className={styles["carousel-box"]}>
+    <div className={styles["text-block"]}>
+      <h2 id="title1">{tournaments[activeTournament].title}</h2>
+      <p id="desc1">{tournaments[activeTournament].desc}</p>
+      <NavLink to={tournaments[activeTournament].btn_to}><button className={styles.cta}>{tournaments[activeTournament].btn_text}</button></NavLink>
     </div>
+    <div className={styles["carousel-wrapper"]}>
+      <div 
+        className={styles.viewport} 
+        id="viewport1" 
+        // Убрал onWheel={handleWheel}, так как используем глобальный wheel в useEffect
+        onMouseEnter={() => setIsHovered(true)}  // Наведение: включаем блокировку скролла и переключение слайдов
+        onMouseLeave={() => setIsHovered(false)}  // Уход мыши: выключаем
+      >
+        <div className={styles.carousel} id="carousel1" ref={carousel1Ref}>
+          {tournaments.map((t, i) => (
+            <div 
+              key={i} 
+              className={`${styles.slide} ${i === activeTournament ? styles.active : ''}`} 
+              onClick={() => goToTournament(i)}
+            >
+              <img src={t.img} alt={t.title} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={styles.dots} id="dots1">
+        {tournaments.map((_, i) => (
+          <div 
+            key={i} 
+            className={`${styles.dot} ${i === activeTournament ? styles.active : ''}`} 
+            onClick={() => goToTournament(i)}
+          ></div>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+<div className={styles.line}></div>
+
+
+
+
+      {/* Фоновое изображение 4 */}
+      <div className={styles["background-numberfour"]}>
+        <img src={background4} alt="" />
+      </div>
+
+      {/* Карусель ролей */}
+      <div className={styles["content-box-two"]}>
+        <p className={styles["comment-bottom"]}>Ваш выбор...</p>
+        <section className={styles.wrap}>
+          <h1 className={styles.h1}>Твоя любимая карта?</h1>
+          <div className={styles.grid}>
+            <div className={styles["carousel-area"]}>
+              <div className={styles.stage}>
+                <div className={styles.rail} id="rail2" ref={rail2Ref}>
+                  {roles.map((r, i) => (
+                    <div key={i} className={styles.card} onClick={() => goToRole(i)}>
+                      <img src={r.img} alt={r.title} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.dots} id="dots2">
+                {roles.map((_, i) => (
+                  <div key={i} className={`${styles.dot} ${i === activeRole ? styles.active : ''}`} onClick={() => goToRole(i)}></div>
+                ))}
+              </div>
+            </div>
+            <aside className={styles.info}>
+              <h2 className={styles.title} id="title2">{roles[activeRole].title}</h2>
+              <p className={styles.desc} id="desc2">{roles[activeRole].desc}</p>
+              <button className={styles.cta}>Выбрать</button>
+            </aside>
+          </div>
+        </section>
+      </div>
+      
+    </div>
+    
   );
 };
-
 
 export default HomePage;

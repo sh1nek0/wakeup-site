@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WakeUpMafia</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="index.js" defer></script>
+
+  <!-- ТОЛЬКО точечные стили, чтобы точки второй карусели были видны -->
+  <style>
+    /* точки второй карусели ниже и поверх */
+    #dots2 {
+      display:flex; gap:10px;
+      margin-top:24px;
+      position:relative;
+      top:24px;
+      z-index:3;
+    }
+  </style>
+</head>
+<body>
+  <div class="background-numberone">
+    <img src="/src/images/01BOX.png">
+  </div>
+
+  <div class="page-wrapper">
+    <main>
+      <div class="content-box-one">
+        </br></br></br>
+        <p class="comment-top">Ночь в городе...</p>
+        <div class="content-box-one_center-content">
+          <div class="row-content-1">
+            <div class="title">
+              <h4>СПОРТИВНАЯ МАФИЯ МИЭТ И МФТИ</h4> <!-- фиксанул закрывающий тег -->
+            </div>
+            <img src="src/images/light1.png">
+            <div class="description">
+              <p>Спортивная мафия — это интеллектуальная дуэль, где игроки воздействуют друг на друга словами, жестами и логикой. Здесь побеждает тот, кто лучше анализирует, убеждает и играет роль.</p>
+            </div>
+            <img src="src/images/card1.png" class="card-img">
+          </div>
+          <div class="row-content-2">
+            <div class="title">
+              <h4>WAKEUP MAFIA</h4>
+            </div>
+            <div class="description">
+              <p>Сюда нужен текст, о том, что объедение клубов.</p>
+            </div>
+            <img src="src/images/group_sitting.png">
+            <a>Подробнее </br> стрелочка вниз</a>
+          </div>
+        </div>
+        <p class="comment-bottom">Просыпается мафия...</p>
+      </div>
+
+      <div class="geometry-1">
+        <div class="line"></div>
+        <div class="circle-empty"></div>
+        <div class="circle-grad"></div>
+      </div>
+
+      <div class="content-box-two">
+        <div class="club-title">
+          <h4>СТУДЕНЧЕСКИЕ ОБЪЕДИНЕНИЯ</h4>
+        </div>
+        <div class="club-box">
+          <div class="club-subtitle">
+            <h4>WakeUp Mafia | MIET</h4>
+            <div class="club-description">
+              <p>Мы студенческий клуб, который основывается на базе МИЭТа.Играеем про правилас ФСМ. А все игры проходят в студенческом городке МИЭТ</p>
+              <p class="adress">Зеленоград, ул. Юности 11</p>
+            </div>
+          </div>
+          <div class="rostik-doebalsya">
+            <div class="club-logo"><img src='src/images/Logo_MIET.png'></div>
+            <div class="club-social">
+              <a><img src="src/images/vk_icon.png"></a>
+              <a><img src="src/images/tg_icon.png"></a>
+            </div>
+          </div>
+        </div>
+
+        <div class="club-box">
+          <div class="club-subtitle">
+            <h4>WakeUp Mafia | MIET</h4>
+            <div class="club-description">
+              <p>Мы студенческий клуб, который основывается на базе МИЭТа.Играеем про правилас ФСМ. А все игры проходят в студенческом городке МИЭТ</p>
+              <p class="adress">Зеленоград, ул. Юности 11</p>
+            </div>
+          </div>
+          <div class="rostik-doebalsya">
+            <div class="club-logo"><img src='src/images/Logo_MIPT.png'></div>
+            <div class="club-social">
+              <a><img src="src/images/vk_icon.png"></a>
+              <a><img src="src/images/tg_icon.png"></a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules-box">
+          <div class="rules-title">
+            <h3>Правила</h3>
+          </div>
+          <img src="src/images/light2.png">
+          <div class="rules-description">
+            <p>Правила уникальны и разработаны ну почти</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="background-numbertwo">
+        <img src="/src/images/02BOX.png">
+      </div>
+
+      <div class="line"></div>
+      <div class="circle-grad2"></div>
+      <div class="circle-grad3"></div>
+
+      <!-- ===== КАРУСЕЛЬ №1: Турниры ===== -->
+      <div class="content-box-three" id="box1">
+        <div class="title-tournament"><h2>Турниры</h2></div>
+
+        <div class="carousel-box">
+          <div class="text-block">
+            <h2 id="title1">Break the Silence</h2>
+            <p id="desc1">В прошедшее воскресенье прошёл турнир Break The Silence, в котором игроки состязались за звание легенды клуба. Это были замечательные 8 игр…</p>
+            <button class="cta">Зарегистрироваться</button>
+          </div>
+
+          <div class="carousel-wrapper">
+            <div class="viewport" id="viewport1">
+              <div class="carousel" id="carousel1"></div>
+            </div>
+            <div class="dots" id="dots1"></div>
+          </div>
+        </div>
+      </div>
+      <div class="line"></div>
+
+      <!-- ===== КАРУСЕЛЬ №2: Карты/Роли ===== -->
+      <div class="background-numberfour">
+        <img src="/src/images/04BOX.png">
+      </div>
+      <div class="content-box-two">
+        <p class="comment-bottom">Ваш выбор...</p>
+
+        <section class="wrap">
+          <p class="kicker">Ваш выбор…</p>
+          <h1 class="h1">Твоя любимая карта?</h1>
+
+          <div class="grid">
+            <!-- ЛЕВО: карусель -->
+            <div class="carousel-area">
+              <div class="stage">
+                <div class="rail" id="rail2"></div>
+              </div>
+              <div class="dots" id="dots2"></div>
+            </div>
+
+            <!-- ПРАВО: текст -->
+            <aside class="info">
+              <h2 class="title" id="title2">Название карты</h2>
+              <p class="desc" id="desc2">Описание роли подставляется при переключении карточек.</p>
+              <button class="cta">Присоединиться</button>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer></footer>
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+  /* ========= КАРУСЕЛЬ №1: Турниры (активный слева) ========= */
+  (() => {
+    const data = [
+      { title:"Break the Silence", desc:"В прошедшее воскресенье прошёл турнир Break The Silence...", color:"#2a1240", img:"src/images/BTS.png" },
+      { title:"Game Masters",      desc:"Турнир среди лучших игроков клуба...",                     color:"#163252", img:"src/images/rockcup.png" },
+      { title:"Legends Cup",       desc:"Незабываемые игры, в которых рождаются легенды...",        color:"#3a1733", img:"src/images/BTS.png" },
+      { title:"Final Battle",      desc:"Заключительное сражение сезона...",                        color:"#0f2e25", img:"src/images/BTS.png" },
+      { title:"Champions League",  desc:"Крупнейший турнир года...",                                color:"#331f5f", img:"src/images/BTS.png" }
+    ];
+
+    const viewport = document.getElementById('viewport1');
+    const carousel = document.getElementById('carousel1');
+    const dotsWrap = document.getElementById('dots1');
+    const titleEl  = document.getElementById('title1');
+    const descEl   = document.getElementById('desc1');
+    const box      = document.getElementById('box1');
+
+    // читаем CSS vars (есть дефолты на случай отсутствия в style.css)
+    const css1 = getComputedStyle(document.documentElement);
+    const CARD_W = parseFloat(css1.getPropertyValue('--card-w')) || 200;
+    const GROW   = parseFloat(css1.getPropertyValue('--active-grow')) || 1.25;
+    const GAP    = parseFloat(css1.getPropertyValue('--gap')) || 24;
+
+    // рендер слайдов
+    data.forEach(item=>{
+      const slide = document.createElement('div');
+      slide.className = 'slide';
+      const img = document.createElement('img');
+      img.src = item.img;
+      img.alt = item.title;
+      slide.appendChild(img);
+      carousel.appendChild(slide);
+    });
+    const slides = [...carousel.querySelectorAll('.slide')];
+
+    // точки
+    data.forEach((_,i)=>{
+      const d=document.createElement('div');
+      d.className=`dot${i===0?' active':''}`;
+      d.addEventListener('click',()=>goTo(i));
+      dotsWrap.appendChild(d);
+    });
+    const dots=[...dotsWrap.querySelectorAll('.dot')];
+
+    let current=0;
+
+    // активный слайд прижат к левому краю viewport
+    function computeTranslateX(index){
+      const leftWidth = index * (CARD_W + GAP);
+      return -leftWidth;
+    }
+
+    function update(animate=true){
+      carousel.style.transition = animate ? 'transform .6s ease' : 'none';
+      slides.forEach((s,i)=> s.classList.toggle('active', i===current));
+      dots.forEach((d,i)=> d.classList.toggle('active', i===current));
+      titleEl.textContent = data[current].title;
+      descEl.textContent  = data[current].desc;
+      box.style.background= data[current].color;
+      carousel.style.transform = `translateX(${computeTranslateX(current)}px)`;
+    }
+
+    function goTo(index){
+      const n = slides.length;
+      current = ((index % n) + n) % n;
+      update(true);
+    }
+
+    // клики по карточкам
+    carousel.addEventListener('click', (e)=>{
+      const i = slides.indexOf(e.target.closest('.slide'));
+      if(i===-1) return;
+      (i===current) ? goTo(current+1) : goTo(i);
+    });
+
+    // колесо мыши — листаем
+    let wheelLock=false;
+    viewport.addEventListener('wheel', (e)=>{
+      e.preventDefault();
+      if(wheelLock) return;
+      wheelLock=true;
+      (e.deltaY > 0 || e.deltaX > 0) ? goTo(current+1) : goTo(current-1);
+      setTimeout(()=>wheelLock=false, 450);
+    }, { passive:false });
+
+    // ресайз — пересчёт позиционирования
+    window.addEventListener('resize', ()=> update(false));
+
+    // старт
+    update(false);
+  })();
+
+  /* ========= КАРУСЕЛЬ №2: Карты/Роли (coverflow по базовой линии) ========= */
+  (() => {
+    const slides2 = [
+      { title:'Мафия',          desc:'Вы — Мафия. Ваша цель: оставаться незамеченной днём и убирать игроков ночью. Держите легенду, говорите уверенно.', img:'src/images/maf.png' },
+      { title:'Шериф',          desc:'Вы — Шериф. Каждую ночь проверяете одного игрока. Ведите дискуссию и защищайте мирных.',                          img:'src/images/sherif.png' },
+      { title:'Мирный житель',  desc:'Вы — Мирный Житель. Сила — логика и наблюдательность. Доверяйте интуиции, но проверяйте фактами.',               img:'src/images/mir.png' },
+      { title:'Дон',            desc:'Вы — Дон. Руководите мафией и ищите шерифа. Задавайте темп и оставайтесь вне подозрений.',                         img:'src/images/don.png' }
+    ];
+
+    const rail    = document.getElementById('rail2');
+    const dotsWrap= document.getElementById('dots2');
+    const titleEl = document.getElementById('title2');
+    const descEl  = document.getElementById('desc2');
+
+    const css2 = getComputedStyle(document.documentElement);
+    const CARD_W = parseFloat(css2.getPropertyValue('--card-w'))           || 260;
+    const ACTIVE = parseFloat(css2.getPropertyValue('--active-scale'))     || 1.28;
+    const OVERLAP= parseFloat(css2.getPropertyValue('--overlap'))          || 0.50;
+    const SHIFT  = Math.round(CARD_W * OVERLAP);
+
+    // Рендер карточек
+    slides2.forEach((s,i)=>{
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.dataset.index = i;
+      const img = document.createElement('img');
+      img.src = s.img; img.alt = s.title;
+      el.appendChild(img);
+      el.addEventListener('click', ()=> goTo(i));
+      rail.appendChild(el);
+    });
+    const cards = [...rail.querySelectorAll('.card')];
+
+    // Точки
+    slides2.forEach((_,i)=>{
+      const d = document.createElement('div');
+      d.className = 'dot' + (i===0?' active':'');
+      d.addEventListener('click', ()=> goTo(i));
+      dotsWrap.appendChild(d);
+    });
+    const dots = [...dotsWrap.querySelectorAll('.dot')];
+
+    let current = 2; // стартуем с «Мирный житель»
+
+    function layout(){
+      cards.forEach((card,i)=>{
+        const k = i - current;
+        const abs = Math.abs(k);
+        const scale = (k===0) ? ACTIVE : (1 - Math.min(0.08 + abs*0.04, 0.22));
+        const x = k * SHIFT;
+        card.style.zIndex = 100 - abs;
+        card.style.opacity = (abs > 2) ? 0.45 : 1;
+        card.style.transform = `translateX(calc(-50% + ${x}px)) scale(${scale})`;
+        card.classList.toggle('is-active', k===0);
+      });
+    }
+
+    function updateMeta(){
+      const s = slides2[current];
+      titleEl.textContent = s.title;
+      descEl.textContent  = s.desc;
+      dots.forEach((d,i)=> d.classList.toggle('active', i===current));
+    }
+
+    function goTo(index){
+      const n = slides2.length;
+      current = ((index % n) + n) % n;
+      layout(); updateMeta();
+    }
+
+    // управление с клавиатуры
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='ArrowRight') goTo(current+1);
+      else if(e.key==='ArrowLeft') goTo(current-1);
+    });
+
+    // колесо мыши по сцене (берём ближайшую .stage от rail2)
+    const stage = rail.closest('.stage');
+    let wheelLock=false;
+    stage.addEventListener('wheel', (e)=>{
+      e.preventDefault();
+      if(wheelLock) return; wheelLock=true;
+      (e.deltaY>0 || e.deltaX>0) ? goTo(current+1) : goTo(current-1);
+      setTimeout(()=> wheelLock=false, 420);
+    }, {passive:false});
+
+    // свайпы
+    let sx=0, dragging=false, lastX=0;
+    stage.addEventListener('pointerdown', e=>{ dragging=true; sx=e.clientX; lastX=sx; });
+    window.addEventListener('pointermove', e=>{ if(dragging) lastX=e.clientX; });
+    window.addEventListener('pointerup', ()=>{
+      if(!dragging) return; dragging=false;
+      const dx = lastX - sx;
+      if(Math.abs(dx)>30) (dx<0) ? goTo(current+1) : goTo(current-1);
+    });
+
+    // старт
+    goTo(current);
+  })();
+  </script>
+</body>
+</html>
