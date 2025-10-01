@@ -202,7 +202,8 @@ export default function Game({
           <div className={styles.feeCard}>
             <div className={styles.caption}>Стоимость участия</div>
             <div className={styles.fee}>
-              {tournament.fee?.toLocaleString()} {tournament.currency}
+              {/* {tournament.fee?.toLocaleString()} {tournament.currency} */}
+              O {tournament.currency}
             </div>
             <button
               type="button"
