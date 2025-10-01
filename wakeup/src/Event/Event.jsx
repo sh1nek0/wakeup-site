@@ -60,21 +60,6 @@ export default function Game({
       .finally(() => setLoading(false));
   }, [evenId]);
 
-  // Получение детальной статистики (личный зачёт)
-  // useEffect(() => {
-  //   fetch(`http://localhost:8000/getDetailedStats?limit=100&offset=0`) // Пример: получить все или с пагинацией
-  //     .then((res) => {
-  //       if (!res.ok) throw new Error("Ошибка загрузки статистики");
-  //       return res.json();
-  //     })
-  //     .then((data) => {
-  //       setDetailedStatsData(data.players || []);
-  //       setDetailedStatsTotalPages(Math.ceil((data.total_count || 0) / 10)); // Предполагаем PAGE_SIZE=10
-  //     })
-  //     .catch((err) => {
-  //       console.error("Ошибка:", err);
-  //     });
-  // }, []);
 
   const teamSize = useMemo(() => {
     if (tournament.type === "pair") return 2;
