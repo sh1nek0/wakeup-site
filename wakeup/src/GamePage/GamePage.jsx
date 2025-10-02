@@ -229,10 +229,10 @@ const Game = () => {
   const [players, setPlayers] = useState(
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
-      name: `Игрок ${i + 1}`,
+      name: '',
       fouls: 0,
       lx: '',
-      role: '-',
+      role: 'мирный',
       plus: 2.5,
       sk: 0,
       jk: 0,
@@ -293,6 +293,36 @@ const Game = () => {
     recalcTabHeight();
   }, [activeTab, players, votingResults, shootingResults, donResults, sheriffResults]);
 
+  const getLocalStorageKey = () => `gameData-${eventId}-${gameId}`;
+
+  // Эффект для сохранения данных в localStorage
+  useEffect(() => {
+    if (loading) return; // Не сохраняем, пока идет начальная загрузка
+
+    const dataToSave = {
+      players,
+      gameInfo: { votingResults, shootingResults, donResults, sheriffResults },
+      currentDay,
+      currentPhase,
+      badgeColor,
+    };
+
+    try {
+      localStorage.setItem(getLocalStorageKey(), JSON.stringify(dataToSave));
+    } catch (error) {
+      console.error("Ошибка сохранения данных в localStorage:", error);
+    }
+  }, [
+    players,
+    votingResults,
+    shootingResults,
+    donResults,
+    sheriffResults,
+    currentDay,
+    currentPhase,
+    badgeColor,
+    loading, // Добавляем loading в зависимости
+  ]);
   const showMessage = (message, isError = false) => {
     if (isError) {
       setErrorMessage(message);
@@ -512,6 +542,29 @@ const Game = () => {
   const fetchGameData = async () => {
     setLoading(true);
     setServerUnavailable(false);
+
+    // Сначала пытаемся загрузить из localStorage
+    const savedData = localStorage.getItem(getLocalStorageKey());
+    if (savedData) {
+      try {
+        const data = JSON.parse(savedData);
+        setPlayers(data.players);
+        setVotingResults(data.gameInfo.votingResults || {});
+        setShootingResults(data.gameInfo.shootingResults || {});
+        setDonResults(data.gameInfo.donResults || {});
+        setSheriffResults(data.gameInfo.sheriffResults || {});
+        setCurrentDay(data.currentDay || 'Д.1');
+        setCurrentPhase(data.currentPhase || 'nominating');
+        setBadgeColor(data.badgeColor || 'red');
+        setLoading(false);
+        console.log("Данные игры загружены из localStorage.");
+        return; // Прерываем выполнение, так как данные загружены
+      } catch (e) {
+        console.error("Ошибка парсинга данных из localStorage", e);
+        localStorage.removeItem(getLocalStorageKey()); // Очищаем некорректные данные
+      }
+    }
+
     try {
       const response = await fetch(`/api/getGameData/${gameId}`);
       if (response.status === 404) {
@@ -544,7 +597,27 @@ const Game = () => {
 
   useEffect(() => {
     fetchGameData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
+
+  const clearSavedData = () => {
+    localStorage.removeItem(getLocalStorageKey());
+    // Сброс состояния к начальному
+    setPlayers(
+      Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        name: '',
+        fouls: 0,
+        lx: '',
+        role: 'мирный',
+        plus: 2.5,
+        sk: 0,
+        jk: 0,
+      }))
+    );
+    bootstrapEmptyGame();
+    showMessage("Сохраненные данные для этой игры очищены.");
+  };
 
   /* =======================
      СОХРАНЕНИЕ НА СЕРВЕРЕ
@@ -552,19 +625,6 @@ const Game = () => {
   const handleSave = async () => {
     if (!isAdmin) {
       showMessage('Только администратор может сохранять данные.', true);
-      return;
-    }
-    const errors = [];
-    players.forEach((player) => {
-      if (player.role === '-' || player.role.trim() === '') {
-        errors.push(`Игрок ${player.id} (${player.name}): роль не заполнена.`);
-      }
-    });
-    if (errors.length > 0) {
-      showMessage(
-        `Ошибки валидации: ${errors.join('; ')} Пожалуйста, заполните все роли перед сохранением.`,
-        true
-      );
       return;
     }
 
@@ -594,6 +654,7 @@ const Game = () => {
       if (response.ok) {
         const result = await response.json();
         showMessage(result.message);
+        localStorage.removeItem(getLocalStorageKey()); // Очищаем локальные данные после успешного сохранения
         setTimeout(() => navigate('/'), 500);
       } else {
         let errorMsg = 'Неизвестная ошибка';
@@ -687,6 +748,7 @@ const Game = () => {
                     type="text"
                     className={styles.nameInput}
                     value={player.name}
+                    placeholder={`Игрок ${player.id}`}
                     onChange={(e) => handleNameChange(player.id, e.target.value)}
                     aria-label={`Имя игрока ${player.id}`}
                   />
@@ -1002,6 +1064,13 @@ const Game = () => {
       {/* Кнопка сохранения + выбор победителя */}
       <div className={styles.saveButtonContainer}>
         <BadgeDropdown value={badgeColor} onChange={setBadgeColor} />
+        <button
+          type="button"
+          onClick={clearSavedData}
+          className={styles.clearBtn}
+        >
+          Очистить форму
+        </button>
         <button
           type="button"
           onClick={handleSave}

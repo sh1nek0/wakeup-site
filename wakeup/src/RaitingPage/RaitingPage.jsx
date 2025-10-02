@@ -6,7 +6,7 @@ import defaultAvatar from '../NavBar/avatar.png';
 
 const tabs = ['Общая сводка', 'Игры', 'Статистика'];
 
-const baseURL = "http://localhost:8000"
+const baseURL = ""
 
 
 export default function RatingPage() {
@@ -44,6 +44,10 @@ const { isAdmin } = useContext(AuthContext);
   const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
   const [detailedStatsError, setDetailedStatsError] = useState(null);
   const [averagePoints, setAveragePoints] = useState(0);
+
+  // Для фильтрации по событиям
+  const [events, setEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState('all');
 
   // Модалка удаления
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -89,6 +93,20 @@ const { isAdmin } = useContext(AuthContext);
     }, 5000);
   };
 
+  const handleEventChange = (eventId) => {
+    setSelectedEventId(eventId);
+    // Сбрасываем страницы при смене фильтра
+    setCurrentPage(1);
+    setGamesCurrentPage(1);
+    setDetailedStatsCurrentPage(1);
+    // Очищаем кэш, чтобы загрузить новые данные
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('players_') || key.startsWith('games_') || key.startsWith('detailedStats_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
   // ====== DATA FETCH ======
   const fetchPlayers = async () => {
     const cacheKey = `players_offset_${startIndex}`;
@@ -117,7 +135,8 @@ const { isAdmin } = useContext(AuthContext);
     setPlayersError(null);
     try {
       const res = await fetch(
-        baseURL+`/getRating?limit=${itemsPerPage}&offset=${startIndex}`
+        baseURL+`/api/getRating?limit=${itemsPerPage}&offset=${startIndex}` +
+        (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : '')
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
@@ -167,7 +186,8 @@ const { isAdmin } = useContext(AuthContext);
     setGamesError(null);
     try {
       const res = await fetch(
-        `/api/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}`
+        `/api/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}` +
+        (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : '')
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
@@ -218,7 +238,8 @@ const { isAdmin } = useContext(AuthContext);
     setDetailedStatsError(null);
     try {
       const res = await fetch(
-        `/api/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}`
+        `/api/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}` +
+        (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : '')
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
@@ -251,6 +272,13 @@ const { isAdmin } = useContext(AuthContext);
     if (activeTab === 'Общая сводка') fetchPlayers();
     else if (activeTab === 'Игры') fetchGames();
     else if (activeTab === 'Статистика') fetchDetailedStats();
+
+    // Загрузка списка событий для фильтра
+    fetch('/api/events')
+      .then(res => res.json())
+      .then(data => setEvents(data.events || []))
+      .catch(err => console.error("Не удалось загрузить события:", err));
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTab,
@@ -258,6 +286,7 @@ const { isAdmin } = useContext(AuthContext);
     gamesCurrentPage,
     detailedStatsCurrentPage,
     isAuthenticated,
+    selectedEventId,
   ]);
 
   // ====== ПАГИНАЦИЯ ХЕНДЛЕРЫ ======
@@ -374,6 +403,23 @@ const { isAdmin } = useContext(AuthContext);
             </button>
           ))}
         </div>
+
+        {/* Селектор событий/рейтингов */}
+        <div className={styles.eventSelector}>
+          <label htmlFor="event-select">Рейтинг по событию:</label>
+          <select
+            id="event-select"
+            value={selectedEventId}
+            onChange={(e) => handleEventChange(e.target.value)}
+            className={styles.eventSelectInput}
+          >
+            <option value="all">Все события</option>
+            {events.map(event => (
+              <option key={event.id} value={event.id}>{event.title}</option>
+            ))}
+          </select>
+        </div>
+
 
         {/* ====== ОБЩАЯ СВОДКА ====== */}
         {activeTab === 'Общая сводка' && (

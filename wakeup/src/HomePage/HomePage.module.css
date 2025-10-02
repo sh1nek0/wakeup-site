@@ -552,8 +552,22 @@ body {
   .text-block h2 {
     font-size: 36px;
   }
-  .carousel-wrapper {
-    margin: 0 auto;
+  .text-block p {
+    font-size: 14px;
+  }
+  .cta {
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+  /* Адаптация карусели турниров */
+  :root {
+    --card-w: 150px;
+    --card-h: 240px;
+    --gap: 16px;
+  }
+  .content-box-three {
+    padding-top: 10px;
+    padding-bottom: 30px;
   }
   /* Декоративные элементы адаптируем: уменьшаем размеры и opacity вместо скрытия */
   .background-numberone {
@@ -652,10 +666,6 @@ body {
     --card-w: 150px;
     --card-h: 240px;
     --gap: 16px;
-  }
-  .content-box-three {
-    padding-top: 10px;
-    padding-bottom: 30px;
   }
   .content-box-three .dots {
     gap: 12px;

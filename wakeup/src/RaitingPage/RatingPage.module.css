@@ -33,6 +33,27 @@
 /* можно оставить заголовок скрытым, если не нужен */
 .title{ display:none; }
 
+/* Селектор событий */
+.eventSelector {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.eventSelector label {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.eventSelectInput {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+}
+
 /* =========================
    ТАБЫ
    ========================= */

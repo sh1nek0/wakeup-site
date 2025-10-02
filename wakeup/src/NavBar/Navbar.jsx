@@ -1,4 +1,3 @@
-// NavBar.jsx
 import React, { useContext } from 'react';
 import styles from './NavBar.module.css';
 import { NavLink } from "react-router-dom";
@@ -33,7 +32,7 @@ const Navbar = () => {
             </li>
             <li className={styles.navbarItem}>
               <NavLink
-                to="/Rating/1"
+                to="/rating"
                 className={({ isActive }) => isActive ? styles.active : undefined}
               >
                 Рейтинг
