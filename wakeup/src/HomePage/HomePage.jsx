@@ -141,8 +141,8 @@ const handleWheel = (e) => {
   return (
     <div className={styles.container}>
 
-      <div className={styles["unsupported-message"]}>Разрешение не поддерживается. Используйте экран шириной не менее 1000px в альбомной ориентации.</div>
-      
+      {/* <div className={styles["unsupported-message"]}>Разрешение не поддерживается. Используйте экран шириной не менее 1000px в альбомной ориентации.</div>
+       */}
       {/* Фоновое изображение */}
       <div className={styles["background-numberone"]}>
         <img src={background1} alt="" />
