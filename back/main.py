@@ -546,6 +546,9 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     finally:
         db.close()
 
+
+
+
 # Эндпоинт для получения данных игры (без изменений)
 @app.get("/getGameData/{gameId}")
 async def get_game_data(gameId: str):

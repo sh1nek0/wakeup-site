@@ -191,11 +191,11 @@ const BadgeDropdown = ({ value, onChange }) => {
             <div
               key={option.value}
               className={styles.roleOption}
-              onClick={() => handleSelect(option.value)}
+              onClick={() => handleSelect(option)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  handleSelect(option.value);
+                  handleSelect(option);
                 }
               }}
               tabIndex={0}
@@ -216,15 +216,14 @@ const BadgeDropdown = ({ value, onChange }) => {
    ================ */
 
 const Game = () => {
-  const { gameId } = useParams();
-  const { eventId } = useParams();
+  const { gameId, eventId } = useParams(); // Исправлено: useParams возвращает объект
   const navigate = useNavigate();
 
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [maxTime, setMaxTime] = useState(null);
 
-  const { user } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
   const isAdmin = user && user.role === 'admin';
 
   const [players, setPlayers] = useState(
@@ -262,10 +261,7 @@ const Game = () => {
   const [loading, setLoading] = useState(true);
   const [serverUnavailable, setServerUnavailable] = useState(false);
 
-  // Модал/уведомления
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [adminNickname, setAdminNickname] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  // Модал/уведомления удалены, так как аутентификация через JWT
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -310,8 +306,6 @@ const Game = () => {
       setErrorMessage('');
     }, 5000);
   };
-
-  const openSaveModal = () => setShowSaveModal(true);
 
   /* ==========
      ТАЙМЕР
@@ -525,7 +519,7 @@ const Game = () => {
         return;
       }
       if (!response.ok) {
-        throw new Error(`Ошибка сервера: ${response.status}`);
+        throw new Error(`Ошибка загрузки: ${response.status}`);
       }
       const data = await response.json();
       if (data.players) setPlayers(data.players);
@@ -539,9 +533,10 @@ const Game = () => {
       if (data.currentPhase) setCurrentPhase(data.currentPhase);
       if (data.badgeColor) setBadgeColor(data.badgeColor);
     } catch (err) {
-      console.warn('⚠️ Сервер недоступен. Открываем пустую игру:', err.message);
+      console.error('Ошибка загрузки данных игры:', err);
       bootstrapEmptyGame();
       setServerUnavailable(true);
+      showMessage('Не удалось загрузить данные игры. Открыта пустая игра.', true);
     } finally {
       setLoading(false);
     }
@@ -555,8 +550,8 @@ const Game = () => {
      СОХРАНЕНИЕ НА СЕРВЕРЕ
      ======================= */
   const handleSave = async () => {
-    if (!adminNickname || !adminPassword) {
-      showMessage('Пожалуйста, заполните все поля для аутентификации.', true);
+    if (!isAdmin) {
+      showMessage('Только администратор может сохранять данные.', true);
       return;
     }
     const errors = [];
@@ -575,8 +570,6 @@ const Game = () => {
 
     setIsSaving(true);
     const dataToSave = {
-      admin_nickname: adminNickname,
-      admin_password: adminPassword,
       gameId,
       eventId,
       players,
@@ -588,30 +581,28 @@ const Game = () => {
     };
 
     try {
+      console.log('Token before fetch:', token);
       const response = await fetch('/api/saveGameData', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify(dataToSave),
       });
 
       if (response.ok) {
         const result = await response.json();
         showMessage(result.message);
-        setShowSaveModal(false);
-        setAdminNickname('');
-        setAdminPassword('');
         setTimeout(() => navigate('/'), 500);
       } else {
         let errorMsg = 'Неизвестная ошибка';
-        if (response.status === 400) {
-          const errorData = await response.json();
-          errorMsg = errorData.detail || 'Некорректные данные админа.';
-        } else if (response.status === 403) {
+        if (response.status === 403) {
           errorMsg = 'У вас нет прав для сохранения (требуется роль admin).';
         } else if (response.status === 404) {
           errorMsg = 'Игра не найдена.';
         } else {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({}));
           errorMsg = errorData.detail || response.statusText;
         }
         showMessage(errorMsg, true);
@@ -1013,60 +1004,15 @@ const Game = () => {
         <BadgeDropdown value={badgeColor} onChange={setBadgeColor} />
         <button
           type="button"
-          onClick={openSaveModal}
+          onClick={handleSave}
           className={styles.saveBtn}
           aria-label="Сохранить данные игры"
-          disabled={!isAdmin}
+          disabled={!isAdmin || isSaving}
           title={!isAdmin ? 'Только администратор может сохранять данные' : undefined}
         >
-          Сохранить
+          {isSaving ? 'Сохранение...' : 'Сохранить'}
         </button>
       </div>
-
-      {/* Модал авторизации сохранения */}
-      {showSaveModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowSaveModal(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <h2>Сохранить игру</h2>
-            <p>Введите credentials админа для подтверждения:</p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSave();
-              }}
-            >
-              <div className={styles.formGroup}>
-                <label htmlFor="adminNickname">Nickname админа:</label>
-                <input
-                  id="adminNickname"
-                  type="text"
-                  value={adminNickname}
-                  onChange={(e) => setAdminNickname(e.target.value)}
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="adminPassword">Пароль админа:</label>
-                <input
-                  id="adminPassword"
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className={styles.modalActions}>
-                <button type="button" onClick={() => setShowSaveModal(false)} disabled={isSaving}>
-                  Отмена
-                </button>
-                <button type="submit" disabled={isSaving}>
-                  {isSaving ? 'Сохранение...' : 'Сохранить'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 };

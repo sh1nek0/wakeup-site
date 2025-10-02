@@ -43,7 +43,7 @@ export default function Game({
     if (!evenId) return;
 
     setLoading(true);
-    fetch(`/api/getEvent/${evenId}`)
+    fetch(`http://localhost:8000s/getEvent/${evenId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Ошибка загрузки данных события");
         return res.json();
