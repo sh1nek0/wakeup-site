@@ -596,12 +596,15 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
         db.close()
 
 @app.get("/getGames")
-async def get_games(limit: int = 10, offset: int = 0):
+async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
-        total_count = db.query(Game).count()
-        games = db.query(Game).order_by(Game.created_at.desc()).offset(offset).limit(limit).all()
+        games_query = db.query(Game)
+        if event_id and event_id != 'all':
+            games_query = games_query.filter(Game.event_id == event_id)
 
+        total_count = games_query.count()
+        games = games_query.order_by(Game.created_at.desc()).offset(offset).limit(limit).all()
         games_list = []
         for game in games:
             data = json.loads(game.data)
@@ -629,11 +632,16 @@ async def get_games(limit: int = 10, offset: int = 0):
 
 @app.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"),
-                     offset: int = Query(0, description="Смещение для пагинации")):
+                     offset: int = Query(0, description="Смещение для пагинации"),
+                     event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
-        # Получаем все игры из БД
-        games = db.query(Game).all()
+        # Получаем игры из БД с учетом фильтра
+        games_query = db.query(Game)
+        if event_id and event_id != 'all':
+            games_query = games_query.filter(Game.event_id == event_id)
+        
+        games = games_query.all()
 
         # Получаем всех игроков из БД (для добавления тех, кто не играл)
         all_players = db.query(User).all()
@@ -649,7 +657,7 @@ async def get_rating(limit: int = Query(10, description="Количество э
 
             for player in players:
                 name = player.get("name")
-                if not name:
+                if not name or not name.strip():
                     continue
                 plus = player.get("plus", 0)
                 minus = player.get("minus", 0)
@@ -697,16 +705,22 @@ async def get_rating(limit: int = Query(10, description="Количество э
 @app.get("/getDetailedStats")
 async def get_detailed_stats(
     limit: int = Query(10, description="Количество игроков на странице"),
-    offset: int = Query(0, description="Смещение для пагинации игроков")
+    offset: int = Query(0, description="Смещение для пагинации игроков"),
+    event_id: str = Query(None, description="ID события для фильтрации")
 ):
     db = SessionLocal()
     try:
         all_players = db.query(User).all()
         player_names = {p.nickname for p in all_players}
         clubs = {p.nickname: p.club for p in all_players}
-
-        games = db.query(Game).all()
-
+        
+        # Получаем игры из БД с учетом фильтра
+        games_query = db.query(Game)
+        if event_id and event_id != 'all':
+            games_query = games_query.filter(Game.event_id == event_id)
+        
+        games = games_query.all()
+        
         player_stats = {}
 
         for game in games:
@@ -716,7 +730,7 @@ async def get_detailed_stats(
 
             for player in players:
                 name = player.get("name")
-                if not name:
+                if not name or not name.strip():
                     continue
                 role = player.get("role", "").lower()
                 plus = player.get("plus", 0)
@@ -868,6 +882,29 @@ async def get_detailed_stats(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения детальной статистики: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/events")
+async def get_events():
+    db = SessionLocal()
+    try:
+        events = db.query(Event).order_by(Event.created_at.desc()).all()
+        events_list = [
+            {
+                "id": event.id,
+                "title": event.title,
+                "dates": event.dates,
+                "location": event.location,
+                "type": event.type,
+                "participants_limit": event.participants_limit,
+                "participants_count": event.participants_count,
+            }
+            for event in events
+        ]
+        return {"events": events_list}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения событий: {str(e)}")
     finally:
         db.close()
 

@@ -32,7 +32,7 @@ export function App(props) {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/Event/:eventId/Game/:gameId" element={<PlayersTable />} />
-      <Route path="/Rating/:ratingId" element={<RatingPage/>} />
+      <Route path="/rating" element={<RatingPage/>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/events" element={<EventsPage />} />
       <Route path="/BTS" element={<RoadToBreak />}/>

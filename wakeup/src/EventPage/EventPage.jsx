@@ -1,5 +1,4 @@
-// EventsPage.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './EventPage.module.css';
 import CCC from '../images/CCC.png';
 import { NavLink } from "react-router-dom";
@@ -40,17 +39,32 @@ function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
 }
 
 export default function EventsPage() {
-  const events = [
-    {
-      id: 2,
-      title: 'Cyber Couple Cup',
-      dateRange: '22-23.11.25',
-      location: 'Физтех, Долгопрудный, ул. Институтская 9',
-      capacity: '(0/40) человек',
-      imageUrl: CCC,
-    },
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  ];
+  useEffect(() => {
+    fetch('/api/events')
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return res.json();
+      })
+      .then(data => {
+        const eventsWithImages = data.events.map(event => ({
+          ...event,
+          imageUrl: event.id === "2" ? CCC : null, // Пример для существующего события
+          dateRange: event.dates,
+          capacity: `(${event.participants_count}/${event.participants_limit}) человек`
+        }));
+        setEvents(eventsWithImages);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch events", err);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div className={styles.page}>
@@ -62,9 +76,13 @@ export default function EventsPage() {
         </p>
       </div>
 
-      {events.map((e) => (
-        <NavLink to={"/Event/"+e.id}><EventCardDetailed key={e.id} {...e} /></NavLink>
-      ))}
+      {loading ? (
+        <p>Загрузка событий...</p>
+      ) : (
+        events.map((e) => (
+          <NavLink to={"/Event/"+e.id} key={e.id}><EventCardDetailed {...e} /></NavLink>
+        ))
+      )}
     </div>
   );
 }

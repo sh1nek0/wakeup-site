@@ -558,19 +558,28 @@ body {
   .text-block h2 {
     font-size: 36px;
   }
-  .carousel-wrapper {
-    margin: 0 auto;
+  .text-block p {
+    font-size: 14px;
   }
-  .background-numberone, .background-numbertwo, .background-numberfour {
+  .cta {
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+  /* Адаптация карусели турниров */
+  :root {
+    --card-w: 150px;
+    --card-h: 240px;
+    --gap: 16px;
+  }
+  .content-box-three {
+    padding-top: 10px;
+    padding-bottom: 30px;
+  }
+  .content-box-three .dots {
+    gap: 12px;
+  }
+  .line {
     display: none;
-  }
-  .circle-grad2, .circle-grad3 {
-    width: 0;
-    height: 0;
-  }
-  .rules-description {
-    max-width: 100%;
-    margin: 20px 20px;
   }
 }
 
@@ -636,10 +645,6 @@ body {
     --card-w: 150px;
     --card-h: 240px;
     --gap: 16px;
-  }
-  .content-box-three {
-    padding-top: 10px;
-    padding-bottom: 30px;
   }
   .content-box-three .dots {
     gap: 12px;
@@ -766,5 +771,4 @@ body {
   .unsupported-message {
     display: flex;
   }
- 
 }
