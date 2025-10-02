@@ -10,6 +10,7 @@ import TR from "./testRaiting/TR.jsx";
 import RoadToBreak from "./BTS/BTS.jsx";
 import Game from "./Event/Event.jsx";
 import React, { useEffect } from 'react';
+import ProfilePage from "./ProfilePage/ProfilePage.jsx";
 
 const footerData = {
   ownerName: "© 2025 Company",
@@ -37,6 +38,7 @@ export function App(props) {
       <Route path="/events" element={<EventsPage />} />
       <Route path="/BTS" element={<RoadToBreak />}/>
       <Route path="/Event/:evenId" element={<Game />} />
+      <Route path="/profile" element={<ProfilePage />} />
     </Routes>
    <Footer data={footerData} />
    </>
