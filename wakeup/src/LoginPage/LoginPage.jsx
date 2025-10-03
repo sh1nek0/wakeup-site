@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './LoginPage.module.css';
 
-// const baseURL = "http://localhost:8000"
-const baseURL = ""
+
 
 const LoginPage = () => {
   const { login } = useContext(AuthContext);
@@ -54,7 +53,7 @@ const LoginPage = () => {
     }
 
     try {
-      const endpoint = isLogin ?  baseURL+'/api/login' : baseURL+'/api/register';
+      const endpoint = isLogin ? '/api/login' : '/api/register';
       const payload = isLogin
         ? { nickname: formData.nickname, password: formData.password }
         : { email: formData.email, nickname: formData.nickname, password: formData.password, club: formData.club };

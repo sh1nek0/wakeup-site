@@ -211,7 +211,7 @@ const handleWheel = (e) => {
             <div className={styles["club-description"]}>
               <p>Мы студенческий клуб, который распологается на територии МФТИ. </p>
               <p className={styles.adress}>Игровые дни: Четверг - Суббота</p>
-              <p className={styles.adress}>Долгопрудный,  Институтский переулок 9</p>
+              <p className={styles.adress}>Долгопрудный,  Институтский переулок&nbsp;9</p>
             </div>
           </div>
           <div className={styles["rostik-doebalsya"]}>
