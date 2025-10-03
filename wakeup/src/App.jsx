@@ -38,7 +38,7 @@ export function App(props) {
       <Route path="/events" element={<EventsPage />} />
       <Route path="/BTS" element={<RoadToBreak />}/>
       <Route path="/Event/:evenId" element={<Game />} />
-      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/profile/:profileId" element={<ProfilePage />} />
     </Routes>
    <Footer data={footerData} />
    </>

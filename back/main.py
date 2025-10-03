@@ -323,13 +323,14 @@ async def login(user: UserLogin):
             raise HTTPException(status_code=400, detail="Неверный nickname или пароль")
 
         access_token = create_access_token(
-            data={"sub": db_user.nickname, "role": db_user.role},
+            data={"sub": db_user.nickname, "role": db_user.role, "id": db_user.id},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
 
         user_data = {
             "nickname": db_user.nickname,
             "role": db_user.role,
+            "id": db_user.id
             # Если есть поле avatarUrl в модели User, раскомментируйте:
             # "avatarUrl": getattr(db_user, "avatarUrl", None),
         }

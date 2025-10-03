@@ -1,16 +1,26 @@
-import React from "react";
+import{ React,useContext} from "react";
 import styles from "./ProfilePage.module.css";
+import avatar from  "../images/soon.png"
+import { AuthContext } from '../AuthContext';
+
+
 
 const ProfilePage = ({
+  
+
   nickname = "SWAGG",
-  name = "Анжелика",
+  name = "Здесь будет твое имя",
   age = 21,
   favoriteCard = "Шериф",
   club = "WakeUp Mafia | МИЭТ",
-  photoSrc = "/profile-photo.jpg",
+  photoSrc = avatar,
   number = 3,
   description = "Здесь будет текст описания игрока..."
 }) => {
+
+  const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
+  const isAdmin = user && user.role === 'admin';
+  console.log(user)
   return (
     <div className={styles.pageWrapper}>
     
@@ -19,7 +29,7 @@ const ProfilePage = ({
       <div className={styles.mainContent}>
         {/* Левая часть: информация и вкладки */}
         <div className={styles.left}>
-          <h2 className={styles.nickname}>{nickname}</h2>
+          <h2 className={styles.nickname}>{user.nickname}</h2>
 
           <div className={styles.tabs}>
             <button>Профиль</button>
