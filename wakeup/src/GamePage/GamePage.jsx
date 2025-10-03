@@ -216,7 +216,7 @@ const BadgeDropdown = ({ value, onChange }) => {
    ================ */
 
 const Game = () => {
-  const { gameId, eventId } = useParams(); // Исправлено: useParams возвращает объект
+  const { gameId, eventId } = useParams();
   const navigate = useNavigate();
 
   const [time, setTime] = useState(0);
@@ -261,12 +261,10 @@ const Game = () => {
   const [loading, setLoading] = useState(true);
   const [serverUnavailable, setServerUnavailable] = useState(false);
 
-  // Модал/уведомления удалены, так как аутентификация через JWT
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // 🔎 refs для автофокуса и «антипрыга» вкладок
   const firstVoteBtnRef = useRef(null);
 
   const tabPanelsRef = useRef(null);
@@ -295,9 +293,8 @@ const Game = () => {
 
   const getLocalStorageKey = () => `gameData-${eventId}-${gameId}`;
 
-  // Эффект для сохранения данных в localStorage
   useEffect(() => {
-    if (loading) return; // Не сохраняем, пока идет начальная загрузка
+    if (loading) return;
 
     const dataToSave = {
       players,
@@ -321,7 +318,7 @@ const Game = () => {
     currentDay,
     currentPhase,
     badgeColor,
-    loading, // Добавляем loading в зависимости
+    loading,
   ]);
   const showMessage = (message, isError = false) => {
     if (isError) {
@@ -439,7 +436,6 @@ const Game = () => {
     setCurrentPhase('voting');
   };
 
-  // 🔥 Автофокус на первом кандидате после перехода в фазу голосования
   useEffect(() => {
     if (currentPhase === 'voting' && votes.length > 0) {
       setSelectedPlayerId((prev) => (prev === null ? votes[0].playerId : prev));
@@ -543,7 +539,6 @@ const Game = () => {
     setLoading(true);
     setServerUnavailable(false);
 
-    // Сначала пытаемся загрузить из localStorage
     const savedData = localStorage.getItem(getLocalStorageKey());
     if (savedData) {
       try {
@@ -558,10 +553,10 @@ const Game = () => {
         setBadgeColor(data.badgeColor || 'red');
         setLoading(false);
         console.log("Данные игры загружены из localStorage.");
-        return; // Прерываем выполнение, так как данные загружены
+        return;
       } catch (e) {
         console.error("Ошибка парсинга данных из localStorage", e);
-        localStorage.removeItem(getLocalStorageKey()); // Очищаем некорректные данные
+        localStorage.removeItem(getLocalStorageKey());
       }
     }
 
@@ -602,7 +597,6 @@ const Game = () => {
 
   const clearSavedData = () => {
     localStorage.removeItem(getLocalStorageKey());
-    // Сброс состояния к начальному
     setPlayers(
       Array.from({ length: 10 }, (_, i) => ({
         id: i + 1,
@@ -617,6 +611,16 @@ const Game = () => {
     );
     bootstrapEmptyGame();
     showMessage("Сохраненные данные для этой игры очищены.");
+  };
+
+  // ИЗМЕНЕНИЕ: Функция для очистки кэша списков на странице рейтинга
+  const clearRatingPageCache = () => {
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('players_') || key.startsWith('games_') || key.startsWith('detailedStats_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    console.log("Кэш страницы рейтинга очищен.");
   };
 
   /* =======================
@@ -641,7 +645,6 @@ const Game = () => {
     };
 
     try {
-      console.log('Token before fetch:', token);
       const response = await fetch('/api/saveGameData', {
         method: 'POST',
         headers: {
@@ -654,8 +657,11 @@ const Game = () => {
       if (response.ok) {
         const result = await response.json();
         showMessage(result.message);
-        localStorage.removeItem(getLocalStorageKey()); // Очищаем локальные данные после успешного сохранения
-        setTimeout(() => navigate('/'), 500);
+        localStorage.removeItem(getLocalStorageKey());
+        // ИЗМЕНЕНИЕ: Очищаем кэш списков после успешного сохранения
+        clearRatingPageCache();
+        // ИЗМЕНЕНИЕ: Перенаправляем на страницу рейтинга, на вкладку "Игры"
+        setTimeout(() => navigate('/rating', { state: { defaultTab: 'Игры' } }), 500);
       } else {
         let errorMsg = 'Неизвестная ошибка';
         if (response.status === 403) {
@@ -684,7 +690,6 @@ const Game = () => {
 
   return (
     <>
-      {/* уведомления */}
       {serverUnavailable && (
         <div
           className={styles.notification}
@@ -711,7 +716,6 @@ const Game = () => {
       )}
 
       <div className={styles.gameWrapper}>
-        {/* Таблица игроков */}
         <table className={styles.playersTable} aria-label="Таблица игроков">
           <thead>
             <tr>
@@ -812,10 +816,8 @@ const Game = () => {
           </tbody>
         </table>
 
-        {/* Правая колонка */}
         <div className={styles.rightColumn}>
           <div className={styles.contentContainer}>
-            {/* Таймер */}
             <div className={styles.timerBlock}>
               <div className={styles.timerContainer}>
                 <div
@@ -844,7 +846,6 @@ const Game = () => {
               </div>
             </div>
 
-            {/* Фазы */}
             {currentPhase === 'nominating' && (
               <div className={styles.votingContainer}>
                 <nav aria-label="Список игроков для выставления" className={styles.votingNav}>
@@ -1012,7 +1013,6 @@ const Game = () => {
               </div>
             )}
 
-            {/* Вкладки и содержимое */}
             <div className={styles.tabs}>
               <button
                 type="button"
@@ -1032,7 +1032,6 @@ const Game = () => {
               </button>
             </div>
 
-            {/* АНТИПРЫГ: обе панели всегда в DOM, одна видима */}
             <div
               className={styles.tabPanels}
               ref={tabPanelsRef}
@@ -1061,7 +1060,6 @@ const Game = () => {
         </div>
       </div>
 
-      {/* Кнопка сохранения + выбор победителя */}
       <div className={styles.saveButtonContainer}>
         <BadgeDropdown value={badgeColor} onChange={setBadgeColor} />
         <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'; // ИЗМЕНЕНИЕ: Добавлен useLocation
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
@@ -24,10 +24,9 @@ export default function RatingPage() {
   const detailedStatsItemsPerPage = 10;
 
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useContext(AuthContext);
+  const location = useLocation(); // ИЗМЕНЕНИЕ: Получаем location
+  const { user, isAuthenticated, token, isAdmin } = useContext(AuthContext);
 
-  // Временно: включаем админский функционал
-const { isAdmin } = useContext(AuthContext);
   // ====== STATE ======
   const [playersData, setPlayersData] = useState([]);
   const [totalPlayersCount, setTotalPlayersCount] = useState(0);
@@ -49,16 +48,20 @@ const { isAdmin } = useContext(AuthContext);
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('all');
 
-  // Модалка удаления
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteGameId, setDeleteGameId] = useState(null);
-  const [adminNickname, setAdminNickname] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  // Состояние для процесса удаления и создания
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
 
   // Уведомления
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // ИЗМЕНЕНИЕ: Эффект для переключения на нужную вкладку после редиректа
+  useEffect(() => {
+    if (location.state?.defaultTab) {
+      setActiveTab(location.state.defaultTab);
+    }
+  }, [location.state]);
 
   // ====== HELPERS ======
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -93,13 +96,7 @@ const { isAdmin } = useContext(AuthContext);
     }, 5000);
   };
 
-  const handleEventChange = (eventId) => {
-    setSelectedEventId(eventId);
-    // Сбрасываем страницы при смене фильтра
-    setCurrentPage(1);
-    setGamesCurrentPage(1);
-    setDetailedStatsCurrentPage(1);
-    // Очищаем кэш, чтобы загрузить новые данные
+  const clearCache = () => {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('players_') || key.startsWith('games_') || key.startsWith('detailedStats_')) {
         localStorage.removeItem(key);
@@ -107,11 +104,19 @@ const { isAdmin } = useContext(AuthContext);
     });
   };
 
+  const handleEventChange = (eventId) => {
+    setSelectedEventId(eventId);
+    setCurrentPage(1);
+    setGamesCurrentPage(1);
+    setDetailedStatsCurrentPage(1);
+    clearCache();
+  };
+
   // ====== DATA FETCH ======
   const fetchPlayers = async () => {
-    const cacheKey = `players_offset_${startIndex}`;
+    const cacheExpiry = 60 * 1000; // 1 минута
+    const cacheKey = `players_offset_${startIndex}_event_${selectedEventId}`;
     const cached = localStorage.getItem(cacheKey);
-    const cacheExpiry = 5 * 60 * 1000;
 
     if (cached) {
       try {
@@ -160,9 +165,9 @@ const { isAdmin } = useContext(AuthContext);
   };
 
   const fetchGames = async () => {
-    const cacheKey = `games_offset_${gamesStartIndex}`;
+    const cacheExpiry = 60 * 1000; // 1 минута
+    const cacheKey = `games_offset_${gamesStartIndex}_event_${selectedEventId}`;
     const cached = localStorage.getItem(cacheKey);
-    const cacheExpiry = 3 * 60 * 1000;
 
     if (cached) {
       try {
@@ -211,9 +216,9 @@ const { isAdmin } = useContext(AuthContext);
   };
 
   const fetchDetailedStats = async () => {
-    const cacheKey = `detailedStats_offset_${detailedStatsStartIndex}`;
+    const cacheExpiry = 60 * 1000; // 1 минута
+    const cacheKey = `detailedStats_offset_${detailedStatsStartIndex}_event_${selectedEventId}`;
     const cached = localStorage.getItem(cacheKey);
-    const cacheExpiry = 3 * 60 * 1000;
 
     if (cached) {
       try {
@@ -273,7 +278,6 @@ const { isAdmin } = useContext(AuthContext);
     else if (activeTab === 'Игры') fetchGames();
     else if (activeTab === 'Статистика') fetchDetailedStats();
 
-    // Загрузка списка событий для фильтра
     fetch('/api/events')
       .then(res => res.json())
       .then(data => setEvents(data.events || []))
@@ -301,58 +305,64 @@ const { isAdmin } = useContext(AuthContext);
   };
 
   // ====== ДЕЙСТВИЯ ======
-  const handleCreateGame = () => {
-    const eventId = '1';
-    const gameId = totalGamesCount + 1;
-    navigate(`/Event/${eventId}/Game/${gameId}`);
+  const handleCreateGame = async () => {
+    setIsCreatingGame(true);
+    try {
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (attempts < maxAttempts) {
+        const eventId = selectedEventId !== 'all' ? selectedEventId : '1';
+        const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+        const response = await fetch(`/api/checkGameExists/${gameId}`);
+        if (!response.ok) {
+          showMessage('Ошибка проверки ID игры на сервере.', true);
+          return;
+        }
+        const data = await response.json();
+
+        if (!data.exists) {
+          navigate(`/Event/${eventId}/Game/${gameId}`);
+          return; // Успешно, выходим из функции
+        }
+        
+        attempts++;
+      }
+      showMessage('Не удалось сгенерировать уникальный ID для игры. Попробуйте еще раз.', true);
+    } catch (error) {
+      showMessage('Ошибка сети при создании игры: ' + error.message, true);
+    } finally {
+      setIsCreatingGame(false);
+    }
   };
 
-  const handleDeleteGame = async () => {
-    if (!deleteGameId || !adminNickname || !adminPassword) {
-      showMessage('Пожалуйста, заполните все поля для аутентификации.', true);
+  const handleDeleteGame = async (gameId) => {
+    if (!window.confirm(`Вы уверены, что хотите удалить игру #${gameId}?`)) {
       return;
     }
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/deleteGame/${deleteGameId}`, {
+      const res = await fetch(`/api/deleteGame/${gameId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          admin_nickname: adminNickname,
-          admin_password: adminPassword,
-        }),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       if (res.ok) {
         const data = await res.json();
         showMessage(data.message || 'Игра удалена.');
-        setShowDeleteModal(false);
-        setAdminNickname('');
-        setAdminPassword('');
-        setDeleteGameId(null);
+        clearCache();
         fetchGames();
-        fetchPlayers();
-        fetchDetailedStats();
       } else {
-        let msg = 'Неизвестная ошибка';
-        if (res.status === 400) msg = 'Админ не найден или неверный пароль.';
-        else if (res.status === 403) msg = 'Нет прав (нужна роль admin).';
-        else if (res.status === 404) msg = 'Игра не найдена.';
-        else {
-          const e = await res.json().catch(() => ({}));
-          msg = e.detail || msg;
-        }
-        showMessage(msg, true);
+        const errorData = await res.json().catch(() => ({}));
+        showMessage(errorData.detail || 'Ошибка при удалении игры.', true);
       }
     } catch (e) {
       showMessage('Ошибка сети: ' + e.message, true);
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const openDeleteModal = (gameId) => {
-    setDeleteGameId(gameId);
-    setShowDeleteModal(true);
   };
 
   return (
@@ -375,7 +385,6 @@ const { isAdmin } = useContext(AuthContext);
       )}
 
       <main className={styles.main}>
-        {/* HERO блок (опционально, стили есть в CSS) */}
         <section className={styles.hero}>
           <h1 className={styles.heroTitle}>Рейтинг</h1>
           <p className={styles.heroText}>
@@ -386,7 +395,6 @@ const { isAdmin } = useContext(AuthContext);
           </p>
         </section>
 
-        {/* Табы */}
         <div className={styles.tabs} role="tablist">
           {tabs.map((tab) => (
             <button
@@ -404,7 +412,6 @@ const { isAdmin } = useContext(AuthContext);
           ))}
         </div>
 
-        {/* Селектор событий/рейтингов */}
         <div className={styles.eventSelector}>
           <label htmlFor="event-select">Рейтинг по событию:</label>
           <select
@@ -421,7 +428,6 @@ const { isAdmin } = useContext(AuthContext);
         </div>
 
 
-        {/* ====== ОБЩАЯ СВОДКА ====== */}
         {activeTab === 'Общая сводка' && (
           <>
             {playersLoading && <p>Загрузка игроков...</p>}
@@ -525,7 +531,6 @@ const { isAdmin } = useContext(AuthContext);
           </>
         )}
 
-        {/* ====== ИГРЫ (лист как на макете / sheet*) ====== */}
         {activeTab === 'Игры' && (
           <div>
             {isAdmin && (
@@ -533,8 +538,9 @@ const { isAdmin } = useContext(AuthContext);
                 onClick={handleCreateGame}
                 className={styles.createGameBtn}
                 type="button"
+                disabled={isCreatingGame}
               >
-                Создать игру
+                {isCreatingGame ? 'Создание...' : 'Создать игру'}
               </button>
             )}
 
@@ -549,16 +555,16 @@ const { isAdmin } = useContext(AuthContext);
                   aria-label="Список игр"
                 >
                   {gamesData.map((game, idx) => {
+                    const gameNumber = totalGamesCount - gamesStartIndex - idx;
                     const rows = Array.from(
                       { length: 10 },
                       (_, i) => game.players?.[i] || {}
                     );
                     return (
-                      <article key={`${game.id}-${idx}`} className={styles.sheetCard}>
-                        {/* верхняя плашка */}
+                      <article key={game.id} className={styles.sheetCard}>
                         <div className={styles.sheetTop}>
                           <span className={styles.sheetTitle}>
-                            Игра #{game.id}
+                            Игра #{gameNumber}
                           </span>
                           <div
                             className={styles.sheetSlashTop}
@@ -569,7 +575,6 @@ const { isAdmin } = useContext(AuthContext);
                           </time>
                         </div>
 
-                        {/* таблица */}
                         <div className={styles.sheetTableWrap}>
                           <table className={styles.sheetTable}>
                             <thead>
@@ -593,7 +598,6 @@ const { isAdmin } = useContext(AuthContext);
                           </table>
                         </div>
 
-                        {/* нижняя плашка */}
                         <div className={styles.sheetBottom}>
                           <span className={styles.sheetBottomLeft}>
                             Результат
@@ -604,21 +608,32 @@ const { isAdmin } = useContext(AuthContext);
                           />
                           <span className={styles.sheetBottomRight}>
                             {game.result ||
-                              (game.badgeColor === 'red'
+                              (game.badgeColor === 'black'
                                 ? 'Победа мафии'
                                 : 'Победа мирных')}
                           </span>
                         </div>
 
                         {isAdmin && (
-                          <button
-                            onClick={() => openDeleteModal(game.id)}
-                            className={styles.sheetDeleteBtn}
-                            type="button"
-                            aria-label={`Удалить игру ${game.id}`}
-                          >
-                            Удалить
-                          </button>
+                          <div className={styles.sheetActions}>
+                            <button
+                              onClick={() => navigate(`/Event/${game.event_id || '1'}/Game/${game.id}`)}
+                              className={styles.sheetEditBtn}
+                              type="button"
+                              aria-label={`Редактировать игру ${gameNumber}`}
+                            >
+                              Редактировать
+                            </button>
+                            <button
+                              onClick={() => handleDeleteGame(game.id)}
+                              className={styles.sheetDeleteBtn}
+                              type="button"
+                              aria-label={`Удалить игру ${gameNumber}`}
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? '...' : 'Удалить'}
+                            </button>
+                          </div>
                         )}
                       </article>
                     );
@@ -677,7 +692,6 @@ const { isAdmin } = useContext(AuthContext);
           </div>
         )}
 
-        {/* ====== СТАТИСТИКА ====== */}
         {activeTab === 'Статистика' && (
           <section
             className={styles.statsWrapper}
@@ -707,7 +721,6 @@ const { isAdmin } = useContext(AuthContext);
               </div>
             </div>
 
-            {/* Детальная таблица */}
             <DetailedStatsTable
               data={detailedStatsData}
               currentPage={detailedStatsCurrentPage}
@@ -718,61 +731,6 @@ const { isAdmin } = useContext(AuthContext);
           </section>
         )}
       </main>
-
-      {/* Модалка удаления игры */}
-      {showDeleteModal && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setShowDeleteModal(false)}
-        >
-          <div
-            className={styles.modalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2>Удалить игру</h2>
-            <p>Введите credentials админа для подтверждения:</p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleDeleteGame();
-              }}
-            >
-              <div className={styles.formGroup}>
-                <label htmlFor="adminNickname">Nickname админа:</label>
-                <input
-                  id="adminNickname"
-                  type="text"
-                  value={adminNickname}
-                  onChange={(e) => setAdminNickname(e.target.value)}
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="adminPassword">Пароль админа:</label>
-                <input
-                  id="adminPassword"
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(false)}
-                  disabled={isDeleting}
-                >
-                  Отмена
-                </button>
-                <button type="submit" disabled={isDeleting}>
-                  {isDeleting ? 'Удаление...' : 'Удалить'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

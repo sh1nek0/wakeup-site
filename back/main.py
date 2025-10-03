@@ -569,6 +569,18 @@ async def get_game_data(gameId: str):
     finally:
         db.close()
 
+# НОВЫЙ ЭНДПОИНТ для проверки существования игры
+@app.get("/checkGameExists/{gameId}")
+async def check_game_exists(gameId: str):
+    db = SessionLocal()
+    try:
+        game = db.query(Game).filter(Game.gameId == gameId).first()
+        return {"exists": game is not None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка проверки игры: {str(e)}")
+    finally:
+        db.close()
+
 # Новый эндпоинт для удаления игры (только админы могут использовать, с JWT)
 @app.delete("/deleteGame/{gameId}")
 async def delete_game(gameId: str, current_user: User = Depends(get_current_user)):
@@ -614,6 +626,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 "id": game.gameId,
                 "date": game.created_at.strftime("%d.%m.%Y %H:%M"),  # Форматированная дата
                 "badgeColor": data.get("badgeColor", ""),
+                "event_id": game.event_id,
                 "players": [
                     {
                         "name": p["name"],

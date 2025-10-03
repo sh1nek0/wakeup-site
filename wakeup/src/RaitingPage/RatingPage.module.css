@@ -357,27 +357,45 @@
   background:var(--FF7A1A); transform:skewX(-30deg); pointer-events:none;
 }
 
-/* кнопка удаления на карточке */
-.sheetDeleteBtn{
-  align-self:flex-start;
-  margin-top:6px;
-  background:#d32f2f;
-  color:#fff;
-  border:none;
-  padding:8px 14px;
-  font-size:.9rem;
-  cursor:pointer;
-  transition:filter .2s, transform .12s;
+/* Кнопки админа на карточке */
+.sheetActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  align-self: flex-start;
 }
-.sheetDeleteBtn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
-:global(.sheetDeleteBtn){
-  align-self:flex-start; margin-top:6px; background:#d32f2f; color:#fff;
-  border:none; padding:8px 14px; font-size:.9rem; cursor:pointer; transition:filter .2s, transform .12s;
+
+.sheetEditBtn, .sheetDeleteBtn {
+  border: none;
+  padding: 8px 14px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .2s, transform .12s;
 }
-:global(.sheetDeleteBtn:hover){ filter:brightness(1.05); transform:translateY(-1px); }
+
+.sheetEditBtn:hover, .sheetDeleteBtn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.sheetEditBtn {
+  background: #4a90e2;
+  color: #fff;
+}
+
+.sheetDeleteBtn {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.sheetDeleteBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* Кнопки создания/удаления игры (общие) */
-.createGameBtn, .deleteGameBtn{ border-radius:0; }
+.createGameBtn{ border-radius:0; }
 .createGameBtn{
   background:var(--FF7A1A);
   color:#121212;
@@ -389,19 +407,6 @@
   transition:filter .2s, transform .12s;
 }
 .createGameBtn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
-
-.deleteGameBtn{
-  align-self:flex-end;
-  margin:10px 12px 12px;
-  background:#d32f2f;
-  color:#fff;
-  border:none;
-  padding:8px 16px;
-  cursor:pointer;
-  font-size:.9rem;
-  transition:filter .2s, transform .12s;
-}
-.deleteGameBtn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
 
 /* =========================
    ДЕТАЛЬНАЯ СТАТИСТИКА
@@ -524,18 +529,24 @@
 .sheetTableWrap{ padding:4px 6px 6px; }
 :global(.sheetTableWrap){ padding:4px 6px 6px; }
 
-.sheetTable thead th{
+.sheetTable thead th,
+:global(.sheetTable) thead th{
+  background:var(--FF7A1A) !important;
+  color:#ffffff !important;
+  font-weight:800;
   font-size:11px;
   padding:4px 6px;
   line-height:1.05;
 }
-:global(.sheetTable) thead th{
-  font-size:11px !important;
-  padding:4px 6px !important;
-  line-height:1.05;
-}
+.sheetTable thead th:first-child,
+:global(.sheetTable) thead th:first-child{ width:64px; text-align:center; }
+.sheetTable thead th:last-child,
+:global(.sheetTable) thead th:last-child{ width:96px; text-align:center; }
 
-.sheetTable tbody td{
+.sheetTable tbody td,
+:global(.sheetTable) tbody td{
+  background:var(--cell) !important;
+  color:var(--txt-dark) !important;
   font-size:12px;
   padding:3px 6px;
   height:20px;           /* было ~44px */
