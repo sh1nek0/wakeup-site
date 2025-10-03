@@ -159,8 +159,8 @@ const BadgeDropdown = ({ value, onChange }) => {
   ];
   const currentLabel = options.find((opt) => opt.value === value)?.label || 'Красные';
 
-  const handleSelect = (selectedValue) => {
-    onChange(selectedValue);
+  const handleSelect = (option) => {
+    onChange(option.value);
     setIsOpen(false);
   };
 
