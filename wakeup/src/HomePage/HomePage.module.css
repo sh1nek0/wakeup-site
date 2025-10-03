@@ -768,7 +768,7 @@ body {
   :root {
     --card-w: 200px;
     --card-h: 300px;
-    --gap: 20px;
+    --gap: 15px;
   }
   .content-box-three .dots {
     gap: 8px;
@@ -780,7 +780,7 @@ body {
 
 
   .carousel-wrapper{
-    width: 90%;
+    width: 95%;
   }
   /* Декоративные элементы: минимальные размеры и opacity */
   
@@ -821,19 +821,25 @@ body {
 
 
 
+
 /* Адаптив второй карусели (расширенная версия уже существующей) */
 @media (max-width: 1100px) {
-  .wrap { --card-w: 240px; --card-h: 350px; }
+  .wrap { --card-w: 240px; --card-h: 350px; overflow: hidden;}
   .wrap .h1 { font-size: 44px; }
   .wrap .title { font-size: 34px; }
 
 }
+
+
 @media (max-width: 920px) {
   .wrap .grid { grid-template-columns: 1fr; gap: 28px; }
   .wrap .dots { top: 28px; margin-top: 28px; }
   .wrap .h1 { font-size: 40px; }
   .wrap .title { font-size: 30px; }
 }
+
+
+
 @media (max-width: 520px) {
   .wrap { --card-w: 150px; --card-h: 220px; padding: 28px 16px 120px; }
   .wrap .h1 { font-size: 34px; }
