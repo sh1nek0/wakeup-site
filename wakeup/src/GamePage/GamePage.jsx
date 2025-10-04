@@ -254,7 +254,7 @@ const Game = () => {
   const [shootingResults, setShootingResults] = useState({});
   const [donResults, setDonResults] = useState({});
   const [sheriffResults, setSheriffResults] = useState({});
-  const [activeTab, setActiveTab] = useState('gameInfo');
+  const [activeTab, setActiveTab] = useState('fouls');
   const [badgeColor, setBadgeColor] = useState('red');
 
   // Загрузка/ошибки
@@ -866,7 +866,7 @@ const Game = () => {
                 </nav>
 
                 <div role="grid" aria-label="Цифровая клавиатура для выставления" className={styles.keyboardGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                     <button
                       key={num}
                       type="button"
@@ -995,6 +995,9 @@ const Game = () => {
                       {num}
                     </button>
                   ))}
+                    <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn}>
+                    -
+                  </button>
                 </div>
               </div>
             )}
@@ -1008,6 +1011,9 @@ const Game = () => {
                       {num}
                     </button>
                   ))}
+                   <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn}>
+                    -
+                  </button>
                 </div>
               </div>
             )}
@@ -1020,7 +1026,7 @@ const Game = () => {
                 className={activeTab === 'gameInfo' ? styles.activeTab : styles.tab}
                 aria-selected={activeTab === 'gameInfo'}
               >
-                Виджет
+                Ход игры
               </button>
               <button
                 type="button"
