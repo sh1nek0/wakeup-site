@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import re
+
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, ForeignKey
@@ -484,13 +486,39 @@ async def get_event(event_id: str):
     finally:
         db.close()
 
-# Сохранить данные игры (обновлено: добавлена проверка админа через JWT)
+
+
+# Вспомогательная функция для парсинга ЛХ
+def parse_lx(lx_string: str) -> list[int]:
+    if not lx_string:
+        return []
+
+    numbers = []
+    
+    # Шаг 1: Сначала извлекаем все "10", чтобы избежать путаницы с "1" и "0"
+    # Используем lookahead, чтобы найти пересекающиеся совпадения, например в "1010"
+    tens = re.findall(r'10', lx_string)
+    numbers.extend([10] * len(tens))
+    
+    # Удаляем "10" из строки, чтобы они не мешали поиску одиночных цифр
+    remaining_string = lx_string.replace('10', '')
+    
+    # Шаг 2: Извлекаем все остальные цифры от 1 до 9
+    single_digits = re.findall(r'[1-9]', remaining_string)
+    numbers.extend([int(d) for d in single_digits])
+    
+    return numbers
+
+
 @app.post("/saveGameData")
 async def save_game_data(data: SaveGameData, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
+
+        # Создаем словарь для быстрого доступа к ролям игроков по их номеру (id)
+        player_roles = {player.get("id"): player.get("role", "").lower() for player in data.players}
 
         # Определяем победившую команду на основе badgeColor
         if data.badgeColor == "red":
@@ -505,7 +533,27 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         for player in data.players:
             plus = player.get("plus", 0)
             minus = player.get("minus", 0)
-            role = player.get("role", "")
+            role = player.get("role", "").lower()
+            lx_string = player.get("lx", "")
+
+            if lx_string:
+                # 1. Парсим строку ЛХ в массив номеров
+                lx_numbers = parse_lx(lx_string)
+                
+                # 2. Находим уникальные номера черных игроков в ЛХ
+                black_players_in_lx = set()
+                for player_num in lx_numbers:
+                    # Проверяем, что номер игрока валиден и его роль - черная
+                    if player_num in player_roles and player_roles[player_num] in ["мафия", "дон"]:
+                        black_players_in_lx.add(player_num)
+                
+                # 3. Начисляем очки в зависимости от количества найденных черных
+                count_black = len(black_players_in_lx)
+                if count_black == 3:
+                    plus += 1.0
+                elif count_black == 2:
+                    plus += 0.5
+                # Если 0, 1 или тройка красных - ничего не добавляем (бонус 0)
 
             # Добавляем командный бонус 2.5, если роль игрока в победившей команде
             if role in winning_roles:
@@ -546,8 +594,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         raise HTTPException(status_code=500, detail=f"Ошибка сохранения игры: {str(e)}")
     finally:
         db.close()
-
-
 
 
 # Эндпоинт для получения данных игры (без изменений)
