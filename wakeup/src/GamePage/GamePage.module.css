@@ -456,7 +456,7 @@ body{
   .gameWrapper{ padding:10px; margin:10px; }
   .rightColumn{ border-radius:12px; padding:10px; overflow:visible; }
   .contentContainer{ padding:10px; }
-  .keyboardGrid{ grid-template-columns:repeat(2,1fr); max-width:250px; }
+  .keyboardGrid{ grid-template-columns:repeat(3,1fr); max-width:250px; }
   .tabs{ font-size:18px; }
   .foulsGrid{ grid-template-columns:repeat(auto-fill,minmax(60px,1fr)); }
   .votingNav{ grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } /* Адаптив для голосования: на мобильных авто-заполнение */

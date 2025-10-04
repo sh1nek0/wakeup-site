@@ -53,7 +53,7 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
   );
 };
 
-const FoulsComponent = ({ players, onIncrementFoul, isPenaltyTime }) => {
+const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, isPenaltyTime }) => {
   return (
     <div className={styles.foulsWrapper}>
       <div className={styles.foulsGrid}>
@@ -67,7 +67,7 @@ const FoulsComponent = ({ players, onIncrementFoul, isPenaltyTime }) => {
               tabIndex={0}
               aria-disabled={atMax}
               aria-label={`Добавить фол игроку ${player.id}`}
-              onClick={() => !atMax && onIncrementFoul(player.id)}
+              onClick={() => !atMax && !isPenaltyTime ? onIncrementFoul(player.id) : onIncrementDFouls(player.id)}
               onKeyDown={(e) => {
                 if (!atMax && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault();
@@ -398,10 +398,17 @@ const Game = () => {
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, name: value } : p)));
   const incrementFouls = (id) => {
     setPlayers((prev) =>
+      prev.map((p) => (p.id === id && p.fouls < 3 ? { ...p, fouls: Math.min(p.fouls + 1, 3) } : p)) // +2 фола, но не больше 3
+    );
+  };
+  const incrementDFouls = (id) => {
+    setPlayers((prev) =>
       prev.map((p) => (p.id === id && p.fouls < 3 ? { ...p, fouls: Math.min(p.fouls + 2, 3) } : p)) // +2 фола, но не больше 3
     );
     setIsPenaltyTime(false); // Снимаем дизейбл
   };
+
+
   const handleRoleChange = (id, role) =>
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, role } : p)));
   const handleLxChange = (id, value) =>
@@ -901,7 +908,7 @@ const Game = () => {
                   </button>
                   <button
                     className={styles.timerBtn}
-                    onClick={() => updateTimer(30)} // +30 всегда активен
+                    onClick={() => updateTimer(30)}
                     type="button"
                   >
                     +30
@@ -1130,6 +1137,7 @@ const Game = () => {
                 <FoulsComponent
                   players={players}
                   onIncrementFoul={incrementFouls}
+                  onIncrementDFouls={incrementDFouls}
                   isPenaltyTime={isPenaltyTime}
                 />
               </div>
