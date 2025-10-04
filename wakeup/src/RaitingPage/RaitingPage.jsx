@@ -48,9 +48,10 @@ export default function RatingPage() {
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('all');
 
-  // Состояние для процесса удаления и создания
+  // Состояние для процессов
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false); // New state
 
   // Уведомления
   const [successMessage, setSuccessMessage] = useState('');
@@ -365,6 +366,28 @@ export default function RatingPage() {
     }
   };
 
+  const handleUpdateCi = () => {
+    if (!isAdmin) {
+      showMessage('Это действие доступно только администратору.', true);
+      return;
+    }
+    setIsRecalculating(true);
+    showMessage('Обновление данных...');
+    clearCache();
+    
+    // Re-fetch data for the current tab
+    if (activeTab === 'Общая сводка') {
+      fetchPlayers().finally(() => setIsRecalculating(false));
+    } else if (activeTab === 'Игры') {
+      fetchGames().finally(() => setIsRecalculating(false));
+    } else if (activeTab === 'Статистика') {
+      fetchDetailedStats().finally(() => setIsRecalculating(false));
+    } else {
+      setIsRecalculating(false);
+    }
+    showMessage('Данные обновлены.');
+  };
+
   return (
     <div className={styles.pageWrapper}>
       {successMessage && (
@@ -534,14 +557,24 @@ export default function RatingPage() {
         {activeTab === 'Игры' && (
           <div>
             {isAdmin && (
-              <button
-                onClick={handleCreateGame}
-                className={styles.createGameBtn}
-                type="button"
-                disabled={isCreatingGame}
-              >
-                {isCreatingGame ? 'Создание...' : 'Создать игру'}
-              </button>
+              <div className={styles.adminActions}>
+                <button
+                  onClick={handleCreateGame}
+                  className={styles.createGameBtn}
+                  type="button"
+                  disabled={isCreatingGame}
+                >
+                  {isCreatingGame ? 'Создание...' : 'Создать игру'}
+                </button>
+                <button
+                  onClick={handleUpdateCi}
+                  className={styles.createGameBtn}
+                  type="button"
+                  disabled={isRecalculating}
+                >
+                  {isRecalculating ? 'Обновление...' : 'Обновить Ci'}
+                </button>
+              </div>
             )}
 
             {gamesLoading && <p>Загрузка игр...</p>}

@@ -536,6 +536,13 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             role = player.get("role", "").lower()
             lx_string = player.get("lx", "")
 
+            # Сбрасываем старый Ci бонус, если он был, т.к. он будет пересчитан
+            # и добавлен к sum позже, а не к plus
+            if 'ci_bonus' in player:
+                plus -= player.get('ci_bonus', 0.0)
+                player['ci_bonus'] = 0.0
+
+
             if lx_string:
                 # 1. Парсим строку ЛХ в массив номеров
                 lx_numbers = parse_lx(lx_string)
@@ -690,26 +697,93 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     finally:
         db.close()
 
+def calculate_ci_bonuses(games: list[Game], is_tournament: bool) -> dict:
+    """
+    Calculates Ci bonuses for all players across a set of games.
+    This function processes games chronologically to correctly calculate X and N at each step.
+
+    Returns a dict: {'player_name': {'game_id': ci_bonus}}
+    """
+    ci_bonuses = {}
+    player_x_counts = {}
+    n = 0
+
+    sorted_games = sorted(games, key=lambda g: g.created_at)
+
+    for game in sorted_games:
+        n += 1
+        try:
+            game_data = json.loads(game.data)
+        except (json.JSONDecodeError, TypeError):
+            continue  # Skip malformed game data
+
+        players_in_game = game_data.get("players", [])
+        if not isinstance(players_in_game, list):
+            continue
+
+        player_roles = {p.get("id"): p.get("role", "").lower() for p in players_in_game if isinstance(p, dict)}
+
+        eliminated_player = None
+        for p in players_in_game:
+            if isinstance(p, dict) and p.get("lx"):
+                eliminated_player = p
+                break
+        
+        if not eliminated_player:
+            continue
+
+        player_name = eliminated_player.get("name")
+        if not player_name:
+            continue
+
+        lx_numbers = parse_lx(eliminated_player.get("lx", ""))
+        found_black = False
+        for player_num in lx_numbers:
+            if player_num in player_roles and player_roles[player_num] in ["мафия", "дон"]:
+                found_black = True
+                break
+        
+        if found_black:
+            player_x_counts[player_name] = player_x_counts.get(player_name, 0) + 1
+
+        current_x = player_x_counts.get(player_name, 0)
+        
+        if current_x > 0:
+            k = 0
+            if is_tournament:
+                k = current_x
+            else:
+                k = max(0, current_x - (n // 10))
+            
+            if k > 0:
+                ci_bonus = 0.5 * (k * (k + 1) / 2)
+                
+                if player_name not in ci_bonuses:
+                    ci_bonuses[player_name] = {}
+                ci_bonuses[player_name][game.gameId] = ci_bonus
+
+    return ci_bonuses
+
 @app.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"),
                      offset: int = Query(0, description="Смещение для пагинации"),
                      event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
-        # Получаем игры из БД с учетом фильтра
         games_query = db.query(Game)
+        is_tournament = False
         if event_id and event_id != 'all':
             games_query = games_query.filter(Game.event_id == event_id)
+            is_tournament = True
         
         games = games_query.all()
 
-        # Получаем всех игроков из БД (для добавления тех, кто не играл)
+        ci_bonuses = calculate_ci_bonuses(games, is_tournament)
+
         all_players = db.query(User).all()
         player_names = {p.nickname for p in all_players}
-        # Словарь для быстрого доступа к клубам
         clubs = {p.nickname: p.club for p in all_players}
 
-        # Вычисляем статистику игроков
         player_stats = {}
         for game in games:
             game_data = json.loads(game.data)
@@ -722,39 +796,37 @@ async def get_rating(limit: int = Query(10, description="Количество э
                 plus = player.get("plus", 0)
                 minus = player.get("minus", 0)
                 sum_points = player.get("sum", 0)
+                
+                ci_bonus_for_game = ci_bonuses.get(name, {}).get(game.gameId, 0)
+
                 if name not in player_stats:
                     player_stats[name] = {"games": 0, "total_plus": 0, "total_minus": 0, "total_sum": 0}
+                
                 player_stats[name]["games"] += 1
                 player_stats[name]["total_plus"] += plus
                 player_stats[name]["total_minus"] += minus
-                player_stats[name]["total_sum"] += sum_points  # Исправлено: было "points", но инициализация использует "total_sum"
+                player_stats[name]["total_sum"] += sum_points + ci_bonus_for_game
 
-        # Добавляем игроков, которые есть в БД, но не участвовали в играх (с 0 баллами)
         for name in player_names:
             if name not in player_stats:
                 player_stats[name] = {"games": 0, "total_plus": 0, "total_minus": 0, "total_sum": 0}
 
-        # Формируем рейтинг и сортируем по total_sum (убыванию)
         rating = [
             {
                 "name": name,
                 "games": stats["games"],
                 "total_plus": stats["total_plus"],
                 "total_minus": stats["total_minus"],
-                "points": stats["total_sum"],  # Оставлено как "points" для совместимости с фронтендом
-                "club": clubs.get(name, None)  # Новое поле: клуб из User, None если не найден
+                "points": stats["total_sum"],
+                "club": clubs.get(name, None)
             }
             for name, stats in player_stats.items()
         ]
         rating.sort(key=lambda x: x["points"], reverse=True)
 
-        # Общее количество игроков
         total_count = len(rating)
-
-        # Применяем пагинацию
         paginated_rating = rating[offset:offset + limit]
 
-        # Возвращаем в формате, ожидаемом фронтендом
         return {"players": paginated_rating, "total_count": total_count}
 
     except Exception as e:
@@ -774,12 +846,14 @@ async def get_detailed_stats(
         player_names = {p.nickname for p in all_players}
         clubs = {p.nickname: p.club for p in all_players}
         
-        # Получаем игры из БД с учетом фильтра
         games_query = db.query(Game)
         if event_id and event_id != 'all':
             games_query = games_query.filter(Game.event_id == event_id)
         
         games = games_query.all()
+        
+        is_tournament = bool(event_id and event_id != 'all')
+        ci_bonuses = calculate_ci_bonuses(games, is_tournament)
         
         player_stats = {}
 
@@ -797,6 +871,8 @@ async def get_detailed_stats(
                 minus = player.get("fouls", 0)
                 sum_points = player.get("sum", 0)
 
+                ci_bonus_for_game = ci_bonuses.get(name, {}).get(game.gameId, 0)
+
                 if name not in player_stats:
                     player_stats[name] = {
                         "totalPoints": 0,
@@ -809,95 +885,93 @@ async def get_detailed_stats(
                         "gamesPlayed": {"peaceful": 0, "mafia": 0, "red": 0, "don": 0, "sk": 0, "jk": 0},
                         "wins_plus_list": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []},
                         "losses_plus_list": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []},
-                        "role_plus": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []}  # Оставлено для совместимости
+                        "role_plus": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []}
                     }
 
                 stats = player_stats[name]
-                stats["totalPoints"] += sum_points
-                stats["bonuses"] += plus
+                stats["totalPoints"] += sum_points + ci_bonus_for_game
+                stats["bonuses"] += plus + ci_bonus_for_game
                 stats["penalties"] += minus
 
-                # Определяем выигрыш ли игрок по роли (зависит от badge_color)
                 is_win = False
                 if role == "мирный":
                     stats["gamesPlayed"]["peaceful"] += 1
-                    stats["role_plus"]["peaceful"].append(plus)
+                    stats["role_plus"]["peaceful"].append(plus + ci_bonus_for_game)
                     if badge_color == "red":
                         is_win = True
                         stats["wins"]["peaceful"] += 1
-                        stats["wins_points"]["peaceful"] += plus
-                        stats["wins_plus_list"]["peaceful"].append(plus)
+                        stats["wins_points"]["peaceful"] += plus + ci_bonus_for_game
+                        stats["wins_plus_list"]["peaceful"].append(plus + ci_bonus_for_game)
                     else:
                         stats["losses"]["peaceful"] += 1
-                        stats["losses_points"]["peaceful"] += plus
-                        stats["losses_plus_list"]["peaceful"].append(plus)
+                        stats["losses_points"]["peaceful"] += plus + ci_bonus_for_game
+                        stats["losses_plus_list"]["peaceful"].append(plus + ci_bonus_for_game)
 
                 elif role == "мафия":
                     stats["gamesPlayed"]["mafia"] += 1
-                    stats["role_plus"]["mafia"].append(plus)
+                    stats["role_plus"]["mafia"].append(plus + ci_bonus_for_game)
                     if badge_color == "black":
                         is_win = True
                         stats["wins"]["mafia"] += 1
-                        stats["wins_points"]["mafia"] += plus
-                        stats["wins_plus_list"]["mafia"].append(plus)
+                        stats["wins_points"]["mafia"] += plus + ci_bonus_for_game
+                        stats["wins_plus_list"]["mafia"].append(plus + ci_bonus_for_game)
                     else:
                         stats["losses"]["mafia"] += 1
-                        stats["losses_points"]["mafia"] += plus
-                        stats["losses_plus_list"]["mafia"].append(plus)
+                        stats["losses_points"]["mafia"] += plus + ci_bonus_for_game
+                        stats["losses_plus_list"]["mafia"].append(plus + ci_bonus_for_game)
 
                 elif role == "шериф":
                     stats["gamesPlayed"]["red"] += 1
-                    stats["role_plus"]["red"].append(plus)
+                    stats["role_plus"]["red"].append(plus + ci_bonus_for_game)
                     if badge_color == "red":
                         is_win = True
                         stats["wins"]["red"] += 1
-                        stats["wins_points"]["red"] += plus
-                        stats["wins_plus_list"]["red"].append(plus)
+                        stats["wins_points"]["red"] += plus + ci_bonus_for_game
+                        stats["wins_plus_list"]["red"].append(plus + ci_bonus_for_game)
                     else:
                         stats["losses"]["red"] += 1
-                        stats["losses_points"]["red"] += plus
-                        stats["losses_plus_list"]["red"].append(plus)
+                        stats["losses_points"]["red"] += plus + ci_bonus_for_game
+                        stats["losses_plus_list"]["red"].append(plus + ci_bonus_for_game)
 
                 elif role == "дон":
                     stats["gamesPlayed"]["don"] += 1
-                    stats["role_plus"]["don"].append(plus)
+                    stats["role_plus"]["don"].append(plus + ci_bonus_for_game)
                     if badge_color == "black":
                         is_win = True
                         stats["wins"]["don"] += 1
-                        stats["wins_points"]["don"] += plus
-                        stats["wins_plus_list"]["don"].append(plus)
+                        stats["wins_points"]["don"] += plus + ci_bonus_for_game
+                        stats["wins_plus_list"]["don"].append(plus + ci_bonus_for_game)
                     else:
                         stats["losses"]["don"] += 1
-                        stats["losses_points"]["don"] += plus
-                        stats["losses_plus_list"]["don"].append(plus)
+                        stats["losses_points"]["don"] += plus + ci_bonus_for_game
+                        stats["losses_plus_list"]["don"].append(plus + ci_bonus_for_game)
 
                 elif role == "sk":
                     stats["gamesPlayed"]["sk"] += 1
-                    stats["role_plus"]["sk"].append(plus)
+                    stats["role_plus"]["sk"].append(plus + ci_bonus_for_game)
                     if badge_color == "red":
                         is_win = True
                         stats["wins"]["sk"] += 1
-                        stats["wins_points"]["sk"] += plus
-                        stats["wins_plus_list"]["sk"].append(plus)
+                        stats["wins_points"]["sk"] += plus + ci_bonus_for_game
+                        stats["wins_plus_list"]["sk"].append(plus + ci_bonus_for_game)
                     else:
                         stats["losses"]["sk"] += 1
-                        stats["losses_points"]["sk"] += plus
-                        stats["losses_plus_list"]["sk"].append(plus)
+                        stats["losses_points"]["sk"] += plus + ci_bonus_for_game
+                        stats["losses_plus_list"]["sk"].append(plus + ci_bonus_for_game)
 
                 elif role == "jk":
                     stats["gamesPlayed"]["jk"] += 1
-                    stats["role_plus"]["jk"].append(plus)
+                    stats["role_plus"]["jk"].append(plus + ci_bonus_for_game)
                     if badge_color == "black":
                         is_win = True
                         stats["wins"]["jk"] += 1
-                        stats["wins_points"]["jk"] += plus
-                        stats["wins_plus_list"]["jk"].append(plus)
+                        stats["wins_points"]["jk"] += plus + ci_bonus_for_game
+                        stats["wins_plus_list"]["jk"].append(plus + ci_bonus_for_game)
                     else:
                         stats["losses"]["jk"] += 1
-                        stats["losses_points"]["jk"] += plus
-                        stats["losses_plus_list"]["jk"].append(plus)
+                        stats["losses_points"]["jk"] += plus + ci_bonus_for_game
+                        stats["losses_plus_list"]["jk"].append(plus + ci_bonus_for_game)
 
-        # Добавляем игроков без игр
         for name in player_names:
             if name not in player_stats:
                 player_stats[name] = {
@@ -916,7 +990,6 @@ async def get_detailed_stats(
 
         players_list = []
         for name, stats in player_stats.items():
-            # Можно добавить вычисления мин/средних, если нужно
             players_list.append({
                 "nickname": name,
                 "club": clubs.get(name, None),
@@ -928,7 +1001,6 @@ async def get_detailed_stats(
         total_count = len(players_list)
         paginated_players = players_list[offset:offset + limit]
 
-        # Вычисление среднего балла по всем игрокам
         if total_count > 0:
             average_points = sum(p["totalPoints"] for p in players_list) / total_count
         else:

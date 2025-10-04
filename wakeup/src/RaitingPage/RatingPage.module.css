@@ -395,6 +395,12 @@
 }
 
 /* Кнопки создания/удаления игры (общие) */
+.adminActions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
 .createGameBtn{ border-radius:0; }
 .createGameBtn{
   background:var(--FF7A1A);
@@ -407,6 +413,11 @@
   transition:filter .2s, transform .12s;
 }
 .createGameBtn:hover{ filter:brightness(1.05); transform:translateY(-1px); }
+.createGameBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 
 /* =========================
    ДЕТАЛЬНАЯ СТАТИСТИКА
