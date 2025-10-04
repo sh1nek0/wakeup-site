@@ -91,7 +91,7 @@ class Game(Base):
 # Новая модель для событий (турниров)
 class Event(Base):
     __tablename__ = "events"
-
+    
     id = Column(String, primary_key=True, index=True)
     title = Column(String, nullable=False)
     dates = Column(String, nullable=False)  # Даты как строка (например, "22.11.2025 – 23.11.2025")
@@ -601,7 +601,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         raise HTTPException(status_code=500, detail=f"Ошибка сохранения игры: {str(e)}")
     finally:
         db.close()
-
 
 # Эндпоинт для получения данных игры (без изменений)
 @app.get("/getGameData/{gameId}")
