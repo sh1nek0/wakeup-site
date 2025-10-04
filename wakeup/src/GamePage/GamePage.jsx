@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
@@ -52,7 +53,7 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
   );
 };
 
-const FoulsComponent = ({ players, onIncrementFoul }) => {
+const FoulsComponent = ({ players, onIncrementFoul, isPenaltyTime }) => {
   return (
     <div className={styles.foulsWrapper}>
       <div className={styles.foulsGrid}>
@@ -90,14 +91,20 @@ const FoulsComponent = ({ players, onIncrementFoul }) => {
           );
         })}
       </div>
+      {isPenaltyTime && (
+        <p style={{ color: 'orange', fontWeight: 'bold', textAlign: 'center', marginTop: '10px' }}>
+          Выберите игрока для двойного фола
+        </p>
+      )}
     </div>
   );
 };
 
-const RoleDropdown = ({ value, onChange, roles }) => {
+const RoleDropdown = ({ value, onChange, roles, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSelect = (role) => {
+    if (disabled) return;
     onChange(role);
     setIsOpen(false);
   };
@@ -106,10 +113,11 @@ const RoleDropdown = ({ value, onChange, roles }) => {
     <div className={styles.roleDropdown}>
       <div
         className={styles.roleDisplay}
-        onClick={() => setIsOpen(!isOpen)}
-        style={{ userSelect: 'none', cursor: 'pointer' }}
-        tabIndex={0}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        style={{ userSelect: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
+        tabIndex={disabled ? -1 : 0}
         onKeyDown={(e) => {
+          if (disabled) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             setIsOpen(!isOpen);
@@ -117,13 +125,14 @@ const RoleDropdown = ({ value, onChange, roles }) => {
         }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-disabled={disabled}
         aria-label="Выбор роли"
       >
         {value}
         <span className={styles.dropdownArrow}>▼</span>
       </div>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className={styles.roleOptions} role="listbox" tabIndex={-1}>
           {roles.map((role) => (
             <div
@@ -149,8 +158,7 @@ const RoleDropdown = ({ value, onChange, roles }) => {
   );
 };
 
-// Выпадающий список для цвета бейджа
-const BadgeDropdown = ({ value, onChange }) => {
+const BadgeDropdown = ({ value, onChange, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const options = [
     { label: 'Красные', value: 'red' },
@@ -160,6 +168,7 @@ const BadgeDropdown = ({ value, onChange }) => {
   const currentLabel = options.find((opt) => opt.value === value)?.label || 'Красные';
 
   const handleSelect = (option) => {
+    if (disabled) return;
     onChange(option.value);
     setIsOpen(false);
   };
@@ -168,10 +177,11 @@ const BadgeDropdown = ({ value, onChange }) => {
     <div className={styles.roleDropdown}>
       <div
         className={styles.roleDisplay}
-        onClick={() => setIsOpen(!isOpen)}
-        style={{ userSelect: 'none', cursor: 'pointer' }}
-        tabIndex={0}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        style={{ userSelect: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
+        tabIndex={disabled ? -1 : 0}
         onKeyDown={(e) => {
+          if (disabled) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             setIsOpen(!isOpen);
@@ -179,13 +189,14 @@ const BadgeDropdown = ({ value, onChange }) => {
         }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-disabled={disabled}
         aria-label="Выбор цвета бейджа"
       >
         {currentLabel}
         <span className={styles.dropdownArrow}>▼</span>
       </div>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className={styles.roleOptions} role="listbox" tabIndex={-1}>
           {options.map((option) => (
             <div
@@ -222,6 +233,7 @@ const Game = () => {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [maxTime, setMaxTime] = useState(null);
+  const [isPenaltyTime, setIsPenaltyTime] = useState(false); // Новое состояние для штрафного времени
 
   const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
   const isAdmin = user && user.role === 'admin';
@@ -372,15 +384,24 @@ const Game = () => {
     setIsRunning(true);
   };
 
+  const updateTimer = (seconds) => {
+    setTime(time);
+    setMaxTime(maxTime + seconds);
+    setIsRunning(true);
+    setIsPenaltyTime(true); // Активируем штрафное время
+  };
+
   /* =================
      УПРАВЛЕНИЕ ФОРМОЙ
      ================= */
   const handleNameChange = (id, value) =>
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, name: value } : p)));
-  const incrementFouls = (id) =>
+  const incrementFouls = (id) => {
     setPlayers((prev) =>
-      prev.map((p) => (p.id === id && p.fouls < 3 ? { ...p, fouls: p.fouls + 1 } : p))
+      prev.map((p) => (p.id === id && p.fouls < 3 ? { ...p, fouls: Math.min(p.fouls + 2, 3) } : p)) // +2 фола, но не больше 3
     );
+    setIsPenaltyTime(false); // Снимаем дизейбл
+  };
   const handleRoleChange = (id, role) =>
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, role } : p)));
   const handleLxChange = (id, value) =>
@@ -715,7 +736,10 @@ const Game = () => {
         </div>
       )}
 
-      <div className={styles.gameWrapper}>
+      <div
+        className={styles.gameWrapper}
+        style={isPenaltyTime ? { border: '3px solid #030303', padding: '10px' } : undefined} // Визуальная индикация штрафного времени
+      >
         <table className={styles.playersTable} aria-label="Таблица игроков">
           <thead>
             <tr>
@@ -733,16 +757,22 @@ const Game = () => {
               <tr key={player.id}>
                 <td
                   className={styles.numberCell}
-                  onClick={() => handlePlayerNumberClick(player.id)}
-                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                  tabIndex={0}
+                  onClick={() => !isPenaltyTime && handlePlayerNumberClick(player.id)} // Дизейбл если штрафное время
+                  style={{
+                    cursor: isPenaltyTime ? 'not-allowed' : 'pointer',
+                    userSelect: 'none',
+                    opacity: isPenaltyTime ? 0.5 : 1
+                  }}
+                  tabIndex={isPenaltyTime ? -1 : 0}
                   onKeyDown={(e) => {
+                    if (isPenaltyTime) return;
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       handlePlayerNumberClick(player.id);
                     }
                   }}
                   aria-label={`Выставить игрока ${player.id} на голосование`}
+                  aria-disabled={isPenaltyTime}
                 >
                   {player.id}
                 </td>
@@ -753,7 +783,8 @@ const Game = () => {
                     className={styles.nameInput}
                     value={player.name}
                     placeholder={`Игрок ${player.id}`}
-                    onChange={(e) => handleNameChange(player.id, e.target.value)}
+                    onChange={(e) => !isPenaltyTime && handleNameChange(player.id, e.target.value)} // Дизейбл
+                    disabled={isPenaltyTime}
                     aria-label={`Имя игрока ${player.id}`}
                   />
                 </td>
@@ -763,6 +794,7 @@ const Game = () => {
                     value={player.role}
                     onChange={(role) => handleRoleChange(player.id, role)}
                     roles={roles}
+                    disabled={isPenaltyTime} // Дизейбл
                   />
                 </td>
 
@@ -771,7 +803,8 @@ const Game = () => {
                     type="text"
                     className={styles.lxInput}
                     value={player.lx}
-                    onChange={(e) => handleLxChange(player.id, e.target.value)}
+                    onChange={(e) => !isPenaltyTime && handleLxChange(player.id, e.target.value)} // Дизейбл
+                    disabled={isPenaltyTime}
                     aria-label={`ЛХ игрока ${player.id}`}
                   />
                 </td>
@@ -783,7 +816,8 @@ const Game = () => {
                     min="0"
                     className={styles.dopsInput}
                     value={player.plus}
-                    onChange={(e) => handlePlusChange(player.id, e.target.value)}
+                    onChange={(e) => !isPenaltyTime && handlePlusChange(player.id, e.target.value)} // Дизейбл
+                    disabled={isPenaltyTime}
                     aria-label={`Допы игрока ${player.id}`}
                   />
                 </td>
@@ -795,7 +829,8 @@ const Game = () => {
                     step="1"
                     className={styles.numberInput}
                     value={player.sk}
-                    onChange={(e) => handleSkChange(player.id, e.target.value)}
+                    onChange={(e) => !isPenaltyTime && handleSkChange(player.id, e.target.value)} // Дизейбл
+                    disabled={isPenaltyTime}
                     aria-label={`СК игрока ${player.id}`}
                   />
                 </td>
@@ -807,7 +842,8 @@ const Game = () => {
                     step="1"
                     className={styles.numberInput}
                     value={player.jk}
-                    onChange={(e) => handleJkChange(player.id, e.target.value)}
+                    onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)} // Дизейбл
+                    disabled={isPenaltyTime}
                     aria-label={`ЖК игрока ${player.id}`}
                   />
                 </td>
@@ -822,31 +858,60 @@ const Game = () => {
               <div className={styles.timerContainer}>
                 <div
                   className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
-                  onClick={toggleTimer}
-                  style={{ cursor: 'pointer' }}
+                  onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
+                  style={{ cursor: isPenaltyTime ? 'not-allowed' : 'pointer', opacity: isPenaltyTime ? 0.5 : 1 }}
                   aria-label="Таймер, нажмите для запуска/паузы"
                   role="timer"
+                  aria-disabled={isPenaltyTime}
                 >
                   {formatTime(time)}
                 </div>
-                <button className={styles.resetBtn} onClick={resetTimer} type="button">
+                <button
+                  className={styles.resetBtn}
+                  onClick={() => !isPenaltyTime && resetTimer()} // Дизейбл
+                  type="button"
+                  disabled={isPenaltyTime}
+                >
                   Сброс
                 </button>
                 <div className={styles.timerButtons}>
-                  <button className={styles.timerBtn} onClick={() => startTimerLimited(20)} type="button">
-                    20 сек
+                  <button
+                    className={styles.timerBtn}
+                    onClick={() => !isPenaltyTime && startTimerLimited(20)} // Дизейбл
+                    type="button"
+                    disabled={isPenaltyTime}
+                  >
+                    20
                   </button>
-                  <button className={styles.timerBtn} onClick={() => startTimerLimited(30)} type="button">
-                    30 сек
+                  <button
+                    className={styles.timerBtn}
+                    onClick={() => !isPenaltyTime && startTimerLimited(30)} // Дизейбл
+                    type="button"
+                    disabled={isPenaltyTime}
+                  >
+                    30
                   </button>
-                  <button className={styles.timerBtn} onClick={() => startTimerLimited(60)} type="button">
-                    60 сек
+                  <button
+                    className={styles.timerBtn}
+                    onClick={() => !isPenaltyTime && startTimerLimited(60)} // Дизейбл
+                    type="button"
+                    disabled={isPenaltyTime}
+                  >
+                    60
+                  </button>
+                  <button
+                    className={styles.timerBtn}
+                    onClick={() => updateTimer(30)} // +30 всегда активен
+                    type="button"
+                  >
+                    +30
                   </button>
                 </div>
               </div>
             </div>
 
-            {currentPhase === 'nominating' && (
+            {/* Дизейбл фаз, если штрафное время */}
+            {currentPhase === 'nominating' && !isPenaltyTime && (
               <div className={styles.votingContainer}>
                 <nav aria-label="Список игроков для выставления" className={styles.votingNav}>
                   {votes.length === 0 && <p className={styles.noVotesText}>Нет выбранных игроков для выставления.</p>}
@@ -895,7 +960,7 @@ const Game = () => {
               </div>
             )}
 
-            {currentPhase === 'voting' && (
+            {currentPhase === 'voting' && !isPenaltyTime && (
               <div className={styles.votingContainer}>
                 <nav aria-label="Список игроков для голосования" className={styles.votingNav}>
                   {votes.length === 0 && <p className={styles.noVotesText}>Нет выбранных игроков для голосования.</p>}
@@ -971,7 +1036,7 @@ const Game = () => {
               </div>
             )}
 
-            {currentPhase === 'shooting' && (
+            {currentPhase === 'shooting' && !isPenaltyTime && (
               <div className={styles.phaseContainer}>
                 <h3>Стрельба</h3>
                 <div className={styles.keyboardGrid}>
@@ -987,7 +1052,7 @@ const Game = () => {
               </div>
             )}
 
-            {currentPhase === 'don' && (
+            {currentPhase === 'don' && !isPenaltyTime && (
               <div className={styles.phaseContainer}>
                 <h3>Дон</h3>
                 <div className={styles.keyboardGrid}>
@@ -996,14 +1061,14 @@ const Game = () => {
                       {num}
                     </button>
                   ))}
-                    <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn}>
+                  <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn}>
                     -
                   </button>
                 </div>
               </div>
             )}
 
-            {currentPhase === 'sheriff' && (
+            {currentPhase === 'sheriff' && !isPenaltyTime && (
               <div className={styles.phaseContainer}>
                 <h3>Шериф</h3>
                 <div className={styles.keyboardGrid}>
@@ -1012,7 +1077,7 @@ const Game = () => {
                       {num}
                     </button>
                   ))}
-                   <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn}>
+                  <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn}>
                     -
                   </button>
                 </div>
@@ -1022,15 +1087,17 @@ const Game = () => {
             <div className={styles.tabs}>
               <button
                 type="button"
-                onClick={() => setActiveTab('gameInfo')}
+                onClick={() => !isPenaltyTime && setActiveTab('gameInfo')} // Дизейбл вкладки "Ход игры"
                 className={activeTab === 'gameInfo' ? styles.activeTab : styles.tab}
                 aria-selected={activeTab === 'gameInfo'}
+                disabled={isPenaltyTime}
+                style={isPenaltyTime ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
                 Ход игры
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('fouls')}
+                onClick={() => setActiveTab('fouls')} // Вкладка "Фолы" всегда активна
                 className={activeTab === 'fouls' ? styles.activeTab : styles.tab}
                 aria-selected={activeTab === 'fouls'}
               >
@@ -1046,6 +1113,7 @@ const Game = () => {
               <div
                 ref={gameInfoPanelRef}
                 className={`${styles.panel} ${activeTab === 'gameInfo' ? styles.visiblePanel : styles.hiddenPanel}`}
+                style={isPenaltyTime ? { pointerEvents: 'none', opacity: 0.5 } : undefined} // Дизейбл панели
               >
                 <GameInfo
                   votingResults={votingResults}
@@ -1059,7 +1127,11 @@ const Game = () => {
                 ref={foulsPanelRef}
                 className={`${styles.panel} ${activeTab === 'fouls' ? styles.visiblePanel : styles.hiddenPanel}`}
               >
-                <FoulsComponent players={players} onIncrementFoul={incrementFouls} />
+                <FoulsComponent
+                  players={players}
+                  onIncrementFoul={incrementFouls}
+                  isPenaltyTime={isPenaltyTime}
+                />
               </div>
             </div>
           </div>
@@ -1067,21 +1139,22 @@ const Game = () => {
       </div>
 
       <div className={styles.saveButtonContainer}>
-        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} />
+        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} /> 
         <button
           type="button"
-          onClick={clearSavedData}
+          onClick={() => !isPenaltyTime && clearSavedData()} // Дизейбл
           className={styles.clearBtn}
+          disabled={isPenaltyTime}
         >
           Очистить форму
         </button>
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => !isPenaltyTime && handleSave()} // Дизейбл
           className={styles.saveBtn}
           aria-label="Сохранить данные игры"
-          disabled={!isAdmin || isSaving}
-          title={!isAdmin ? 'Только администратор может сохранять данные' : undefined}
+          disabled={!isAdmin || isSaving || isPenaltyTime}
+          title={!isAdmin ? 'Только администратор может сохранять данные' : isPenaltyTime ? 'Недоступно в штрафное время' : undefined}
         >
           {isSaving ? 'Сохранение...' : 'Сохранить'}
         </button>

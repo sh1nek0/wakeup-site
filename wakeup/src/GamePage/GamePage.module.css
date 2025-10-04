@@ -153,8 +153,8 @@ body{
 .timerBlock{ display:flex; flex-direction:column; align-items:center; padding:20px 15px; border-radius:12px; gap:20px; }
 .timerContainer{ display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; }
 
-.timerTimeRunning{ font-size:2.5rem; font-weight:700; color:#ff6f00; user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
-.timerTimePaused{  font-size:2.5rem; font-weight:700; color:#ccc;     user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
+.timerTimeRunning{ background: #ff6f00; font-size:2.5rem; font-weight:700; color:#030303; user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
+.timerTimePaused{  background: #ff6f00; font-size:2.5rem; font-weight:700; color:#ccc;     user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
 
 .resetBtn{
   background:#ff6f00; color:#1f1f1f; border:none; padding:6px 20px; font-weight:700; font-size:.9rem;
