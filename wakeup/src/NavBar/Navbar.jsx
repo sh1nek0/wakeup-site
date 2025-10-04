@@ -40,10 +40,19 @@ const Navbar = () => {
             </li>
             {isAuthenticated && (
               <li className={styles.navbarItem}>
-                <NavLink to={"/profile/"+user.id} ><li>Профиль</li></NavLink>
+                <NavLink to={"/profile/"+user.id} 
+                className={({ isActive }) => isActive ? styles.active : undefined}
+                >
+                   Профиль 
+                </NavLink>
               </li>
             )}
-            <li className={styles.navbarItem}><NavLink to="/BTS">BTS</NavLink></li>
+            <li className={styles.navbarItem}>
+              <NavLink to="/BTS"
+               className={({ isActive }) => isActive ? styles.active : undefined}
+                >
+              BTS
+              </NavLink></li>
           </ul>
         </div>
 
