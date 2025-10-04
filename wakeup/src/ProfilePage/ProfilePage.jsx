@@ -1,6 +1,6 @@
 import{ React,useContext} from "react";
 import styles from "./ProfilePage.module.css";
-import avatar from  "../images/soon.png"
+import avatar from  "../images/profile_photo/soon.png"
 import { AuthContext } from '../AuthContext';
 
 
