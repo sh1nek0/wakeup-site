@@ -251,8 +251,7 @@ body{
    уже и центрированный
    ========================= */
 .gameInfoWrapper{
-  width:100%;
-  max-width:860px;
+  max-width:450px;
   margin:20px auto 0;
   padding:0;
   border-radius:10px;
@@ -262,8 +261,8 @@ body{
 }
 
 .gameInfoTable{
-  width:100%;
-  min-width:560px;
+  min-width:450px;
+  max-width: 450px;
   border-collapse:separate;
   border-spacing:0;
   color:#fff;
@@ -338,13 +337,13 @@ body{
   margin-bottom: 0;
 }
 .panel{ position:static; width:100%; }
-.visiblePanel{ display:block; }
+.visiblePanel{ display:block; min-width: 450px}
 .hiddenPanel{  display:none; }
 
 /* =========================
    Карточки фолов
    ========================= */
-.foulsWrapper{ margin-top:10px; border-radius:6px; padding:10px; }
+.foulsWrapper{ margin-top:10px; border-radius:6px; padding:10px; max-width: 450;}
 .foulsGrid{ display:grid; grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(2,auto); gap:25px 10px; justify-content:start; }
 
 .foulCard{
