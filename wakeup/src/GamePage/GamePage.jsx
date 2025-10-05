@@ -883,7 +883,7 @@ const Game = () => {
               <th>№</th>
               <th>Имя</th>
               <th>Роль</th>
-              <th>Лучший ход</th>
+              <th>ЛХ</th>
               <th>Допы</th>
               <th>СК</th>
               <th>ЖК</th>
@@ -1068,9 +1068,10 @@ const Game = () => {
 
             {/* Дизейбл фаз, если штрафное время */}
             {currentPhase === 'nominating' && !isPenaltyTime && (
-              <div className={styles.votingContainer}>
-                <nav aria-label="Список игроков для выставления" className={styles.votingNav}>
-                  {votes.length === 0 && <p className={styles.noVotesText}>Нет выбранных игроков для выставления.</p>}
+              <div className={styles.phaseContainer}>
+                <div className={styles.votingContainer}>
+                  <h3>Выставление</h3>
+                
                   {votes.map(({ playerId, votesCount }) => (
                     <div key={playerId} className={styles.playerVoteItem}>
                       <button
@@ -1085,7 +1086,7 @@ const Game = () => {
                       <span className={styles.votesCount}>{votesCount}</span>
                     </div>
                   ))}
-                </nav>
+                
 
                 <div role="grid" aria-label="Цифровая клавиатура для выставления" className={styles.keyboardGrid}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
@@ -1113,13 +1114,15 @@ const Game = () => {
                 >
                   Голосование
                 </button>
+                </div>
               </div>
             )}
 
             {currentPhase === 'voting' && !isPenaltyTime && (
-              <div className={styles.votingContainer}>
-                <nav aria-label="Список игроков для голосования" className={styles.votingNav}>
-                  {votes.length === 0 && <p className={styles.noVotesText}>Нет выбранных игроков для голосования.</p>}
+              <div className={styles.phaseContainer}>
+                <div className={styles.votingContainer}>
+                  <h3>Голосование</h3>
+              
                   {votes.map(({ playerId, votesCount }, index) => {
                     const isSelected = playerId === selectedPlayerId;
                     return (
@@ -1136,10 +1139,12 @@ const Game = () => {
                         </button>
                         <span className={styles.votesCount}>{votesCount}</span>
                       </div>
+                      
                     );
                   })}
-                </nav>
-
+                
+                
+                </div>
                 <div role="grid" aria-label="Цифровая клавиатура для голосования" className={styles.keyboardGrid}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => (
                     <button
@@ -1293,8 +1298,8 @@ const Game = () => {
               </div>
             </div>
           </div>
+          </div>
         </div>
-      </div>
       <div className={styles.saveButtonContainer}>
         <button
           type="button"
