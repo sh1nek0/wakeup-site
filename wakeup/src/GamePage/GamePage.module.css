@@ -34,12 +34,13 @@ body{
   border-collapse:separate;
   border-spacing:0;
   background:#303030;
-  border-radius:12px;
+  
   box-shadow:0 6px 18px rgba(0,0,0,.45);
   font-size:1rem;
   color:#fff;
   user-select:none;
   display:table;
+  min-height: 800px;
 }
 .playersTable thead{ border-radius:12px 12px 0 0; overflow:hidden; }
 .playersTable tbody{ border-radius:0 0 12px 12px; }
@@ -170,9 +171,9 @@ body{
 .timerTimePaused{   font-size:2.5rem; font-weight:700; color:#ccc;     user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
 
 .resetBtn{
-  background:#ff6f00; color:#1f1f1f; border:none; padding:0px 10px; font-weight:700; font-size:.9rem;
-  border-radius:6px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.4); transition:filter .3s; width: 100px;
-  height: 50px;
+  background:#ff6f00; color:#1f1f1f; border:none; font-weight:700; font-size:.9rem;
+  cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.4); transition:filter .3s; width: 100px;
+  height: 40px;
   
 }
 .resetBtn:hover{ filter:brightness(1.05); }
@@ -213,9 +214,8 @@ body{
 .noVotesText{ 
   color:#ccc; 
   font-style:italic; 
-  text-align: center;
-  margin-bottom:10px;
-  margin-left: 13em;
+  width: 100%;
+  line-height: 2em;
 }
 
 /* Клавиатура */
@@ -228,13 +228,13 @@ body{
 }
 .keyboardBtn{
   padding:5px 0; border:none; background:#ff6f00; color:#1f1f1f; font-weight:700; font-size:1rem;
-  border-radius:6px; cursor:pointer; transition:transform .2s, filter .2s; user-select:none;
+  cursor:pointer; transition:transform .2s, filter .2s; user-select:none;
 }
 .keyboardBtn:hover:not(:disabled){ filter:brightness(1.05); transform:scale(1.05); }
 .keyboardBtn:disabled{ opacity:.5; cursor:not-allowed; }
 .backspaceBtn{
   padding:8px 0; border:none; background:#ff6f00; color:#1f1f1f; font-weight:700; font-size:1.2rem;
-  border-radius:6px; cursor:pointer; transition:background-color .3s, transform .3s; user-select:none; grid-column:span 3; text-align:center;
+  cursor:pointer; transition:background-color .3s, transform .3s; user-select:none; grid-column:span 3; text-align:center;
 }
 .backspaceBtn:hover:not(:disabled){ transform:scale(1.05); }
 
@@ -335,6 +335,7 @@ body{
   width:100%;
   height:auto !important;  /* перекрываем инлайн-стиль из JSX */
   overflow:visible;        /* ничего не прячем */
+  margin-bottom: 0;
 }
 .panel{ position:static; width:100%; }
 .visiblePanel{ display:block; }
@@ -459,6 +460,10 @@ body{
 .rightColumn{
   overflow:hidden;
   border-radius:20px;
+  min-height: 800px;
+}
+.contentContainer{
+  min-height: 100%;
 }
 
 /* =========================
