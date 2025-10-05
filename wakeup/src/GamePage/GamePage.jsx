@@ -292,6 +292,10 @@ const Game = () => {
   const [activeTab, setActiveTab] = useState('fouls');
   const [badgeColor, setBadgeColor] = useState('red');
 
+// показ ролей
+const [visibleRole,setVisibleRole]=useState(true)
+
+
   // Загрузка/ошибки
   const [loading, setLoading] = useState(true);
   const [serverUnavailable, setServerUnavailable] = useState(false);
@@ -779,6 +783,25 @@ const Game = () => {
           {errorMessage}
         </div>
       )}
+<div className={styles.btnWrap}>
+        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} /> 
+        <button
+            type="button"
+            onClick={() => !isPenaltyTime && clearSavedData()} // Дизейбл
+            className={styles.clearBtn}
+            disabled={isPenaltyTime}
+        >
+            Очистить форму
+        </button>
+        <button
+              type="button"
+              onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
+              disabled={isPenaltyTime}
+              className={styles.clearBtn}
+        >
+          {!visibleRole ? "Показать роли":"Скрыть роль"}
+        </button>
+      </div>
 
       <div
         className={styles.gameWrapper}
@@ -834,12 +857,12 @@ const Game = () => {
                 </td>
 
                 <td>
-                  <RoleDropdown
+                  {visibleRole&&<RoleDropdown
                     value={player.role}
                     onChange={(role) => handleRoleChange(player.id, role)}
                     roles={roles}
                     disabled={isPenaltyTime} // Дизейбл
-                  />
+                  />}
                 </td>
 
                 <td>
@@ -1205,17 +1228,7 @@ const Game = () => {
           </div>
         </div>
       </div>
-
       <div className={styles.saveButtonContainer}>
-        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} /> 
-        <button
-          type="button"
-          onClick={() => !isPenaltyTime && clearSavedData()} // Дизейбл
-          className={styles.clearBtn}
-          disabled={isPenaltyTime}
-        >
-          Очистить форму
-        </button>
         <button
           type="button"
           onClick={() => !isPenaltyTime && handleSave()} // Дизейбл
