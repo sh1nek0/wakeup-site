@@ -458,7 +458,7 @@ async def get_event(event_id: str):
             "title": event.title,
             "dates": event.dates,
             "location": event.location,
-            "type": event.type,
+            "type": "solo",
             "participantsLimit": event.participants_limit,
             "participantsCount": event.participants_count,
             "fee": event.fee,
@@ -1104,7 +1104,7 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
     finally:
         db.close()
 
-# Новый эндпоинт для удаления команды (только админы)
+
 @app.delete("/deleteTeam/{team_id}")
 async def delete_team(team_id: str, current_user: User = Depends(get_current_user)):
     db = SessionLocal()

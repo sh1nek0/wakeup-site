@@ -52,28 +52,50 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
   );
 };
 
-const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, isPenaltyTime }) => {
+const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, onDecrementFoul, isPenaltyTime }) => {
+  const holdDuration = 500; // Время удержания в мс
+  const holdTimers = useRef({}); // Для хранения таймеров для каждого игрока
+
+  const startHold = (playerId) => (event) => {
+    event.preventDefault(); // Предотвращает обычный клик
+    holdTimers.current[playerId] = setTimeout(() => {
+      onDecrementFoul(playerId);
+    }, holdDuration);
+  };
+
+  const endHold = (playerId) => () => {
+    if (holdTimers.current[playerId]) {
+      clearTimeout(holdTimers.current[playerId]);
+      delete holdTimers.current[playerId];
+    }
+  };
+
   return (
     <div className={styles.foulsWrapper}>
       <div className={styles.foulsGrid}>
         {players.map((player) => {
           const atMax = player.fouls >= 3;
+          const atMin = player.fouls <= 0; // Новое условие для минимального фола
           return (
             <div
               key={player.id}
               className={styles.foulCard}
               role="button"
               tabIndex={0}
-              aria-disabled={atMax}
+              aria-disabled={atMax || isPenaltyTime}
               aria-label={`Добавить фол игроку ${player.id}`}
               onClick={() => !atMax && !isPenaltyTime ? onIncrementFoul(player.id) : onIncrementDFouls(player.id)}
+              onMouseDown={!atMin ? startHold(player.id) : undefined}
+              onMouseUp={!atMin ? endHold(player.id) : undefined}
+              onTouchStart={!atMin ? startHold(player.id) : undefined}
+              onTouchEnd={!atMin ? endHold(player.id) : undefined}
               onKeyDown={(e) => {
                 if (!atMax && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault();
                   onIncrementFoul(player.id);
                 }
               }}
-              style={atMax ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+              style={atMax ? { opacity: 0.6, cursor: 'not-allowed' } : atMin ? { opacity: 0.8 } : undefined} // Визуальная обратная связь для hold
             >
               <div className={styles.playerNumber}>{player.id}</div>
               <div className={styles.foulCircles}>
@@ -98,6 +120,7 @@ const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, isPenalty
     </div>
   );
 };
+
 
 const RoleDropdown = ({ value, onChange, roles, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -268,6 +291,10 @@ const Game = () => {
   const [activeTab, setActiveTab] = useState('fouls');
   const [badgeColor, setBadgeColor] = useState('red');
 
+// показ ролей
+const [visibleRole,setVisibleRole]=useState(true)
+
+
   // Загрузка/ошибки
   const [loading, setLoading] = useState(true);
   const [serverUnavailable, setServerUnavailable] = useState(false);
@@ -345,6 +372,9 @@ const Game = () => {
     }, 5000);
   };
 
+
+
+
   /* ==========
      ТАЙМЕР
      ========== */
@@ -383,6 +413,11 @@ const Game = () => {
     setIsRunning(true);
   };
 
+  const startTimer = (seconds) => {
+    setMaxTime(seconds);
+    setIsRunning(true);
+  };
+
   const updateTimer = (seconds) => {
     setTime(time);
     setMaxTime(maxTime + seconds);
@@ -406,6 +441,12 @@ const Game = () => {
     );
     setIsPenaltyTime(false); // Снимаем дизейбл
   };
+
+  const decrementFouls = (id) => {
+  setPlayers((prev) =>
+    prev.map((p) => (p.id === id && p.fouls > 0 ? { ...p, fouls: Math.max(p.fouls - 1, 0) } : p))
+  );
+};
 
 
   const handleRoleChange = (id, role) =>
@@ -741,6 +782,25 @@ const Game = () => {
           {errorMessage}
         </div>
       )}
+<div className={styles.btnWrap}>
+        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} /> 
+        <button
+            type="button"
+            onClick={() => !isPenaltyTime && clearSavedData()} // Дизейбл
+            className={styles.clearBtn}
+            disabled={isPenaltyTime}
+        >
+            Очистить форму
+        </button>
+        <button
+              type="button"
+              onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
+              disabled={isPenaltyTime}
+              className={styles.clearBtn}
+        >
+          {!visibleRole ? "Показать роли":"Скрыть роль"}
+        </button>
+      </div>
 
       <div
         className={styles.gameWrapper}
@@ -796,12 +856,12 @@ const Game = () => {
                 </td>
 
                 <td>
-                  <RoleDropdown
+                  {visibleRole&&<RoleDropdown
                     value={player.role}
                     onChange={(role) => handleRoleChange(player.id, role)}
                     roles={roles}
                     disabled={isPenaltyTime} // Дизейбл
-                  />
+                  />}
                 </td>
 
                 <td>
@@ -862,6 +922,7 @@ const Game = () => {
           <div className={styles.contentContainer}>
             <div className={styles.timerBlock}>
               <div className={styles.timerContainer}>
+                
                 <div
                   className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
                   onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
@@ -872,6 +933,24 @@ const Game = () => {
                 >
                   {formatTime(time)}
                 </div>
+
+                <div className={styles.resetBynWrap}>
+                <button
+                  className={styles.resetBtn}
+                  onClick={() => !isPenaltyTime && startTimer(60*10)} // Дизейбл
+                  type="button"
+                  disabled={isPenaltyTime}
+                >
+                  Cтарт
+                </button>
+                <button
+                  className={styles.resetBtn}
+                  onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
+                  type="button"
+                  disabled={isPenaltyTime}
+                >
+                  Стоп 
+                </button>
                 <button
                   className={styles.resetBtn}
                   onClick={() => !isPenaltyTime && resetTimer()} // Дизейбл
@@ -880,6 +959,8 @@ const Game = () => {
                 >
                   Сброс
                 </button>
+                </div>
+
                 <div className={styles.timerButtons}>
                   <button
                     className={styles.timerBtn}
@@ -914,6 +995,7 @@ const Game = () => {
                   </button>
                 </div>
               </div>
+            
             </div>
 
             {/* Дизейбл фаз, если штрафное время */}
@@ -1133,28 +1215,19 @@ const Game = () => {
                 ref={foulsPanelRef}
                 className={`${styles.panel} ${activeTab === 'fouls' ? styles.visiblePanel : styles.hiddenPanel}`}
               >
-                <FoulsComponent
-                  players={players}
-                  onIncrementFoul={incrementFouls}
-                  onIncrementDFouls={incrementDFouls}
-                  isPenaltyTime={isPenaltyTime}
-                />
+              <FoulsComponent
+                players={players}
+                onIncrementFoul={incrementFouls}
+                onIncrementDFouls={incrementDFouls}
+                onDecrementFoul={decrementFouls}
+                isPenaltyTime={isPenaltyTime}
+              />
               </div>
             </div>
           </div>
         </div>
       </div>
-
       <div className={styles.saveButtonContainer}>
-        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} /> 
-        <button
-          type="button"
-          onClick={() => !isPenaltyTime && clearSavedData()} // Дизейбл
-          className={styles.clearBtn}
-          disabled={isPenaltyTime}
-        >
-          Очистить форму
-        </button>
         <button
           type="button"
           onClick={() => !isPenaltyTime && handleSave()} // Дизейбл

@@ -15,13 +15,14 @@ body{
    ========================= */
 .gameWrapper{
   max-width:1200px;
-  margin:20px auto;
+  margin:50px auto;
   padding:20px;
   background:#1f1f1f;
   border-radius:12px;
   box-shadow:0 6px 18px rgba(0,0,0,.35);
   display:flex;
   gap:20px;
+  position: relative; /* Добавлено для позиционирования btnWrap относительно gameWrapper */
 }
 
 /* =========================
@@ -153,14 +154,32 @@ body{
 .timerBlock{ display:flex; flex-direction:column; align-items:center; padding:20px 15px; border-radius:12px; gap:20px; }
 .timerContainer{ display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; }
 
-.timerTimeRunning{ background: #ff6f00; font-size:2.5rem; font-weight:700; color:#030303; user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
-.timerTimePaused{  background: #ff6f00; font-size:2.5rem; font-weight:700; color:#ccc;     user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
+.btnWrap{
+  position: absolute;
+  margin-left: 350px;
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 10001; /* Увеличен, чтобы btnWrap был выше roleOptions (z-index:9999) */
+  width: fit-content; /* Добавлено, чтобы элементы не растягивались на весь экран */
+  justify-content: flex-start; /* Добавлено для выравнивания по левому краю */
+}
+
+.timerTimeRunning{ font-size:2.5rem; font-weight:700; color:#ff6f00; user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
+.timerTimePaused{   font-size:2.5rem; font-weight:700; color:#ccc;     user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
 
 .resetBtn{
-  background:#ff6f00; color:#1f1f1f; border:none; padding:6px 20px; font-weight:700; font-size:.9rem;
-  border-radius:6px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.4); transition:filter .3s; width:50%;
+  background:#ff6f00; color:#1f1f1f; border:none; padding:0px 10px; font-weight:700; font-size:.9rem;
+  border-radius:6px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.4); transition:filter .3s; width: 100px;
+  height: 50px;
+  
 }
 .resetBtn:hover{ filter:brightness(1.05); }
+
+.resetBynWrap{
+  display: grid; grid-template-columns: repeat(3,1fr);gap: 10px;
+}
 
 .timerButtons{ display:flex; justify-content:center; gap:10px; margin-top:10px; flex-wrap:wrap; }
 .timerBtn{
@@ -462,4 +481,5 @@ body{
   .votingNav{ grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } /* Адаптив для голосования: на мобильных авто-заполнение */
   .modalContent{ padding:15px; max-width:300px; }
   .modalActions{ flex-direction:column; }
+  .btnWrap{ display: none; } /* Добавлено: на мобильных элементы btnWrap вертикально, чтобы не растягиваться */
 }

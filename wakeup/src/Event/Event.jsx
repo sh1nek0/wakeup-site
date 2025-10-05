@@ -18,7 +18,7 @@ export default function Game({
   participants: participantsProp,
   initialTeams,
 }) {
-  const { isAdmin, user } = useContext(AuthContext) ?? { isAdmin: false, user: null };
+  const { isAdmin, user, token } = useContext(AuthContext) ?? { isAdmin: false, user: null, token: null };
   const currentUserId = user?.id ?? null;
   const { evenId } = useParams(); // Предполагаем, что evenId передается в URL как /event/:evenId
 
@@ -97,23 +97,87 @@ export default function Game({
     ? nameOk && selectedIds.length >= 2 && selectedIds.length <= teamSize
     : nameOk && includeSelfOk && sizeOk;
 
-  const createTeam = () => {
+  const createTeam = async () => {
     if (!canCreateTeam) return;
-    setTeams((prev) => [
-      ...prev,
-      {
-        id: `team_${Date.now()}`,
-        name: teamName.trim(),
-        members: selectedIds.map(id => ({ id, nick: participants.find(p => p.id === id)?.nick || "Неизвестный" })),
-      },
-    ]);
-    setTeamName("");
-    setSelectedIds([]);
+
+    if (!token) {
+      alert("Токен авторизации отсутствует");
+      return;
+    }
+
+    const requestBody = {
+      event_id: evenId,
+      name: teamName.trim(),
+      members: selectedIds,
+    };
+
+    try {
+      const response = await fetch("/api/createTeam", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Ошибка создания команды");
+      }
+
+      const data = await response.json();
+      // Обновляем локальный state команд, добавляя новую команду
+      setTeams((prev) => [
+        ...prev,
+        {
+          id: data.team_id,
+          name: teamName.trim(),
+          members: selectedIds.map(id => ({ id, nick: participants.find(p => p.id === id)?.nick || "Неизвестный" })),
+        },
+      ]);
+
+      // Очищаем форму
+      setTeamName("");
+      setSelectedIds([]);
+
+      alert(data.message); // Или использовать более элегантный способ показа сообщений
+    } catch (error) {
+      console.error("Ошибка создания команды:", error);
+      alert(`Ошибка: ${error.message}`);
+    }
   };
 
-  const deleteTeam = (id) => {
+  const deleteTeam = async (id) => {
     if (!isAdmin) return;
-    setTeams((prev) => prev.filter((t) => t.id !== id));
+
+    if (!token) {
+      alert("Токен авторизации отсутствует");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/deleteTeam/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Ошибка удаления команды");
+      }
+
+      const data = await response.json();
+      // Обновляем локальный state команд, удаляя команду
+      setTeams((prev) => prev.filter((t) => t.id !== id));
+
+      alert(data.message); // Или использовать более элегантный способ показа сообщений
+    } catch (error) {
+      console.error("Ошибка удаления команды:", error);
+      alert(`Ошибка: ${error.message}`);
+    }
   };
 
   const PAGE_SIZE = 10;
@@ -123,6 +187,11 @@ export default function Game({
     );
 
   /* ===== вкладки результатов ===== */
+  const tabs = ["Игры", "Личный зачёт"];
+  if (tournament.type !== "solo") {
+    tabs.push("Командный зачёт");
+  }
+
   const [activeTab, setActiveTab] = useState(1);
 
   if (loading) {
@@ -361,7 +430,7 @@ export default function Game({
       {/* ===== РЕЗУЛЬТАТЫ (вкладки) ===== */}
       <section className={styles.resultsWrap}>
         <div className={styles.tabs}>
-          {["Игры", "Личный зачёт", "Командный зачёт"].map((t, i) => (
+          {tabs.map((t, i) => (
             <button
               key={t}
               type="button"
@@ -395,7 +464,7 @@ export default function Game({
           )}
 
           {/* Командный зачёт — простой пример */}
-          {activeTab === 2 && (
+          {activeTab === 2 && tournament.type !== "solo" && (
             <div className={styles.tableWrapper}>
               <table
                 className={styles.detailedStatsTable}
