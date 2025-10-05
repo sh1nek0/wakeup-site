@@ -261,6 +261,117 @@ app.add_middleware(
     allow_headers=["*"],  # Разрешить все заголовки
 )
 
+
+# --- НОВЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ПОИСКА ---
+# Кэш для хранения всех имен игроков
+all_player_names_cache = None
+
+def get_all_player_names(db: SessionLocal):
+    """Получает и кэширует уникальные имена игроков из таблиц User и Game."""
+    global all_player_names_cache
+    if all_player_names_cache is not None:
+        return all_player_names_cache
+
+    names = set()
+    # 1. Зарегистрированные пользователи
+    users = db.query(User.nickname).all()
+    for user in users:
+        names.add(user.nickname)
+
+    # 2. Игроки из старых игр
+    games = db.query(Game.data).all()
+    for game in games:
+        try:
+            game_data = json.loads(game.data)
+            for player in game_data.get("players", []):
+                if player.get("name"):
+                    names.add(player["name"])
+        except (json.JSONDecodeError, TypeError):
+            continue
+    
+    all_player_names_cache = sorted(list(names), key=str.lower)
+    return all_player_names_cache
+
+def levenshtein_distance(s1, s2):
+    """Вычисляет расстояние Левенштейна между двумя строками."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+def convert_layout(text: str) -> str:
+    """Конвертирует текст между русской и английской раскладками."""
+    eng_chars = "`qwertyuiop[]asdfghjkl;'\\zxcvbnm,./"
+    rus_chars = "ёйцукенгшщзхъфывапролджэ\\ячсмитьбю."
+    
+    eng_to_rus_map = str.maketrans(eng_chars, rus_chars)
+    rus_to_eng_map = str.maketrans(rus_chars, eng_chars)
+
+    # Определяем, в какой раскладке ввод
+    is_mostly_rus = sum(1 for char in text if 'а' <= char.lower() <= 'я' or char == 'ё') > len(text) / 2
+    
+    if is_mostly_rus:
+        return text.translate(rus_to_eng_map)
+    else:
+        return text.translate(eng_to_rus_map)
+
+@app.get("/get_player_suggestions")
+async def get_player_suggestions(query: str):
+    if not query:
+        return []
+
+    db = SessionLocal()
+    try:
+        all_names = get_all_player_names(db)
+    finally:
+        db.close()
+
+    query_lower = query.lower()
+    query_converted = convert_layout(query_lower)
+
+    suggestions = []
+    for name in all_names:
+        name_lower = name.lower()
+
+        # 1. Прямое совпадение (самый высокий приоритет)
+        if name_lower.startswith(query_lower):
+            suggestions.append({"name": name, "rank": 0})
+            continue
+        
+        # 2. Совпадение с конвертированной раскладкой
+        if name_lower.startswith(query_converted):
+            suggestions.append({"name": name, "rank": 1})
+            continue
+
+        # 3. Поиск по опечаткам (расстояние Левенштейна)
+        distance = levenshtein_distance(name_lower, query_lower)
+        if distance <= 2: # Допускаем 1-2 опечатки
+            suggestions.append({"name": name, "rank": 2 + distance}) # Ранжируем по точности
+            continue
+            
+        distance_converted = levenshtein_distance(name_lower, query_converted)
+        if distance_converted <= 2:
+            suggestions.append({"name": name, "rank": 4 + distance_converted})
+            continue
+
+    # Сортируем по рангу и берем топ-7
+    suggestions.sort(key=lambda x: x["rank"])
+    return [s["name"] for s in suggestions[:10]]
+
+
+# --- КОНЕЦ НОВЫХ ФУНКЦИЙ ---
+
+
 # Эндпоинт для регистрации (обновлён: добавлена обработка club и update_ai)
 @app.post("/register")
 async def register(user: UserCreate):
@@ -558,7 +669,7 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             if "ci_bonus" not in player:
                 player["ci_bonus"] = 0
 
-            # Итоговая сумма (без динамических штрафов)
+            # Итоговая сумма (без динамических штрафов и Ci)
             sum_points = plus + best_move_bonus + team_win_bonus
             player["sum"] = sum_points
 
