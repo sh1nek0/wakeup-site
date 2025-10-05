@@ -53,28 +53,50 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
   );
 };
 
-const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, isPenaltyTime }) => {
+const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, onDecrementFoul, isPenaltyTime }) => {
+  const holdDuration = 500; // Время удержания в мс
+  const holdTimers = useRef({}); // Для хранения таймеров для каждого игрока
+
+  const startHold = (playerId) => (event) => {
+    event.preventDefault(); // Предотвращает обычный клик
+    holdTimers.current[playerId] = setTimeout(() => {
+      onDecrementFoul(playerId);
+    }, holdDuration);
+  };
+
+  const endHold = (playerId) => () => {
+    if (holdTimers.current[playerId]) {
+      clearTimeout(holdTimers.current[playerId]);
+      delete holdTimers.current[playerId];
+    }
+  };
+
   return (
     <div className={styles.foulsWrapper}>
       <div className={styles.foulsGrid}>
         {players.map((player) => {
           const atMax = player.fouls >= 3;
+          const atMin = player.fouls <= 0; // Новое условие для минимального фола
           return (
             <div
               key={player.id}
               className={styles.foulCard}
               role="button"
               tabIndex={0}
-              aria-disabled={atMax}
+              aria-disabled={atMax || isPenaltyTime}
               aria-label={`Добавить фол игроку ${player.id}`}
               onClick={() => !atMax && !isPenaltyTime ? onIncrementFoul(player.id) : onIncrementDFouls(player.id)}
+              onMouseDown={!atMin ? startHold(player.id) : undefined}
+              onMouseUp={!atMin ? endHold(player.id) : undefined}
+              onTouchStart={!atMin ? startHold(player.id) : undefined}
+              onTouchEnd={!atMin ? endHold(player.id) : undefined}
               onKeyDown={(e) => {
                 if (!atMax && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault();
                   onIncrementFoul(player.id);
                 }
               }}
-              style={atMax ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+              style={atMax ? { opacity: 0.6, cursor: 'not-allowed' } : atMin ? { opacity: 0.8 } : undefined} // Визуальная обратная связь для hold
             >
               <div className={styles.playerNumber}>{player.id}</div>
               <div className={styles.foulCircles}>
@@ -99,6 +121,7 @@ const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, isPenalty
     </div>
   );
 };
+
 
 const RoleDropdown = ({ value, onChange, roles, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -346,6 +369,9 @@ const Game = () => {
     }, 5000);
   };
 
+
+
+
   /* ==========
      ТАЙМЕР
      ========== */
@@ -412,6 +438,12 @@ const Game = () => {
     );
     setIsPenaltyTime(false); // Снимаем дизейбл
   };
+
+  const decrementFouls = (id) => {
+  setPlayers((prev) =>
+    prev.map((p) => (p.id === id && p.fouls > 0 ? { ...p, fouls: Math.max(p.fouls - 1, 0) } : p))
+  );
+};
 
 
   const handleRoleChange = (id, role) =>
@@ -1161,12 +1193,13 @@ const Game = () => {
                 ref={foulsPanelRef}
                 className={`${styles.panel} ${activeTab === 'fouls' ? styles.visiblePanel : styles.hiddenPanel}`}
               >
-                <FoulsComponent
-                  players={players}
-                  onIncrementFoul={incrementFouls}
-                  onIncrementDFouls={incrementDFouls}
-                  isPenaltyTime={isPenaltyTime}
-                />
+              <FoulsComponent
+                players={players}
+                onIncrementFoul={incrementFouls}
+                onIncrementDFouls={incrementDFouls}
+                onDecrementFoul={decrementFouls}
+                isPenaltyTime={isPenaltyTime}
+              />
               </div>
             </div>
           </div>
