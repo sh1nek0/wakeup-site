@@ -1001,7 +1001,7 @@ const Game = () => {
               <div className={styles.phaseContainer}>
                 <div className={styles.votingContainer}>
                   <h3>Выставление</h3>
-                <nav aria-label="Список игроков для выставления" className={styles.votingNav}>
+                
                   {votes.map(({ playerId, votesCount }) => (
                     <div key={playerId} className={styles.playerVoteItem}>
                       <button
@@ -1016,7 +1016,7 @@ const Game = () => {
                       <span className={styles.votesCount}>{votesCount}</span>
                     </div>
                   ))}
-                </nav>
+                
 
                 <div role="grid" aria-label="Цифровая клавиатура для выставления" className={styles.keyboardGrid}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
@@ -1052,7 +1052,7 @@ const Game = () => {
               <div className={styles.phaseContainer}>
                 <div className={styles.votingContainer}>
                   <h3>Голосование</h3>
-              <nav aria-label="Список игроков для голосования" className={styles.votingNav}>
+              
                   {votes.map(({ playerId, votesCount }, index) => {
                     const isSelected = playerId === selectedPlayerId;
                     return (
@@ -1073,7 +1073,7 @@ const Game = () => {
                     );
                   })}
                 
-                </nav>
+                
                 </div>
                 <div role="grid" aria-label="Цифровая клавиатура для голосования" className={styles.keyboardGrid}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => (
