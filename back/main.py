@@ -458,7 +458,7 @@ async def get_event(event_id: str):
             "title": event.title,
             "dates": event.dates,
             "location": event.location,
-            "type": "solo",
+            "type": event.type,
             "participantsLimit": event.participants_limit,
             "participantsCount": event.participants_count,
             "fee": event.fee,
@@ -530,15 +530,13 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             role = player.get("role", "").lower()
             best_move_string = player.get("best_move", "")
             
-            # Рассчитываем штрафы по картам
+            # Штрафы за карточки (без сохранения в 'minus')
             jk = player.get("jk", 0)
             sk = player.get("sk", 0)
-            minus = (jk * 0.5) + (sk * 0.5)
-            player["minus"] = minus
-
+            
             # Рассчитываем бонус за лучший ход
             best_move_bonus = 0
-            if best_move_string:
+            if role not in ["мафия", "дон"] and best_move_string:
                 best_move_numbers = parse_best_move(best_move_string)
                 black_players_in_best_move = set()
                 for player_num in best_move_numbers:
@@ -556,12 +554,12 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             # Рассчитываем бонус за победу
             team_win_bonus = 2.5 if role in winning_roles else 0
             
-            # Убеждаемся, что поле ci_bonus существует
-            ci_bonus = player.get("ci_bonus", 0)
-            player["ci_bonus"] = ci_bonus
+            # Инициализируем ci_bonus, если его нет
+            if "ci_bonus" not in player:
+                player["ci_bonus"] = 0
 
-            # Итоговая сумма
-            sum_points = plus - minus + best_move_bonus + team_win_bonus + ci_bonus
+            # Итоговая сумма (без динамических штрафов)
+            sum_points = plus + best_move_bonus + team_win_bonus
             player["sum"] = sum_points
 
         game_json = json.dumps({
@@ -655,22 +653,17 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
 async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
-        # Base query for filtering
         base_query = db.query(Game)
-        is_tournament = False
         if event_id and event_id != 'all':
             base_query = base_query.filter(Game.event_id == event_id)
-            is_tournament = True
 
-        # 1. Get all relevant games to calculate Ci bonuses correctly
-        all_games_for_ci = base_query.all()
-        ci_bonuses = calculate_ci_bonuses(all_games_for_ci, is_tournament)
+        all_games_for_calc = base_query.order_by(Game.created_at.asc()).all()
+        ci_bonuses = calculate_ci_bonuses(all_games_for_calc)
+        dynamic_penalties = calculate_dynamic_penalties(all_games_for_calc)
 
-        # 2. Get total count and paginated games from the same base query
         total_count = base_query.count()
         paginated_games = base_query.order_by(Game.created_at.desc()).offset(offset).limit(limit).all()
         
-        # 3. Build the response list
         games_list = []
         for game in paginated_games:
             data = json.loads(game.data)
@@ -679,16 +672,17 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
             processed_players = []
             for p in players:
                 name = p.get("name")
-                base_points = p.get("sum", 0)
-                ci_bonus_from_db = p.get("ci_bonus", 0)
-                # Use dynamically calculated Ci bonus for display
-                ci_bonus_dynamic = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                base_sum = p.get("sum", 0)
                 
-                # Adjust sum with the difference, in case the stored one is outdated
-                final_points = base_points - ci_bonus_from_db + ci_bonus_dynamic
+                ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
+                jk_penalty = penalties.get('jk_penalty', 0)
+                sk_penalty = penalties.get('sk_penalty', 0)
+                
+                final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
 
                 processed_players.append({
-                    "name": p.get("name"),
+                    "name": name,
                     "role": p.get("role", ""),
                     "points": final_points
                 })
@@ -708,13 +702,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     finally:
         db.close()
 
-def calculate_ci_bonuses(games: list[Game], is_tournament: bool) -> dict:
-    """
-    Calculates Ci bonuses for all players across a set of games.
-    This function processes games chronologically to correctly calculate X and N at each step.
-
-    Returns a dict: {'player_name': {'game_id': ci_bonus}}
-    """
+def calculate_ci_bonuses(games: list[Game]) -> dict:
     ci_bonuses = {}
     player_x_counts = {}
     n = 0
@@ -723,63 +711,71 @@ def calculate_ci_bonuses(games: list[Game], is_tournament: bool) -> dict:
 
     for game in sorted_games:
         n += 1
-        try:
-            game_data = json.loads(game.data)
-        except (json.JSONDecodeError, TypeError):
-            continue  # Skip malformed game data
-
+        game_data = json.loads(game.data)
         players_in_game = game_data.get("players", [])
-        if not isinstance(players_in_game, list):
-            continue
+        player_roles = {p.get("id"): p.get("role", "").lower() for p in players_in_game}
 
-        player_roles = {p.get("id"): p.get("role", "").lower() for p in players_in_game if isinstance(p, dict)}
-
-        eliminated_player = None
-        for p in players_in_game:
-            if isinstance(p, dict) and p.get("best_move"):
-                eliminated_player = p
-                break
-        
+        eliminated_player = next((p for p in players_in_game if p.get("best_move")), None)
         if not eliminated_player:
             continue
 
         player_name = eliminated_player.get("name")
-        if not player_name:
+        player_role = eliminated_player.get("role", "").lower()
+        if not player_name or player_role in ["мафия", "дон"]:
             continue
 
-        # Check the role of the player who made the best_move.
-        # Ci bonus is only for non-black players.
-        player_role = eliminated_player.get("role", "").lower()
-        if player_role in ["мафия", "дон"]:
-            continue # Skip Ci bonus for black players
-
         best_move_numbers = parse_best_move(eliminated_player.get("best_move", ""))
-        found_black = False
-        for player_num in best_move_numbers:
-            if player_num in player_roles and player_roles[player_num] in ["мафия", "дон"]:
-                found_black = True
-                break
+        found_black = any(player_roles.get(num) in ["мафия", "дон"] for num in best_move_numbers)
         
         if found_black:
             player_x_counts[player_name] = player_x_counts.get(player_name, 0) + 1
 
         current_x = player_x_counts.get(player_name, 0)
-        
         if current_x > 0:
-            k = 0
-            if is_tournament:
-                k = current_x
-            else:
-                k = max(0, current_x - (n // 10))
-            
+            k = max(0, current_x - (n // 10))
             if k > 0:
                 ci_bonus = 0.5 * (k * (k + 1) / 2)
-                
                 if player_name not in ci_bonuses:
                     ci_bonuses[player_name] = {}
                 ci_bonuses[player_name][game.gameId] = ci_bonus
-
     return ci_bonuses
+
+def calculate_dynamic_penalties(games: list[Game]) -> dict:
+    penalties = {}
+    player_jk_counts = {}
+
+    sorted_games = sorted(games, key=lambda g: g.created_at)
+
+    for game in sorted_games:
+        game_data = json.loads(game.data)
+        players_in_game = game_data.get("players", [])
+
+        for player in players_in_game:
+            name = player.get("name")
+            if not name:
+                continue
+
+            # SK penalty is static
+            sk_penalty = player.get("sk", 0) * 0.5
+            
+            # JK penalty is dynamic
+            jk_penalty = 0
+            if player.get("jk", 0) > 0:
+                current_jk_count = player_jk_counts.get(name, 0)
+                for i in range(player.get("jk")):
+                    current_jk_count += 1
+                    jk_penalty += current_jk_count * 0.5
+                player_jk_counts[name] = current_jk_count
+
+            if jk_penalty > 0 or sk_penalty > 0:
+                if name not in penalties:
+                    penalties[name] = {}
+                penalties[name][game.gameId] = {
+                    "jk_penalty": jk_penalty,
+                    "sk_penalty": sk_penalty
+                }
+    return penalties
+
 
 @app.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"),
@@ -788,14 +784,13 @@ async def get_rating(limit: int = Query(10, description="Количество э
     db = SessionLocal()
     try:
         games_query = db.query(Game)
-        is_tournament = False
         if event_id and event_id != 'all':
             games_query = games_query.filter(Game.event_id == event_id)
-            is_tournament = True
         
-        games = games_query.all()
+        games = games_query.order_by(Game.created_at.asc()).all()
 
-        ci_bonuses = calculate_ci_bonuses(games, is_tournament)
+        ci_bonuses = calculate_ci_bonuses(games)
+        dynamic_penalties = calculate_dynamic_penalties(games)
 
         all_players = db.query(User).all()
         player_names = {p.nickname for p in all_players}
@@ -811,11 +806,13 @@ async def get_rating(limit: int = Query(10, description="Количество э
                 if not name or not name.strip():
                     continue
                 
-                sum_points = player.get("sum", 0)
-                ci_bonus_from_db = player.get("ci_bonus", 0)
-                ci_bonus_dynamic = ci_bonuses.get(name, {}).get(game.gameId, 0)
-                
-                final_points = sum_points - ci_bonus_from_db + ci_bonus_dynamic
+                base_sum = player.get("sum", 0)
+                ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
+                jk_penalty = penalties.get('jk_penalty', 0)
+                sk_penalty = penalties.get('sk_penalty', 0)
+
+                final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
 
                 if name not in player_stats:
                     player_stats[name] = {"games": 0, "total_sum": 0}
@@ -864,10 +861,10 @@ async def get_detailed_stats(
         if event_id and event_id != 'all':
             games_query = games_query.filter(Game.event_id == event_id)
         
-        games = games_query.all()
+        games = games_query.order_by(Game.created_at.asc()).all()
         
-        is_tournament = bool(event_id and event_id != 'all')
-        ci_bonuses = calculate_ci_bonuses(games, is_tournament)
+        ci_bonuses = calculate_ci_bonuses(games)
+        dynamic_penalties = calculate_dynamic_penalties(games)
         
         player_stats = {}
 
@@ -883,19 +880,19 @@ async def get_detailed_stats(
                 
                 role = player.get("role", "").lower()
                 plus = player.get("plus", 0)
-                minus = player.get("minus", 0)
-                sum_points = player.get("sum", 0)
+                base_sum = player.get("sum", 0)
                 best_move_bonus = player.get("best_move_bonus", 0)
-                jk = player.get("jk", 0)
-                sk = player.get("sk", 0)
-                ci_bonus_from_db = player.get("ci_bonus", 0)
-
-                ci_bonus_dynamic = ci_bonuses.get(name, {}).get(game.gameId, 0)
-                final_points = sum_points - ci_bonus_from_db + ci_bonus_dynamic
+                
+                ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
+                jk_penalty = penalties.get('jk_penalty', 0)
+                sk_penalty = penalties.get('sk_penalty', 0)
+                
+                final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
 
                 if name not in player_stats:
                     player_stats[name] = {
-                        "totalPoints": 0, "bonuses": 0, "penalties": 0,
+                        "totalPoints": 0, "bonuses": 0, "total_jk_penalty": 0, "total_sk_penalty": 0,
                         "wins": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
                         "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
                         "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
@@ -906,23 +903,21 @@ async def get_detailed_stats(
                 stats = player_stats[name]
                 stats["totalPoints"] += final_points
                 stats["bonuses"] += plus
-                stats["total_ci_bonus"] += ci_bonus_dynamic
-                stats["penalties"] += minus
-                stats["total_jk"] += jk
-                stats["total_sk"] += sk
+                stats["total_jk_penalty"] += jk_penalty
+                stats["total_sk_penalty"] += sk_penalty
+                stats["total_jk"] += player.get("jk", 0)
+                stats["total_sk"] += player.get("sk", 0)
                 stats["total_best_move_bonus"] += best_move_bonus
+                stats["total_ci_bonus"] += ci_bonus
                 if best_move_bonus > 0:
                     stats["successful_best_moves"] += 1
 
-                role_map = {
-                    "мирный": "citizen", "шериф": "sheriff",
-                    "мафия": "mafia", "дон": "don"
-                }
+                role_map = {"мирный": "citizen", "шериф": "sheriff", "мафия": "mafia", "дон": "don"}
                 mapped_role = role_map.get(role)
 
                 if mapped_role:
                     stats["gamesPlayed"][mapped_role] += 1
-                    stats["role_plus"][mapped_role].append(plus) # Only 'plus'
+                    stats["role_plus"][mapped_role].append(plus)
                     
                     is_win = (badge_color == "red" and mapped_role in ["citizen", "sheriff"]) or \
                              (badge_color == "black" and mapped_role in ["mafia", "don"])
@@ -933,31 +928,21 @@ async def get_detailed_stats(
         for name in player_names:
             if name not in player_stats:
                  player_stats[name] = {
-                    "totalPoints": 0, "bonuses": 0, "penalties": 0,
+                    "totalPoints": 0, "bonuses": 0, "total_jk_penalty": 0, "total_sk_penalty": 0,
                     "wins": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
                     "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
                     "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
                     "total_jk": 0, "total_sk": 0,
-                    "successful_best_moves": 0, "total_best_move_bonus": 0
+                    "successful_best_moves": 0, "total_best_move_bonus": 0, "total_ci_bonus": 0
                 }
 
-        players_list = []
-        for name, stats in player_stats.items():
-            players_list.append({
-                "nickname": name,
-                "club": clubs.get(name, None),
-                **stats,
-            })
-
+        players_list = [{"nickname": name, "club": clubs.get(name, None), **stats} for name, stats in player_stats.items()]
         players_list.sort(key=lambda x: x["totalPoints"], reverse=True)
 
         total_count = len(players_list)
         paginated_players = players_list[offset:offset + limit]
 
-        if total_count > 0:
-            average_points = sum(p["totalPoints"] for p in players_list) / total_count
-        else:
-            average_points = 0
+        average_points = sum(p["totalPoints"] for p in players_list) / total_count if total_count > 0 else 0
 
         return {
             "players": paginated_players,
@@ -967,55 +952,6 @@ async def get_detailed_stats(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения детальной статистики: {str(e)}")
-    finally:
-        db.close()
-
-@app.post("/recalculate_ci")
-async def recalculate_ci(event_id: str = Query(None, description="ID события для фильтрации"), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
-
-    db = SessionLocal()
-    try:
-        games_query = db.query(Game)
-        is_tournament = False
-        if event_id and event_id != 'all':
-            games_query = games_query.filter(Game.event_id == event_id)
-            is_tournament = True
-        
-        games = games_query.all()
-        ci_bonuses = calculate_ci_bonuses(games, is_tournament)
-
-        for game in games:
-            game_data = json.loads(game.data)
-            players = game_data.get("players", [])
-            
-            winning_roles = []
-            if game_data.get("badgeColor") == "red":
-                winning_roles = ["мирный", "шериф"]
-            elif game_data.get("badgeColor") == "black":
-                winning_roles = ["мафия", "дон"]
-
-            for player in players:
-                name = player.get("name")
-                new_ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
-                player["ci_bonus"] = new_ci_bonus
-                
-                # Recalculate sum
-                plus = player.get("plus", 0)
-                minus = player.get("minus", 0)
-                best_move_bonus = player.get("best_move_bonus", 0)
-                team_win_bonus = 2.5 if player.get("role", "").lower() in winning_roles else 0
-                
-                player["sum"] = plus - minus + best_move_bonus + team_win_bonus + new_ci_bonus
-
-            game.data = json.dumps(game_data, ensure_ascii=False)
-        
-        db.commit()
-        return {"message": f"Ci бонусы и суммы для {len(games)} игр успешно пересчитаны."}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Ошибка пересчета Ci: {str(e)}")
     finally:
         db.close()
 
@@ -1104,7 +1040,7 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
     finally:
         db.close()
 
-
+# Новый эндпоинт для удаления команды (только админы)
 @app.delete("/deleteTeam/{team_id}")
 async def delete_team(team_id: str, current_user: User = Depends(get_current_user)):
     db = SessionLocal()

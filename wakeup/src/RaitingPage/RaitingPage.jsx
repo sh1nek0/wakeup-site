@@ -51,7 +51,6 @@ export default function RatingPage() {
   // Состояние для процессов
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
-  const [isRecalculating, setIsRecalculating] = useState(false); // New state
 
   // Уведомления
   const [successMessage, setSuccessMessage] = useState('');
@@ -366,39 +365,6 @@ export default function RatingPage() {
     }
   };
 
-  const handleRecalculateCi = async () => {
-    if (!isAdmin) {
-      showMessage('Это действие доступно только администратору.', true);
-      return;
-    }
-    setIsRecalculating(true);
-    showMessage('Пересчет Ci бонусов запущен...');
-    try {
-      const res = await fetch(
-        `/api/recalculate_ci?` + (selectedEventId !== 'all' ? `event_id=${selectedEventId}` : ''),
-        {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        showMessage(data.message || 'Данные успешно обновлены.');
-        clearCache();
-        // Re-fetch data for the current tab
-        if (activeTab === 'Общая сводка') fetchPlayers();
-        else if (activeTab === 'Игры') fetchGames();
-        else if (activeTab === 'Статистика') fetchDetailedStats();
-      } else {
-        throw new Error(data.detail || 'Ошибка на сервере');
-      }
-    } catch (e) {
-      showMessage('Ошибка при пересчете Ci: ' + e.message, true);
-    } finally {
-      setIsRecalculating(false);
-    }
-  };
-
   return (
     <div className={styles.pageWrapper}>
       {successMessage && (
@@ -576,14 +542,6 @@ export default function RatingPage() {
                   disabled={isCreatingGame}
                 >
                   {isCreatingGame ? 'Создание...' : 'Создать игру'}
-                </button>
-                <button
-                  onClick={handleRecalculateCi}
-                  className={styles.createGameBtn}
-                  type="button"
-                  disabled={isRecalculating}
-                >
-                  {isRecalculating ? 'Обновление...' : 'Обновить Ci'}
                 </button>
               </div>
             )}
@@ -828,6 +786,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
 
                 const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
                 const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
+                const totalPenalties = (p.total_sk_penalty || 0) + (p.total_jk_penalty || 0);
 
                 return (
                   <tr
@@ -838,12 +797,12 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                     <td><span className={styles.link}>{p.nickname}</span></td>
                     <td>{p.totalPoints?.toFixed(2) || 0}</td>
                     <td>{totalWins}</td>
-                    <td>{p.total_sk || 0}</td>
-                    <td>{p.total_jk || 0}</td>
+                    <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>
+                    <td>{(p.total_jk_penalty || 0).toFixed(2)}</td>
                     <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
                     <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
                     <td>{p.bonuses?.toFixed(2) || 0}</td>
-                    <td>{p.penalties?.toFixed(2) || 0}</td>
+                    <td>{totalPenalties.toFixed(2)}</td>
                     <td>
                       {renderRoleStats(
                         totalWins,

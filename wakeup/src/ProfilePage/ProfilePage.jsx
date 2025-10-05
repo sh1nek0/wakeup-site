@@ -18,7 +18,21 @@ const ProfilePage = ({
   description = "Здесь будет текст описания игрока..."
 }) => {
 
-  const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
+  const { user } = useContext(AuthContext);
+
+  // --- ИСПРАВЛЕНИЕ ---
+  // Если пользователь еще не загружен, показываем заглушку, чтобы избежать ошибки
+  if (!user) {
+    return (
+      <div className={styles.pageWrapper}>
+        <div className={styles.mainContent}>
+          Загрузка профиля...
+        </div>
+      </div>
+    );
+  }
+  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
   const isAdmin = user && user.role === 'admin';
   console.log(user)
   return (
