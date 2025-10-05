@@ -384,6 +384,11 @@ const Game = () => {
     setIsRunning(true);
   };
 
+  const startTimer = (seconds) => {
+    setMaxTime(seconds);
+    setIsRunning(true);
+  };
+
   const updateTimer = (seconds) => {
     setTime(time);
     setMaxTime(maxTime + seconds);
@@ -863,6 +868,7 @@ const Game = () => {
           <div className={styles.contentContainer}>
             <div className={styles.timerBlock}>
               <div className={styles.timerContainer}>
+                
                 <div
                   className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
                   onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
@@ -873,6 +879,24 @@ const Game = () => {
                 >
                   {formatTime(time)}
                 </div>
+
+                <div className={styles.resetBynWrap}>
+                <button
+                  className={styles.resetBtn}
+                  onClick={() => !isPenaltyTime && startTimer(60*10)} // Дизейбл
+                  type="button"
+                  disabled={isPenaltyTime}
+                >
+                  Cтарт
+                </button>
+                <button
+                  className={styles.resetBtn}
+                  onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
+                  type="button"
+                  disabled={isPenaltyTime}
+                >
+                  Стоп 
+                </button>
                 <button
                   className={styles.resetBtn}
                   onClick={() => !isPenaltyTime && resetTimer()} // Дизейбл
@@ -881,6 +905,8 @@ const Game = () => {
                 >
                   Сброс
                 </button>
+                </div>
+
                 <div className={styles.timerButtons}>
                   <button
                     className={styles.timerBtn}
@@ -915,6 +941,7 @@ const Game = () => {
                   </button>
                 </div>
               </div>
+            
             </div>
 
             {/* Дизейбл фаз, если штрафное время */}
