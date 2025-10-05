@@ -488,20 +488,19 @@ async def get_event(event_id: str):
 
 
 
-# Вспомогательная функция для парсинга ЛХ
-def parse_lx(lx_string: str) -> list[int]:
-    if not lx_string:
+# Вспомогательная функция для парсинга "Лучшего хода"
+def parse_best_move(best_move_string: str) -> list[int]:
+    if not best_move_string:
         return []
 
     numbers = []
     
     # Шаг 1: Сначала извлекаем все "10", чтобы избежать путаницы с "1" и "0"
-    # Используем lookahead, чтобы найти пересекающиеся совпадения, например в "1010"
-    tens = re.findall(r'10', lx_string)
+    tens = re.findall(r'10', best_move_string)
     numbers.extend([10] * len(tens))
     
     # Удаляем "10" из строки, чтобы они не мешали поиску одиночных цифр
-    remaining_string = lx_string.replace('10', '')
+    remaining_string = best_move_string.replace('10', '')
     
     # Шаг 2: Извлекаем все остальные цифры от 1 до 9
     single_digits = re.findall(r'[1-9]', remaining_string)
@@ -517,59 +516,54 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
 
-        # Создаем словарь для быстрого доступа к ролям игроков по их номеру (id)
         player_roles = {player.get("id"): player.get("role", "").lower() for player in data.players}
 
-        # Определяем победившую команду на основе badgeColor
         if data.badgeColor == "red":
             winning_roles = ["мирный", "шериф"]
         elif data.badgeColor == "black":
             winning_roles = ["мафия", "дон"]
         else:
-            # Ничья или другой случай - никому не добавляем командные баллы
             winning_roles = []
 
-        # Подсчёт суммы очков для каждого игрока
         for player in data.players:
             plus = player.get("plus", 0)
-            minus = player.get("minus", 0)
             role = player.get("role", "").lower()
-            lx_string = player.get("lx", "")
+            best_move_string = player.get("best_move", "")
+            
+            # Рассчитываем штрафы по картам
+            jk = player.get("jk", 0)
+            sk = player.get("sk", 0)
+            minus = (jk * 0.5) + (sk * 0.5)
+            player["minus"] = minus
 
-            # Сбрасываем старый Ci бонус, если он был, т.к. он будет пересчитан
-            # и добавлен к sum позже, а не к plus
-            if 'ci_bonus' in player:
-                plus -= player.get('ci_bonus', 0.0)
-                player['ci_bonus'] = 0.0
-
-
-            if lx_string:
-                # 1. Парсим строку ЛХ в массив номеров
-                lx_numbers = parse_lx(lx_string)
-                
-                # 2. Находим уникальные номера черных игроков в ЛХ
-                black_players_in_lx = set()
-                for player_num in lx_numbers:
-                    # Проверяем, что номер игрока валиден и его роль - черная
+            # Рассчитываем бонус за лучший ход
+            best_move_bonus = 0
+            if best_move_string:
+                best_move_numbers = parse_best_move(best_move_string)
+                black_players_in_best_move = set()
+                for player_num in best_move_numbers:
                     if player_num in player_roles and player_roles[player_num] in ["мафия", "дон"]:
-                        black_players_in_lx.add(player_num)
+                        black_players_in_best_move.add(player_num)
                 
-                # 3. Начисляем очки в зависимости от количества найденных черных
-                count_black = len(black_players_in_lx)
+                count_black = len(black_players_in_best_move)
                 if count_black == 3:
-                    plus += 1.0
+                    best_move_bonus = 1.0
                 elif count_black == 2:
-                    plus += 0.5
-                # Если 0, 1 или тройка красных - ничего не добавляем (бонус 0)
+                    best_move_bonus = 0.5
+            
+            player["best_move_bonus"] = best_move_bonus
 
-            # Добавляем командный бонус 2.5, если роль игрока в победившей команде
-            if role in winning_roles:
-                plus += 2.5
+            # Рассчитываем бонус за победу
+            team_win_bonus = 2.5 if role in winning_roles else 0
+            
+            # Убеждаемся, что поле ci_bonus существует
+            ci_bonus = player.get("ci_bonus", 0)
+            player["ci_bonus"] = ci_bonus
 
-            sum_points = plus - minus
+            # Итоговая сумма
+            sum_points = plus - minus + best_move_bonus + team_win_bonus + ci_bonus
             player["sum"] = sum_points
 
-        # Формируем JSON для хранения
         game_json = json.dumps({
             "players": data.players,
             "fouls": data.fouls,
@@ -577,14 +571,11 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             "badgeColor": data.badgeColor
         }, ensure_ascii=False)
 
-        # Проверяем, существует ли игра с таким gameId
         existing_game = db.query(Game).filter(Game.gameId == data.gameId).first()
         if existing_game:
-            # Обновляем данные игры
             existing_game.data = game_json
             existing_game.event_id = data.eventId
         else:
-            # Создаем новую игру
             new_game = Game(
                 gameId=data.gameId,
                 data=game_json,
@@ -664,29 +655,50 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
 async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
-        games_query = db.query(Game)
+        # Base query for filtering
+        base_query = db.query(Game)
+        is_tournament = False
         if event_id and event_id != 'all':
-            games_query = games_query.filter(Game.event_id == event_id)
+            base_query = base_query.filter(Game.event_id == event_id)
+            is_tournament = True
 
-        total_count = games_query.count()
-        games = games_query.order_by(Game.created_at.desc()).offset(offset).limit(limit).all()
+        # 1. Get all relevant games to calculate Ci bonuses correctly
+        all_games_for_ci = base_query.all()
+        ci_bonuses = calculate_ci_bonuses(all_games_for_ci, is_tournament)
+
+        # 2. Get total count and paginated games from the same base query
+        total_count = base_query.count()
+        paginated_games = base_query.order_by(Game.created_at.desc()).offset(offset).limit(limit).all()
+        
+        # 3. Build the response list
         games_list = []
-        for game in games:
+        for game in paginated_games:
             data = json.loads(game.data)
             players = data.get("players", [])
+            
+            processed_players = []
+            for p in players:
+                name = p.get("name")
+                base_points = p.get("sum", 0)
+                ci_bonus_from_db = p.get("ci_bonus", 0)
+                # Use dynamically calculated Ci bonus for display
+                ci_bonus_dynamic = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                
+                # Adjust sum with the difference, in case the stored one is outdated
+                final_points = base_points - ci_bonus_from_db + ci_bonus_dynamic
+
+                processed_players.append({
+                    "name": p.get("name"),
+                    "role": p.get("role", ""),
+                    "points": final_points
+                })
+
             games_list.append({
                 "id": game.gameId,
-                "date": game.created_at.strftime("%d.%m.%Y %H:%M"),  # Форматированная дата
+                "date": game.created_at.strftime("%d.%m.%Y %H:%M"),
                 "badgeColor": data.get("badgeColor", ""),
                 "event_id": game.event_id,
-                "players": [
-                    {
-                        "name": p["name"],
-                        "role": p.get("role", ""),
-                        "points": p.get("sum", 0)
-                    }
-                    for p in players
-                ]
+                "players": processed_players
             })
 
         return {"games": games_list, "total_count": total_count}
@@ -724,7 +736,7 @@ def calculate_ci_bonuses(games: list[Game], is_tournament: bool) -> dict:
 
         eliminated_player = None
         for p in players_in_game:
-            if isinstance(p, dict) and p.get("lx"):
+            if isinstance(p, dict) and p.get("best_move"):
                 eliminated_player = p
                 break
         
@@ -735,9 +747,15 @@ def calculate_ci_bonuses(games: list[Game], is_tournament: bool) -> dict:
         if not player_name:
             continue
 
-        lx_numbers = parse_lx(eliminated_player.get("lx", ""))
+        # Check the role of the player who made the best_move.
+        # Ci bonus is only for non-black players.
+        player_role = eliminated_player.get("role", "").lower()
+        if player_role in ["мафия", "дон"]:
+            continue # Skip Ci bonus for black players
+
+        best_move_numbers = parse_best_move(eliminated_player.get("best_move", ""))
         found_black = False
-        for player_num in lx_numbers:
+        for player_num in best_move_numbers:
             if player_num in player_roles and player_roles[player_num] in ["мафия", "дон"]:
                 found_black = True
                 break
@@ -792,30 +810,27 @@ async def get_rating(limit: int = Query(10, description="Количество э
                 name = player.get("name")
                 if not name or not name.strip():
                     continue
-                plus = player.get("plus", 0)
-                minus = player.get("minus", 0)
-                sum_points = player.get("sum", 0)
                 
-                ci_bonus_for_game = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                sum_points = player.get("sum", 0)
+                ci_bonus_from_db = player.get("ci_bonus", 0)
+                ci_bonus_dynamic = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                
+                final_points = sum_points - ci_bonus_from_db + ci_bonus_dynamic
 
                 if name not in player_stats:
-                    player_stats[name] = {"games": 0, "total_plus": 0, "total_minus": 0, "total_sum": 0}
+                    player_stats[name] = {"games": 0, "total_sum": 0}
                 
                 player_stats[name]["games"] += 1
-                player_stats[name]["total_plus"] += plus
-                player_stats[name]["total_minus"] += minus
-                player_stats[name]["total_sum"] += sum_points + ci_bonus_for_game
+                player_stats[name]["total_sum"] += final_points
 
         for name in player_names:
             if name not in player_stats:
-                player_stats[name] = {"games": 0, "total_plus": 0, "total_minus": 0, "total_sum": 0}
+                player_stats[name] = {"games": 0, "total_sum": 0}
 
         rating = [
             {
                 "name": name,
                 "games": stats["games"],
-                "total_plus": stats["total_plus"],
-                "total_minus": stats["total_minus"],
                 "points": stats["total_sum"],
                 "club": clubs.get(name, None)
             }
@@ -865,126 +880,65 @@ async def get_detailed_stats(
                 name = player.get("name")
                 if not name or not name.strip():
                     continue
+                
                 role = player.get("role", "").lower()
                 plus = player.get("plus", 0)
-                minus = player.get("fouls", 0)
+                minus = player.get("minus", 0)
                 sum_points = player.get("sum", 0)
+                best_move_bonus = player.get("best_move_bonus", 0)
+                jk = player.get("jk", 0)
+                sk = player.get("sk", 0)
+                ci_bonus_from_db = player.get("ci_bonus", 0)
 
-                ci_bonus_for_game = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                ci_bonus_dynamic = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                final_points = sum_points - ci_bonus_from_db + ci_bonus_dynamic
 
                 if name not in player_stats:
                     player_stats[name] = {
-                        "totalPoints": 0,
-                        "bonuses": 0,
-                        "penalties": 0,
-                        "wins": {"red": 0, "peaceful": 0, "mafia": 0, "don": 0, "sk": 0, "jk": 0},
-                        "losses": {"red": 0, "peaceful": 0, "mafia": 0, "don": 0, "sk": 0, "jk": 0},
-                        "wins_points": {"red": 0.0, "peaceful": 0.0, "mafia": 0.0, "don": 0.0, "sk": 0.0, "jk": 0.0},
-                        "losses_points": {"red": 0.0, "peaceful": 0.0, "mafia": 0.0, "don": 0.0, "sk": 0.0, "jk": 0.0},
-                        "gamesPlayed": {"peaceful": 0, "mafia": 0, "red": 0, "don": 0, "sk": 0, "jk": 0},
-                        "wins_plus_list": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []},
-                        "losses_plus_list": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []},
-                        "role_plus": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []}
+                        "totalPoints": 0, "bonuses": 0, "penalties": 0,
+                        "wins": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
+                        "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
+                        "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
+                        "total_jk": 0, "total_sk": 0,
+                        "successful_best_moves": 0, "total_best_move_bonus": 0, "total_ci_bonus": 0
                     }
 
                 stats = player_stats[name]
-                stats["totalPoints"] += sum_points + ci_bonus_for_game
-                stats["bonuses"] += plus + ci_bonus_for_game
+                stats["totalPoints"] += final_points
+                stats["bonuses"] += plus
+                stats["total_ci_bonus"] += ci_bonus_dynamic
                 stats["penalties"] += minus
+                stats["total_jk"] += jk
+                stats["total_sk"] += sk
+                stats["total_best_move_bonus"] += best_move_bonus
+                if best_move_bonus > 0:
+                    stats["successful_best_moves"] += 1
 
-                is_win = False
-                if role == "мирный":
-                    stats["gamesPlayed"]["peaceful"] += 1
-                    stats["role_plus"]["peaceful"].append(plus + ci_bonus_for_game)
-                    if badge_color == "red":
-                        is_win = True
-                        stats["wins"]["peaceful"] += 1
-                        stats["wins_points"]["peaceful"] += plus + ci_bonus_for_game
-                        stats["wins_plus_list"]["peaceful"].append(plus + ci_bonus_for_game)
-                    else:
-                        stats["losses"]["peaceful"] += 1
-                        stats["losses_points"]["peaceful"] += plus + ci_bonus_for_game
-                        stats["losses_plus_list"]["peaceful"].append(plus + ci_bonus_for_game)
+                role_map = {
+                    "мирный": "citizen", "шериф": "sheriff",
+                    "мафия": "mafia", "дон": "don"
+                }
+                mapped_role = role_map.get(role)
 
-                elif role == "мафия":
-                    stats["gamesPlayed"]["mafia"] += 1
-                    stats["role_plus"]["mafia"].append(plus + ci_bonus_for_game)
-                    if badge_color == "black":
-                        is_win = True
-                        stats["wins"]["mafia"] += 1
-                        stats["wins_points"]["mafia"] += plus + ci_bonus_for_game
-                        stats["wins_plus_list"]["mafia"].append(plus + ci_bonus_for_game)
-                    else:
-                        stats["losses"]["mafia"] += 1
-                        stats["losses_points"]["mafia"] += plus + ci_bonus_for_game
-                        stats["losses_plus_list"]["mafia"].append(plus + ci_bonus_for_game)
-
-                elif role == "шериф":
-                    stats["gamesPlayed"]["red"] += 1
-                    stats["role_plus"]["red"].append(plus + ci_bonus_for_game)
-                    if badge_color == "red":
-                        is_win = True
-                        stats["wins"]["red"] += 1
-                        stats["wins_points"]["red"] += plus + ci_bonus_for_game
-                        stats["wins_plus_list"]["red"].append(plus + ci_bonus_for_game)
-                    else:
-                        stats["losses"]["red"] += 1
-                        stats["losses_points"]["red"] += plus + ci_bonus_for_game
-                        stats["losses_plus_list"]["red"].append(plus + ci_bonus_for_game)
-
-                elif role == "дон":
-                    stats["gamesPlayed"]["don"] += 1
-                    stats["role_plus"]["don"].append(plus + ci_bonus_for_game)
-                    if badge_color == "black":
-                        is_win = True
-                        stats["wins"]["don"] += 1
-                        stats["wins_points"]["don"] += plus + ci_bonus_for_game
-                        stats["wins_plus_list"]["don"].append(plus + ci_bonus_for_game)
-                    else:
-                        stats["losses"]["don"] += 1
-                        stats["losses_points"]["don"] += plus + ci_bonus_for_game
-                        stats["losses_plus_list"]["don"].append(plus + ci_bonus_for_game)
-
-                elif role == "sk":
-                    stats["gamesPlayed"]["sk"] += 1
-                    stats["role_plus"]["sk"].append(plus + ci_bonus_for_game)
-                    if badge_color == "red":
-                        is_win = True
-                        stats["wins"]["sk"] += 1
-                        stats["wins_points"]["sk"] += plus + ci_bonus_for_game
-                        stats["wins_plus_list"]["sk"].append(plus + ci_bonus_for_game)
-                    else:
-                        stats["losses"]["sk"] += 1
-                        stats["losses_points"]["sk"] += plus + ci_bonus_for_game
-                        stats["losses_plus_list"]["sk"].append(plus + ci_bonus_for_game)
-
-                elif role == "jk":
-                    stats["gamesPlayed"]["jk"] += 1
-                    stats["role_plus"]["jk"].append(plus + ci_bonus_for_game)
-                    if badge_color == "black":
-                        is_win = True
-                        stats["wins"]["jk"] += 1
-                        stats["wins_points"]["jk"] += plus + ci_bonus_for_game
-                        stats["wins_plus_list"]["jk"].append(plus + ci_bonus_for_game)
-                    else:
-                        stats["losses"]["jk"] += 1
-                        stats["losses_points"]["jk"] += plus + ci_bonus_for_game
-                        stats["losses_plus_list"]["jk"].append(plus + ci_bonus_for_game)
+                if mapped_role:
+                    stats["gamesPlayed"][mapped_role] += 1
+                    stats["role_plus"][mapped_role].append(plus) # Only 'plus'
+                    
+                    is_win = (badge_color == "red" and mapped_role in ["citizen", "sheriff"]) or \
+                             (badge_color == "black" and mapped_role in ["mafia", "don"])
+                    
+                    if is_win:
+                        stats["wins"][mapped_role] += 1
 
         for name in player_names:
             if name not in player_stats:
-                player_stats[name] = {
-                    "totalPoints": 0,
-                    "bonuses": 0,
-                    "penalties": 0,
-                    "wins": {"red": 0, "peaceful": 0, "mafia": 0, "don": 0, "sk": 0, "jk": 0},
-                    "losses": {"red": 0, "peaceful": 0, "mafia": 0, "don": 0, "sk": 0, "jk": 0},
-                    "wins_points": {"red": 0.0, "peaceful": 0.0, "mafia": 0.0, "don": 0.0, "sk": 0.0, "jk": 0.0},
-                    "losses_points": {"red": 0.0, "peaceful": 0.0, "mafia": 0.0, "don": 0.0, "sk": 0.0, "jk": 0.0},
-                    "gamesPlayed": {"peaceful": 0, "mafia": 0, "red": 0, "don": 0, "sk": 0, "jk": 0},
-                    "wins_plus_list": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []},
-                    "losses_plus_list": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []},
-                    "role_plus": {"peaceful": [], "mafia": [], "red": [], "don": [], "sk": [], "jk": []}
+                 player_stats[name] = {
+                    "totalPoints": 0, "bonuses": 0, "penalties": 0,
+                    "wins": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
+                    "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
+                    "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
+                    "total_jk": 0, "total_sk": 0,
+                    "successful_best_moves": 0, "total_best_move_bonus": 0
                 }
 
         players_list = []
@@ -1013,6 +967,55 @@ async def get_detailed_stats(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения детальной статистики: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/recalculate_ci")
+async def recalculate_ci(event_id: str = Query(None, description="ID события для фильтрации"), current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
+
+    db = SessionLocal()
+    try:
+        games_query = db.query(Game)
+        is_tournament = False
+        if event_id and event_id != 'all':
+            games_query = games_query.filter(Game.event_id == event_id)
+            is_tournament = True
+        
+        games = games_query.all()
+        ci_bonuses = calculate_ci_bonuses(games, is_tournament)
+
+        for game in games:
+            game_data = json.loads(game.data)
+            players = game_data.get("players", [])
+            
+            winning_roles = []
+            if game_data.get("badgeColor") == "red":
+                winning_roles = ["мирный", "шериф"]
+            elif game_data.get("badgeColor") == "black":
+                winning_roles = ["мафия", "дон"]
+
+            for player in players:
+                name = player.get("name")
+                new_ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                player["ci_bonus"] = new_ci_bonus
+                
+                # Recalculate sum
+                plus = player.get("plus", 0)
+                minus = player.get("minus", 0)
+                best_move_bonus = player.get("best_move_bonus", 0)
+                team_win_bonus = 2.5 if player.get("role", "").lower() in winning_roles else 0
+                
+                player["sum"] = plus - minus + best_move_bonus + team_win_bonus + new_ci_bonus
+
+            game.data = json.dumps(game_data, ensure_ascii=False)
+        
+        db.commit()
+        return {"message": f"Ci бонусы и суммы для {len(games)} игр успешно пересчитаны."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка пересчета Ci: {str(e)}")
     finally:
         db.close()
 

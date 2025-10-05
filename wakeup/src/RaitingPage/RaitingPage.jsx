@@ -366,26 +366,37 @@ export default function RatingPage() {
     }
   };
 
-  const handleUpdateCi = () => {
+  const handleRecalculateCi = async () => {
     if (!isAdmin) {
       showMessage('Это действие доступно только администратору.', true);
       return;
     }
     setIsRecalculating(true);
-    showMessage('Обновление данных...');
-    clearCache();
-    
-    // Re-fetch data for the current tab
-    if (activeTab === 'Общая сводка') {
-      fetchPlayers().finally(() => setIsRecalculating(false));
-    } else if (activeTab === 'Игры') {
-      fetchGames().finally(() => setIsRecalculating(false));
-    } else if (activeTab === 'Статистика') {
-      fetchDetailedStats().finally(() => setIsRecalculating(false));
-    } else {
+    showMessage('Пересчет Ci бонусов запущен...');
+    try {
+      const res = await fetch(
+        `/api/recalculate_ci?` + (selectedEventId !== 'all' ? `event_id=${selectedEventId}` : ''),
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+        }
+      );
+      const data = await res.json();
+      if (res.ok) {
+        showMessage(data.message || 'Данные успешно обновлены.');
+        clearCache();
+        // Re-fetch data for the current tab
+        if (activeTab === 'Общая сводка') fetchPlayers();
+        else if (activeTab === 'Игры') fetchGames();
+        else if (activeTab === 'Статистика') fetchDetailedStats();
+      } else {
+        throw new Error(data.detail || 'Ошибка на сервере');
+      }
+    } catch (e) {
+      showMessage('Ошибка при пересчете Ci: ' + e.message, true);
+    } finally {
       setIsRecalculating(false);
     }
-    showMessage('Данные обновлены.');
   };
 
   return (
@@ -567,7 +578,7 @@ export default function RatingPage() {
                   {isCreatingGame ? 'Создание...' : 'Создать игру'}
                 </button>
                 <button
-                  onClick={handleUpdateCi}
+                  onClick={handleRecalculateCi}
                   className={styles.createGameBtn}
                   type="button"
                   disabled={isRecalculating}
@@ -787,11 +798,6 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
     );
   };
 
-  const renderSpecialRoleStats = (rolePlusArr) => {
-    const totalCards = rolePlusArr?.reduce((a, b) => a + b, 0) || 0;
-    return totalCards.toFixed(2);
-  };
-
   return (
     <>
       <div className={styles.tableWrapper}>
@@ -805,8 +811,8 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
               <th>СК</th>
               <th>ЖК</th>
               <th>ЛХ</th>
-              <th>Допы</th>
               <th>Ci</th>
+              <th>Допы</th>
               <th>−</th>
               <th>Общая</th>
               <th>Шериф</th>
@@ -820,21 +826,8 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
               data.map((p, i) => {
                 const rank = (currentPage - 1) * 10 + i + 1;
 
-                const totalGames =
-                  (p.gamesPlayed?.peaceful || 0) +
-                  (p.gamesPlayed?.mafia || 0) +
-                  (p.gamesPlayed?.red || 0) +
-                  (p.gamesPlayed?.don || 0) +
-                  (p.gamesPlayed?.sk || 0) +
-                  (p.gamesPlayed?.jk || 0);
-
-                const totalWins =
-                  (p.wins?.red || 0) +
-                  (p.wins?.peaceful || 0) +
-                  (p.wins?.mafia || 0) +
-                  (p.wins?.don || 0) +
-                  (p.wins?.sk || 0) +
-                  (p.wins?.jk || 0);
+                const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
+                const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
 
                 return (
                   <tr
@@ -845,11 +838,11 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                     <td><span className={styles.link}>{p.nickname}</span></td>
                     <td>{p.totalPoints?.toFixed(2) || 0}</td>
                     <td>{totalWins}</td>
-                    <td>{renderSpecialRoleStats(p.role_plus?.sk || [])}</td>
-                    <td>{renderSpecialRoleStats(p.role_plus?.jk || [])}</td>
-                    <td>{0}</td>
+                    <td>{p.total_sk || 0}</td>
+                    <td>{p.total_jk || 0}</td>
+                    <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
+                    <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
                     <td>{p.bonuses?.toFixed(2) || 0}</td>
-                    <td>{0}</td>
                     <td>{p.penalties?.toFixed(2) || 0}</td>
                     <td>
                       {renderRoleStats(
@@ -858,10 +851,10 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                         [].concat(...Object.values(p.role_plus || {}))
                       )}
                     </td>
-                    <td>{renderRoleStats(p.wins?.red,      p.gamesPlayed?.red,      p.role_plus?.red      || [])}</td>
-                    <td>{renderRoleStats(p.wins?.peaceful, p.gamesPlayed?.peaceful, p.role_plus?.peaceful || [])}</td>
-                    <td>{renderRoleStats(p.wins?.mafia,    p.gamesPlayed?.mafia,    p.role_plus?.mafia    || [])}</td>
-                    <td>{renderRoleStats(p.wins?.don,      p.gamesPlayed?.don,      p.role_plus?.don      || [])}</td>
+                    <td>{renderRoleStats(p.wins?.sheriff, p.gamesPlayed?.sheriff, p.role_plus?.sheriff || [])}</td>
+                    <td>{renderRoleStats(p.wins?.citizen, p.gamesPlayed?.citizen, p.role_plus?.citizen || [])}</td>
+                    <td>{renderRoleStats(p.wins?.mafia, p.gamesPlayed?.mafia, p.role_plus?.mafia || [])}</td>
+                    <td>{renderRoleStats(p.wins?.don, p.gamesPlayed?.don, p.role_plus?.don || [])}</td>
                   </tr>
                 );
               })}

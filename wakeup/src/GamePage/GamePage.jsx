@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
@@ -243,7 +242,7 @@ const Game = () => {
       id: i + 1,
       name: '',
       fouls: 0,
-      lx: '',
+      best_move: '',
       role: 'мирный',
       plus: 2.5,
       sk: 0,
@@ -411,8 +410,8 @@ const Game = () => {
 
   const handleRoleChange = (id, role) =>
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, role } : p)));
-  const handleLxChange = (id, value) =>
-    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, lx: value } : p)));
+  const handleBestMoveChange = (id, value) =>
+    setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, best_move: value } : p)));
   const handlePlusChange = (id, value) => {
     const numValue = parseFloat(value) || 0;
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, plus: numValue } : p)));
@@ -630,7 +629,7 @@ const Game = () => {
         id: i + 1,
         name: '',
         fouls: 0,
-        lx: '',
+        best_move: '',
         role: 'мирный',
         plus: 2.5,
         sk: 0,
@@ -753,7 +752,7 @@ const Game = () => {
               <th>№</th>
               <th>Имя</th>
               <th>Роль</th>
-              <th>ЛХ</th>
+              <th>Лучший ход</th>
               <th>Допы</th>
               <th>СК</th>
               <th>ЖК</th>
@@ -809,10 +808,10 @@ const Game = () => {
                   <input
                     type="text"
                     className={styles.lxInput}
-                    value={player.lx}
-                    onChange={(e) => !isPenaltyTime && handleLxChange(player.id, e.target.value)} // Дизейбл
+                    value={player.best_move}
+                    onChange={(e) => !isPenaltyTime && handleBestMoveChange(player.id, e.target.value)} // Дизейбл
                     disabled={isPenaltyTime}
-                    aria-label={`ЛХ игрока ${player.id}`}
+                    aria-label={`Лучший ход игрока ${player.id}`}
                   />
                 </td>
 
