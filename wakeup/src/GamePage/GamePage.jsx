@@ -3,6 +3,80 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
 import { AuthContext } from '../AuthContext';
 
+// --- НОВЫЙ КОМПОНЕНТ ДЛЯ ИНПУТА С ПОДСКАЗКАМИ ---
+const NameInputWithSuggestions = ({ player, onNameChange, isPenaltyTime }) => {
+    const [suggestions, setSuggestions] = useState([]);
+    const [isActive, setIsActive] = useState(false);
+    const debounceTimeoutRef = useRef(null);
+
+    const fetchSuggestions = (query) => {
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+        debounceTimeoutRef.current = setTimeout(async () => {
+            if (query.length < 1) {
+                setSuggestions([]);
+                return;
+            }
+            try {
+                const response = await fetch(`/api/get_player_suggestions?query=${encodeURIComponent(query)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setSuggestions(data);
+                } else {
+                    setSuggestions([]);
+                }
+            } catch (error) {
+                console.error("Failed to fetch suggestions:", error);
+                setSuggestions([]);
+            }
+        }, 300); // 300ms задержка
+    };
+
+    const handleChange = (e) => {
+        const { value } = e.target;
+        onNameChange(player.id, value);
+        fetchSuggestions(value);
+    };
+
+    const handleSuggestionClick = (name) => {
+        onNameChange(player.id, name);
+        setSuggestions([]);
+    };
+
+    return (
+        <div className={styles.nameInputContainer}>
+            <input
+                type="text"
+                className={styles.nameInput}
+                value={player.name}
+                placeholder={`Игрок ${player.id}`}
+                onChange={handleChange}
+                onFocus={() => setIsActive(true)}
+                onBlur={() => setTimeout(() => setIsActive(false), 200)} // Задержка, чтобы успел сработать клик
+                disabled={isPenaltyTime}
+                aria-label={`Имя игрока ${player.id}`}
+                autoComplete="off"
+            />
+            {isActive && suggestions.length > 0 && (
+                <div className={styles.suggestionsList}>
+                    {suggestions.map((name, index) => (
+                        <div
+                            key={index}
+                            className={styles.suggestionItem}
+                            // onMouseDown используется вместо onClick, чтобы сработать до onBlur инпута
+                            onMouseDown={() => handleSuggestionClick(name)}
+                        >
+                            {name}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 /* ==========================
    ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
    ========================== */
@@ -841,14 +915,10 @@ const Game = () => {
                 </td>
 
                 <td>
-                  <input
-                    type="text"
-                    className={styles.nameInput}
-                    value={player.name}
-                    placeholder={`Игрок ${player.id}`}
-                    onChange={(e) => !isPenaltyTime && handleNameChange(player.id, e.target.value)} // Дизейбл
-                    disabled={isPenaltyTime}
-                    aria-label={`Имя игрока ${player.id}`}
+                  <NameInputWithSuggestions
+                    player={player}
+                    onNameChange={handleNameChange}
+                    isPenaltyTime={isPenaltyTime}
                   />
                 </td>
 

@@ -483,3 +483,37 @@ body{
   .modalActions{ flex-direction:column; }
   .btnWrap{ display: none; } /* Добавлено: на мобильных элементы btnWrap вертикально, чтобы не растягиваться */
 }
+
+/* --- СТИЛИ ДЛЯ ПОДСКАЗОК --- */
+.nameInputContainer {
+  position: relative;
+  width: 100%;
+}
+
+.suggestionsList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #3a3a3a;
+  border: 1px solid #555;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.suggestionItem {
+  padding: 8px 12px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.suggestionItem:hover {
+  background-color: #ff6f00;
+  color: #1f1f1f;
+}
