@@ -10,7 +10,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, ForeignKey
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+
 import uvicorn
+from transliterate import translit
 
 import json
 from datetime import datetime, timedelta
@@ -310,20 +312,25 @@ def levenshtein_distance(s1, s2):
     return previous_row[-1]
 
 def convert_layout(text: str) -> str:
-    """Конвертирует текст между русской и английской раскладками."""
-    eng_chars = "`qwertyuiop[]asdfghjkl;'\\zxcvbnm,./"
-    rus_chars = "ёйцукенгшщзхъфывапролджэ\\ячсмитьбю."
+    """Конвертирует текст между русской и английской раскладками, включая оба регистра."""
+    eng_chars = "`qwertyuiop[]asdfghjkl;'\\zxcvbnm,./~QWERTYUIOP{}ASDFGHJKL:\"|ZXCVBNM<>?"
+    rus_chars = "ёйцукенгшщзхъфывапролджэ\\ячсмитьбю.ЁЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,"
     
-    eng_to_rus_map = str.maketrans(eng_chars, rus_chars)
-    rus_to_eng_map = str.maketrans(rus_chars, eng_chars)
+    # Создаем единый словарь для перевода в обе стороны
+    translation_map = str.maketrans(eng_chars + rus_chars, rus_chars + eng_chars)
+    
+    return text.translate(translation_map)
 
-    # Определяем, в какой раскладке ввод
-    is_mostly_rus = sum(1 for char in text if 'а' <= char.lower() <= 'я' or char == 'ё') > len(text) / 2
-    
-    if is_mostly_rus:
-        return text.translate(rus_to_eng_map)
-    else:
-        return text.translate(eng_to_rus_map)
+
+def normalize_for_search(text: str) -> str:
+    """Нормализует строку для поиска: транслитерирует в латиницу и приводит к нижнему регистру."""
+    try:
+        # reversed=True означает транслитерацию с кириллицы на латиницу.
+        # Функция корректно обрабатывает уже латинские строки, не изменяя их.
+        return translit(text, 'ru', reversed=True).lower()
+    except Exception:
+        # Запасной вариант на случай ошибки в библиотеке
+        return text.lower()
 
 @app.get("/get_player_suggestions")
 async def get_player_suggestions(query: str):
@@ -338,38 +345,56 @@ async def get_player_suggestions(query: str):
 
     query_lower = query.lower()
     query_converted = convert_layout(query_lower)
+    query_normalized = normalize_for_search(query)
 
     suggestions = []
     for name in all_names:
         name_lower = name.lower()
+        name_normalized = normalize_for_search(name)
 
-        # 1. Прямое совпадение (самый высокий приоритет)
+        # Ранк 0: Прямое совпадение в начале строки (самый высокий приоритет)
         if name_lower.startswith(query_lower):
             suggestions.append({"name": name, "rank": 0})
             continue
         
-        # 2. Совпадение с конвертированной раскладкой
+        # Ранк 0.5: Совпадение по транслитерации в начале строки
+        if name_normalized.startswith(query_normalized):
+            suggestions.append({"name": name, "rank": 0.5})
+            continue
+
+        # Ранк 1: Совпадение с конвертированной раскладкой
         if name_lower.startswith(query_converted):
             suggestions.append({"name": name, "rank": 1})
             continue
 
-        # 3. Поиск по опечаткам (расстояние Левенштейна)
+        # Ранк 2: Поиск по опечаткам (расстояние Левенштейна)
         distance = levenshtein_distance(name_lower, query_lower)
         if distance <= 2: # Допускаем 1-2 опечатки
-            suggestions.append({"name": name, "rank": 2 + distance}) # Ранжируем по точности
+            suggestions.append({"name": name, "rank": 2 + distance})
+            continue
+        
+        # Ранк 3: Поиск по опечаткам в транслитерированном виде
+        distance_normalized = levenshtein_distance(name_normalized, query_normalized)
+        if distance_normalized <= 2:
+            suggestions.append({"name": name, "rank": 3 + distance_normalized})
             continue
             
+        # Ранк 4: Поиск по опечаткам в конвертированной раскладке
         distance_converted = levenshtein_distance(name_lower, query_converted)
         if distance_converted <= 2:
             suggestions.append({"name": name, "rank": 4 + distance_converted})
             continue
 
-    # Сортируем по рангу и берем топ-7
-    suggestions.sort(key=lambda x: x["rank"])
-    return [s["name"] for s in suggestions[:10]]
+    # Убираем дубликаты, оставляя только вариант с лучшим (наименьшим) рангом
+    unique_suggestions = {}
+    for s in suggestions:
+        if s["name"] not in unique_suggestions or s["rank"] < unique_suggestions[s["name"]]["rank"]:
+            unique_suggestions[s["name"]] = s
+    
+    # Сортируем по рангу и берем топ-10
+    sorted_suggestions = sorted(unique_suggestions.values(), key=lambda x: x["rank"])
+    return [s["name"] for s in sorted_suggestions[:10]]
 
-
-# --- КОНЕЦ НОВЫХ ФУНКЦИЙ ---
 
 
 # Эндпоинт для регистрации (обновлён: добавлена обработка club и update_ai)
