@@ -77,12 +77,11 @@ export default function Game({
     const fetchDetailedStats = async () => {
       setDetailedStatsLoading(true);
       setDetailedStatsError(null);
-      const cacheKey = `detailedStats_${selectedEventId}`;
 
       try {
         const res = await fetch(
-          `/api/getDetailedStats` +
-          (selectedEventId !== 'all' ? `?event_id=${selectedEventId}` : ''),
+          `/api/getDetailedStats?limit=999` + // ИСПРАВЛЕНО: Запрашиваем всех игроков
+          (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : ''),
           {
             headers: {
               'Cache-Control': 'no-cache',
@@ -97,10 +96,6 @@ export default function Game({
           setAveragePoints(data.average_points || 0);
           setDetailedStatsTotalPages(Math.ceil(data.players.length / detailedStatsItemsPerPage));
           setDetailedStatsCurrentPage(1); // Сброс на первую страницу при новой загрузке
-          localStorage.setItem(
-            cacheKey,
-            JSON.stringify({ data, timestamp: Date.now() })
-          );
         } else {
           throw new Error('Некорректная структура ответа (players)');
         }

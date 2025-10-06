@@ -18,10 +18,21 @@ const ProfilePage = ({
   description = "Здесь будет текст описания игрока..."
 }) => {
 
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
 
   // --- ИСПРАВЛЕНИЕ ---
-  // Если пользователь еще не загружен, показываем заглушку, чтобы избежать ошибки
+  // Если auth state еще определяется, показываем заглушку
+  if (loading) {
+    return (
+      <div className={styles.pageWrapper}>
+        <div className={styles.mainContent}>
+          Загрузка...
+        </div>
+      </div>
+    );
+  }
+  
+  // Если пользователь не загружен после проверки, показываем заглушку
   if (!user) {
     return (
       <div className={styles.pageWrapper}>
