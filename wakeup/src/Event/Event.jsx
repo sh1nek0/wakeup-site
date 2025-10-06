@@ -37,13 +37,25 @@ export default function Game({
   const [detailedStatsTotalPages, setDetailedStatsTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
+  // Добавлено: недостающие state для detailed stats
+  const [detailedStatsItemsPerPage] = useState(10);
+  const [selectedEventId, setSelectedEventId] = useState(evenId || 'all');
+  const [detailedStatsError, setDetailedStatsError] = useState(null);
+  const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
+  const [detailedStatsTotalCount, setDetailedStatsTotalCount] = useState(0);
+  const [averagePoints, setAveragePoints] = useState(0);
+
   // Получение данных по событию
   
   useEffect(() => {
     if (!evenId) return;
 
     setLoading(true);
-    fetch(`/api/getEvent/${evenId}`)
+    fetch(`/api/getEvent/${evenId}`, {
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Ошибка загрузки данных события");
         return res.json();
@@ -60,6 +72,50 @@ export default function Game({
       .finally(() => setLoading(false));
   }, [evenId]);
 
+  // Изменено: useEffect для загрузки detailed stats - теперь загружаем все данные сразу, пагинация на клиенте
+  useEffect(() => {
+    const fetchDetailedStats = async () => {
+      setDetailedStatsLoading(true);
+      setDetailedStatsError(null);
+      const cacheKey = `detailedStats_${selectedEventId}`;
+
+      try {
+        const res = await fetch(
+          `/api/getDetailedStats` +
+          (selectedEventId !== 'all' ? `?event_id=${selectedEventId}` : ''),
+          {
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
+          }
+        );
+        if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
+        const data = await res.json();
+        if (data && Array.isArray(data.players)) {
+          setDetailedStatsData(data.players);
+          setDetailedStatsTotalCount(data.players.length);
+          setAveragePoints(data.average_points || 0);
+          setDetailedStatsTotalPages(Math.ceil(data.players.length / detailedStatsItemsPerPage));
+          setDetailedStatsCurrentPage(1); // Сброс на первую страницу при новой загрузке
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({ data, timestamp: Date.now() })
+          );
+        } else {
+          throw new Error('Некорректная структура ответа (players)');
+        }
+      } catch (e) {
+        setDetailedStatsError(e.message);
+        setDetailedStatsData([]);
+        setDetailedStatsTotalCount(0);
+        setAveragePoints(0);
+      } finally {
+        setDetailedStatsLoading(false);
+      }
+    };
+
+    fetchDetailedStats();
+  }, [selectedEventId, detailedStatsItemsPerPage]); // Убрана зависимость от currentPage, чтобы не перезагружать при смене страницы
 
   const teamSize = useMemo(() => {
     if (tournament.type === "pair") return 2;
@@ -453,13 +509,17 @@ export default function Game({
           {/* Личный зачёт — только таблица */}
           {activeTab === 1 && (
             <div className={styles.tableOnly}>
-              <DetailedStatsTable
-                data={detailedStatsData.slice((detailedStatsCurrentPage - 1) * PAGE_SIZE, detailedStatsCurrentPage * PAGE_SIZE)}
-                currentPage={detailedStatsCurrentPage}
-                totalPages={detailedStatsTotalPages}
-                onPageChange={handleDetailedStatsPageChange}
-                user={user}
-              />
+              {detailedStatsLoading && <div>Загрузка статистики...</div>}
+              {detailedStatsError && <div>Ошибка: {detailedStatsError}</div>}
+              {!detailedStatsLoading && !detailedStatsError && (
+                <DetailedStatsTable
+                  data={detailedStatsData.slice((detailedStatsCurrentPage - 1) * PAGE_SIZE, detailedStatsCurrentPage * PAGE_SIZE)}
+                  currentPage={detailedStatsCurrentPage}
+                  totalPages={detailedStatsTotalPages}
+                  onPageChange={handleDetailedStatsPageChange}
+                  user={user}
+                />
+              )}
             </div>
           )}
 

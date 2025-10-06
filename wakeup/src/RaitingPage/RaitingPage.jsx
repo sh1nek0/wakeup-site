@@ -591,7 +591,7 @@ export default function RatingPage() {
                               {rows.map((row, i) => (
                                 <tr key={`${game.id}-${i}`}>
                                   <td>{i + 1}</td>
-                                  <td>{row.name ?? row.nickname ?? ''}</td>
+                                  <td className={styles.nameP} > {row.name ?? row.nickname ?? ''} </td>
                                   <td>{row.role ?? row.role_name ?? ''}</td>
                                   <td>{row.points ?? ''}</td>
                                 </tr>
