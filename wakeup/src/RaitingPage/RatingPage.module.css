@@ -10,6 +10,8 @@
 }
 .main{ max-width:1200px; margin:0 auto; }
 
+
+
 /* hero-блок */
 .hero{
   background:#1A1A1A;
@@ -315,11 +317,15 @@
   border:1px solid var(--cell-border) !important;
   height:44px;
   vertical-align:middle;
+  overflow:hidden;
 }
+
 .sheetTable tbody td:first-child,
 :global(.sheetTable) tbody td:first-child{ text-align:center; }
 .sheetTable tbody td:last-child,
 :global(.sheetTable) tbody td:last-child{ text-align:center; }
+
+
 
 /* нижняя панель */
 .sheetBottom{
@@ -562,12 +568,14 @@
   padding:3px 6px;
   height:20px;           /* было ~44px */
   line-height:1.05;
+  overflow:hidden;
 }
 :global(.sheetTable) tbody td{
   font-size:12px !important;
   padding:3px 6px !important;
   height:20px !important;
   line-height:1.05 !important;
+  overflow:hidden;
 }
 
 /* нижняя панель */

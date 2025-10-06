@@ -199,6 +199,7 @@ body{
   gap: 10px; 
   margin-bottom: 20px; 
   width: 100%; 
+  
 }
 .playerVoteItem{ display:flex; align-items:center; gap:5px; }
 

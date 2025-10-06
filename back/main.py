@@ -983,7 +983,7 @@ async def get_rating(limit: int = Query(10, description="Количество э
 
 @app.get("/getDetailedStats")
 async def get_detailed_stats(
-    limit: int = Query(10, description="Количество игроков на странице"),
+    limit: int = Query(200, description="Количество игроков на странице"),
     offset: int = Query(0, description="Смещение для пагинации игроков"),
     event_id: str = Query(None, description="ID события для фильтрации")
 ):
