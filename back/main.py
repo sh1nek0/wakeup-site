@@ -161,13 +161,15 @@ try:
 
     if db.query(User).count() == 0:
         demo_users_data = [
-            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa@example.com", "nickname": "Alfa", "club": "Polar Cats", "name":""},
-            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "bravo@example.com", "nickname": "Bravo", "club": "North Lights"},
-            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "charlie@example.com", "nickname": "Charlie", "club": "Aurora"},
-            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "delta@example.com", "nickname": "Delta", "club": "Polar Cats"},
-            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "echo@example.com", "nickname": "Echo", "club": "Aurora"},
-            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa2@example.com", "nickname": "Alfa2", "club": "Polar Cats"},
-        ]
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa@example.com", "nickname": "Alfa", "club": "WakeUp | MaFIA", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "bravo@example.com", "nickname": "Bravo", "club": "North Lights", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "charlie@example.com", "nickname": "Charlie", "club": "Aurora", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "delta@example.com", "nickname": "Delta", "club": "Polar Cats", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "echo@example.com", "nickname": "Echo", "club": "Aurora", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa2@example.com", "nickname": "Alfa2", "club": "Polar Cats", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa3@example.com", "nickname": "Alfa3", "club": "WakeUp | MaFIA", "name": ""},
+    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa4@example.com", "nickname": "Alfa4", "club": "WakeUp | MaFIA", "name": ""},  # Исправлено: nickname "Alfa4" вместо "Alfa3"
+    ]
         
         users_to_add = [
             User(

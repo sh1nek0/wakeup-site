@@ -56,7 +56,7 @@ const LoginPage = () => {
       const endpoint = isLogin ? '/api/login' : '/api/register';
       const payload = isLogin
         ? { nickname: formData.nickname, password: formData.password }
-        : { email: formData.email, nickname: formData.nickname, password: formData.password, club: formData.club };
+        : { email: formData.email, nickname: formData.nickname, password: formData.password, club: formData.club, name :"" };
 
       // Добавлен timeout и abortController для предотвращения ошибок fetch
       const controller = new AbortController();
