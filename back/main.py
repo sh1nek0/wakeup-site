@@ -4,13 +4,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import re
+import uuid
+import math
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, ForeignKey
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+
 import uvicorn
+from transliterate import translit
 
 import json
 from datetime import datetime, timedelta
@@ -70,7 +74,7 @@ def get_password_hash(password):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     nickname = Column(String, unique=True, index=True)
     hashed_password = Column(String)
@@ -122,7 +126,7 @@ class Team(Base):
     id = Column(String, primary_key=True, index=True)  # Уникальный ID команды
     event_id = Column(String, ForeignKey("events.id"), nullable=False)
     name = Column(String, nullable=False)
-    members = Column(Text, nullable=False)  # JSON-строка с массивом ID участников (например, "[1,2,3]")
+    members = Column(Text, nullable=False)  # JSON-строка с массивом ID участников (например, '["user_abc", "user_xyz"]')
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Связь с Event (опционально, для удобства)
@@ -134,9 +138,7 @@ Base.metadata.create_all(bind=engine)
 # Тестовые данные: вставка демо-данных, если они не существуют
 db = SessionLocal()
 try:
-    # Проверить, есть ли уже данные
-    if db.query(Event).count() == 0:
-        # Демо-событие
+    if db.query(Event).get("2") is None:
         demo_event = Event(
             id="2",
             title="Cyber Couple Cup",
@@ -144,7 +146,7 @@ try:
             location="Физтех, Долгопрудный, ул. Институтская 9",
             type="pair",
             participants_limit=40,
-            participants_count=15,  # Обновить на основе участников
+            participants_count=6,
             fee=1700,
             currency="₽",
             gs_name="Антон Третьяков",
@@ -155,39 +157,40 @@ try:
             org_avatar=""
         )
         db.add(demo_event)
+        db.commit()
 
-    if db.query(User).count() <=10:
-        # Демо-участники
-        demo_users = [
-            User(email="alfa@example.com", nickname="Alfa", hashed_password=get_password_hash("password"), club="WakeUp | MIET", avatar="",name=""),
-            User(email="bravo@example.com", nickname="Bravo", hashed_password=get_password_hash("password"), club="WakeUp | MIET", avatar="",name=""),
-            User(email="charlie@example.com", nickname="Charlie", hashed_password=get_password_hash("password"), club="WakeUp | MIET", avatar="",name=""),
-            User(email="delta@example.com", nickname="Delta", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
-            User(email="echo@example.com", nickname="Echo", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
-            User(email="alfa2@example.com", nickname="Alfa2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
-            User(email="bravo2@example.com", nickname="Bravo2", hashed_password=get_password_hash("password"), club="North Lights", avatar="",name=""),
-            User(email="charlie2@example.com", nickname="Charlie2", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
-            User(email="delta2@example.com", nickname="Delta2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
-            User(email="echo2@example.com", nickname="Echo2", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
-            User(email="alfa3@example.com", nickname="Alfa3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
-            User(email="bravo3@example.com", nickname="Bravo3", hashed_password=get_password_hash("password"), club="North Lights", avatar="",name=""),
-            User(email="charlie3@example.com", nickname="Charlie3", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
-            User(email="delta3@example.com", nickname="Delta3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
-            User(email="echo3@example.com", nickname="Echo3", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
+    if db.query(User).count() == 0:
+        demo_users_data = [
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa@example.com", "nickname": "Alfa", "club": "Polar Cats", "name":""},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "bravo@example.com", "nickname": "Bravo", "club": "North Lights"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "charlie@example.com", "nickname": "Charlie", "club": "Aurora"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "delta@example.com", "nickname": "Delta", "club": "Polar Cats"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "echo@example.com", "nickname": "Echo", "club": "Aurora"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa2@example.com", "nickname": "Alfa2", "club": "Polar Cats"},
         ]
-        for user in demo_users:
-            db.add(user)
+        
+        users_to_add = [
+            User(
+                id=u["id"],
+                email=u["email"],
+                nickname=u["nickname"],
+                hashed_password=get_password_hash("password"),
+                club=u["club"],
+                avatar="",
+                name = u["name"]
+            ) for u in demo_users_data
+        ]
+        db.add_all(users_to_add)
+        db.commit()
 
-    if db.query(Team).count() == 0:
-        # Демо-команды (пары, поскольку type="pair") — добавлены уникальные id
-        demo_teams = [
-            Team(id="team_1", event_id="2", name="FrostBite", members=json.dumps([1, 2])),  # Alfa и Bravo
-            Team(id="team_2", event_id="2", name="IceStorm", members=json.dumps([3, 4])),  # Charlie и Delta
-            Team(id="team_3", event_id="2", name="SnowWolf", members=json.dumps([5, 6])),  # Echo и Alfa2
-        ]
-        for team in demo_teams:
-            db.add(team)
-    db.commit()
+        if db.query(Team).count() == 0:
+            demo_teams = [
+                Team(id="team_1", event_id="2", name="FrostBite", members=json.dumps([demo_users_data[0]["id"], demo_users_data[1]["id"]])),
+                Team(id="team_2", event_id="2", name="IceStorm", members=json.dumps([demo_users_data[2]["id"], demo_users_data[3]["id"]])),
+                Team(id="team_3", event_id="2", name="SnowWolf", members=json.dumps([demo_users_data[4]["id"], demo_users_data[5]["id"]])),
+            ]
+            db.add_all(demo_teams)
+            db.commit()
     print("Тестовые данные добавлены")
 except Exception as e:
     db.rollback()
@@ -243,11 +246,11 @@ class PromoteAdminRequest(BaseModel):
 class CreateTeamRequest(BaseModel):
     event_id: str = Field(..., description="ID события")
     name: str = Field(..., description="Название команды/пары")
-    members: list[int] = Field(..., description="Список ID участников")
+    members: list[str] = Field(..., description="Список ID участников")
 
 # Pydantic модель для обновления профиля
 class UpdateProfileRequest(BaseModel):
-    userId: int = Field(..., description="ID пользователя для обновления")
+    userId: str = Field(..., description="ID пользователя для обновления")
     name: str = Field("", description="Имя пользователя")
     club: str = Field("", description="Клуб пользователя")
     favoriteCard: str = Field("", description="Любимая карта")
@@ -327,20 +330,25 @@ def levenshtein_distance(s1, s2):
 
 
 def convert_layout(text: str) -> str:
-    """Конвертирует текст между русской и английской раскладками."""
-    eng_chars = "`qwertyuiop[]asdfghjkl;'\\zxcvbnm,./"
-    rus_chars = "ёйцукенгшщзхъфывапролджэ\\ячсмитьбю."
+    """Конвертирует текст между русской и английской раскладками, включая оба регистра."""
+    eng_chars = "`qwertyuiop[]asdfghjkl;'\\zxcvbnm,./~QWERTYUIOP{}ASDFGHJKL:\"|ZXCVBNM<>?"
+    rus_chars = "ёйцукенгшщзхъфывапролджэ\\ячсмитьбю.ЁЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,"
     
-    eng_to_rus_map = str.maketrans(eng_chars, rus_chars)
-    rus_to_eng_map = str.maketrans(rus_chars, eng_chars)
+    # Создаем единый словарь для перевода в обе стороны
+    translation_map = str.maketrans(eng_chars + rus_chars, rus_chars + eng_chars)
+    
+    return text.translate(translation_map)
 
-    # Определяем, в какой раскладке ввод
-    is_mostly_rus = sum(1 for char in text if 'а' <= char.lower() <= 'я' or char == 'ё') > len(text) / 2
-    
-    if is_mostly_rus:
-        return text.translate(rus_to_eng_map)
-    else:
-        return text.translate(eng_to_rus_map)
+
+def normalize_for_search(text: str) -> str:
+    """Нормализует строку для поиска: транслитерирует в латиницу и приводит к нижнему регистру."""
+    try:
+        # reversed=True означает транслитерацию с кириллицы на латиницу.
+        # Функция корректно обрабатывает уже латинские строки, не изменяя их.
+        return translit(text, 'ru', reversed=True).lower()
+    except Exception:
+        # Запасной вариант на случай ошибки в библиотеке
+        return text.lower()
 
 
 @app.get("/get_player_suggestions")
@@ -356,38 +364,56 @@ async def get_player_suggestions(query: str):
 
     query_lower = query.lower()
     query_converted = convert_layout(query_lower)
+    query_normalized = normalize_for_search(query)
 
     suggestions = []
     for name in all_names:
         name_lower = name.lower()
+        name_normalized = normalize_for_search(name)
 
-        # 1. Прямое совпадение (самый высокий приоритет)
+        # Ранк 0: Прямое совпадение в начале строки (самый высокий приоритет)
         if name_lower.startswith(query_lower):
             suggestions.append({"name": name, "rank": 0})
             continue
         
-        # 2. Совпадение с конвертированной раскладкой
+        # Ранк 0.5: Совпадение по транслитерации в начале строки
+        if name_normalized.startswith(query_normalized):
+            suggestions.append({"name": name, "rank": 0.5})
+            continue
+
+        # Ранк 1: Совпадение с конвертированной раскладкой
         if name_lower.startswith(query_converted):
             suggestions.append({"name": name, "rank": 1})
             continue
 
-        # 3. Поиск по опечаткам (расстояние Левенштейна)
+        # Ранк 2: Поиск по опечаткам (расстояние Левенштейна)
         distance = levenshtein_distance(name_lower, query_lower)
         if distance <= 2: # Допускаем 1-2 опечатки
-            suggestions.append({"name": name, "rank": 2 + distance}) # Ранжируем по точности
+            suggestions.append({"name": name, "rank": 2 + distance})
+            continue
+        
+        # Ранк 3: Поиск по опечаткам в транслитерированном виде
+        distance_normalized = levenshtein_distance(name_normalized, query_normalized)
+        if distance_normalized <= 2:
+            suggestions.append({"name": name, "rank": 3 + distance_normalized})
             continue
             
+        # Ранк 4: Поиск по опечаткам в конвертированной раскладке
         distance_converted = levenshtein_distance(name_lower, query_converted)
         if distance_converted <= 2:
             suggestions.append({"name": name, "rank": 4 + distance_converted})
             continue
 
-    # Сортируем по рангу и берем топ-7
-    suggestions.sort(key=lambda x: x["rank"])
-    return [s["name"] for s in suggestions[:10]]
+    # Убираем дубликаты, оставляя только вариант с лучшим (наименьшим) рангом
+    unique_suggestions = {}
+    for s in suggestions:
+        if s["name"] not in unique_suggestions or s["rank"] < unique_suggestions[s["name"]]["rank"]:
+            unique_suggestions[s["name"]] = s
+    
+    # Сортируем по рангу и берем топ-10
+    sorted_suggestions = sorted(unique_suggestions.values(), key=lambda x: x["rank"])
+    return [s["name"] for s in sorted_suggestions[:10]]
 
-
-# --- КОНЕЦ НОВЫХ ФУНКЦИЙ ---
 
 
 # Эндпоинт для регистрации (обновлён: добавлена обработка club и update_ai)
@@ -408,6 +434,7 @@ async def register(user: UserCreate):
 
         hashed_password = get_password_hash(user.password)
         new_user = User(
+            id=f"user_{uuid.uuid4().hex[:12]}",
             email=user.email,
             nickname=user.nickname,
             hashed_password=hashed_password,
@@ -426,10 +453,11 @@ async def register(user: UserCreate):
         db.refresh(new_user)
 
         access_token = create_access_token(
-            data={"sub": new_user.nickname, "role": new_user.role},
+            data={"sub": new_user.nickname, "role": new_user.role, "id": new_user.id},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         user_data = {
+            "id": new_user.id,
             "nickname": new_user.nickname,
             "role": new_user.role,
             "id": new_user.id,
@@ -567,7 +595,7 @@ async def get_users(event_id: str = None):
 
 
 @app.get("/getUser/{user_id}")
-async def get_user(user_id: int):
+async def get_user(user_id: str):
     db = SessionLocal()
     try:
         user_obj = db.query(User).filter(User.id == user_id).first()
@@ -643,8 +671,26 @@ async def get_event(event_id: str):
         if not event:
             raise HTTPException(status_code=404, detail="Событие не найдено")
 
-        # Получить участников (всех User, или можно добавить связь с событием, если нужно фильтровать)
-        participants = db.query(User).all()
+        # Получить участников только из игр этого события
+        games = db.query(Game).filter(Game.event_id == event_id).all()
+        nicknames = set()
+        for game in games:
+            try:
+                game_data = json.loads(game.data)
+                players = game_data.get("players", [])
+                for player in players:
+                    name = player.get("name", "")
+                    if name:
+                        nicknames.add(name)
+            except (json.JSONDecodeError, TypeError):
+                continue
+        
+        participants_query = db.query(User)
+        if nicknames:
+            participants_query = participants_query.filter(User.nickname.in_(nicknames))
+        
+        participants = participants_query.all()
+
         participants_list = [
             {
                 "id": p.id,
@@ -1001,21 +1047,15 @@ def calculate_dynamic_penalties(games: list[Game]) -> dict:
 
 @app.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"),
-                     offset: int = Query(0, description="Смещение для пагинации"),
-                     event_id: str = Query(None, description="ID события для фильтрации")):
+                     offset: int = Query(0, description="Смещение для пагинации")):
     db = SessionLocal()
     try:
-        games_query = db.query(Game)
-        if event_id and event_id != 'all':
-            games_query = games_query.filter(Game.event_id == event_id)
-        
-        games = games_query.order_by(Game.created_at.asc()).all()
+        games = db.query(Game).order_by(Game.created_at.asc()).all()
 
         ci_bonuses = calculate_ci_bonuses(games)
         dynamic_penalties = calculate_dynamic_penalties(games)
 
         all_players = db.query(User).all()
-        player_names = {p.nickname for p in all_players}
         clubs = {p.nickname: p.club for p in all_players}
 
         player_stats = {}
@@ -1042,20 +1082,17 @@ async def get_rating(limit: int = Query(10, description="Количество э
                 player_stats[name]["games"] += 1
                 player_stats[name]["total_sum"] += final_points
 
-        for name in player_names:
-            if name not in player_stats:
-                player_stats[name] = {"games": 0, "total_sum": 0}
-
         rating = [
             {
                 "name": name,
                 "games": stats["games"],
                 "points": stats["total_sum"],
-                "club": clubs.get(name, None)
+                "club": clubs.get(name, None),
+                "rating_score": (stats["total_sum"] / math.sqrt(stats["games"])) if stats["games"] > 0 else 0.0
             }
-            for name, stats in player_stats.items()
+            for name, stats in player_stats.items() if stats["games"] > 0
         ]
-        rating.sort(key=lambda x: x["points"], reverse=True)
+        rating.sort(key=lambda x: x["rating_score"], reverse=True)
 
         total_count = len(rating)
         paginated_rating = rating[offset:offset + limit]
@@ -1076,9 +1113,7 @@ async def get_detailed_stats(
 ):
     db = SessionLocal()
     try:
-        all_players = db.query(User).all()
-        player_names = {p.nickname for p in all_players}
-        clubs = {p.nickname: p.club for p in all_players}
+        clubs = {p.nickname: p.club for p in db.query(User).all()}
         
         games_query = db.query(Game)
         if event_id and event_id != 'all':
@@ -1147,17 +1182,6 @@ async def get_detailed_stats(
                     
                     if is_win:
                         stats["wins"][mapped_role] += 1
-
-        for name in player_names:
-            if name not in player_stats:
-                 player_stats[name] = {
-                    "totalPoints": 0, "bonuses": 0, "total_jk_penalty": 0, "total_sk_penalty": 0,
-                    "wins": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
-                    "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
-                    "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
-                    "total_jk": 0, "total_sk": 0,
-                    "successful_best_moves": 0, "total_best_move_bonus": 0, "total_ci_bonus": 0
-                }
 
         players_list = [{"nickname": name, "club": clubs.get(name, None), **stats} for name, stats in player_stats.items()]
         players_list.sort(key=lambda x: x["totalPoints"], reverse=True)
@@ -1242,7 +1266,6 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
             raise HTTPException(status_code=400, detail="Один или несколько участников уже в другой команде")
 
         # Сгенерировать уникальный ID команды
-        import uuid
         team_id = f"team_{uuid.uuid4().hex[:8]}"
 
         # Создать команду

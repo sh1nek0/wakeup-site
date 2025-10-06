@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // ИЗМЕНЕНИЕ: Добавлен useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
@@ -24,8 +24,8 @@ export default function RatingPage() {
   const detailedStatsItemsPerPage = 10;
 
   const navigate = useNavigate();
-  const location = useLocation(); // ИЗМЕНЕНИЕ: Получаем location
-  const { user, isAuthenticated, token, isAdmin } = useContext(AuthContext);
+  const location = useLocation();
+  const { user, isAuthenticated, token, isAdmin, loading: authLoading } = useContext(AuthContext);
 
   // ====== STATE ======
   const [playersData, setPlayersData] = useState([]);
@@ -44,10 +44,6 @@ export default function RatingPage() {
   const [detailedStatsError, setDetailedStatsError] = useState(null);
   const [averagePoints, setAveragePoints] = useState(0);
 
-  // Для фильтрации по событиям
-  const [events, setEvents] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState('all');
-
   // Состояние для процессов
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
@@ -56,7 +52,6 @@ export default function RatingPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // ИЗМЕНЕНИЕ: Эффект для переключения на нужную вкладку после редиректа
   useEffect(() => {
     if (location.state?.defaultTab) {
       setActiveTab(location.state.defaultTab);
@@ -104,54 +99,19 @@ export default function RatingPage() {
     });
   };
 
-  const handleEventChange = (eventId) => {
-    setSelectedEventId(eventId);
-    setCurrentPage(1);
-    setGamesCurrentPage(1);
-    setDetailedStatsCurrentPage(1);
-    clearCache();
-  };
-
   // ====== DATA FETCH ======
   const fetchPlayers = async () => {
-    const cacheExpiry = 60 * 1000; // 1 минута
-    const cacheKey = `players_offset_${startIndex}_event_${selectedEventId}`;
-    const cached = localStorage.getItem(cacheKey);
-
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (
-          Date.now() - parsed.timestamp < cacheExpiry &&
-          parsed.data &&
-          Array.isArray(parsed.data.players)
-        ) {
-          setPlayersData(parsed.data.players);
-          setTotalPlayersCount(parsed.data.total_count || 0);
-          setPlayersLoading(false);
-          return;
-        }
-      } catch {
-        localStorage.removeItem(cacheKey);
-      }
-    }
-
     setPlayersLoading(true);
     setPlayersError(null);
     try {
       const res = await fetch(
-        baseURL+`/api/getRating?limit=${itemsPerPage}&offset=${startIndex}` +
-        (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : '')
+        baseURL+`/api/getRating?limit=${itemsPerPage}&offset=${startIndex}`
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
       if (data && Array.isArray(data.players)) {
         setPlayersData(data.players);
         setTotalPlayersCount(data.total_count || 0);
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({ data, timestamp: Date.now() })
-        );
       } else {
         throw new Error('Некорректная структура ответа (players)');
       }
@@ -165,44 +125,17 @@ export default function RatingPage() {
   };
 
   const fetchGames = async () => {
-    const cacheExpiry = 60 * 1000; // 1 минута
-    const cacheKey = `games_offset_${gamesStartIndex}_event_${selectedEventId}`;
-    const cached = localStorage.getItem(cacheKey);
-
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (
-          Date.now() - parsed.timestamp < cacheExpiry &&
-          parsed.data &&
-          Array.isArray(parsed.data.games)
-        ) {
-          setGamesData(parsed.data.games);
-          setTotalGamesCount(parsed.data.total_count || 0);
-          setGamesLoading(false);
-          return;
-        }
-      } catch {
-        localStorage.removeItem(cacheKey);
-      }
-    }
-
     setGamesLoading(true);
     setGamesError(null);
     try {
       const res = await fetch(
-        `/api/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}` +
-        (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : '')
+        `/api/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}`
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
       if (data && Array.isArray(data.games)) {
         setGamesData(data.games);
         setTotalGamesCount(data.total_count || 0);
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({ data, timestamp: Date.now() })
-        );
       } else {
         throw new Error('Некорректная структура ответа (games)');
       }
@@ -216,35 +149,11 @@ export default function RatingPage() {
   };
 
   const fetchDetailedStats = async () => {
-    const cacheExpiry = 60 * 1000; // 1 минута
-    const cacheKey = `detailedStats_offset_${detailedStatsStartIndex}_event_${selectedEventId}`;
-    const cached = localStorage.getItem(cacheKey);
-
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (
-          Date.now() - parsed.timestamp < cacheExpiry &&
-          parsed.data &&
-          Array.isArray(parsed.data.players)
-        ) {
-          setDetailedStatsData(parsed.data.players);
-          setDetailedStatsTotalCount(parsed.data.total_count || 0);
-          setAveragePoints(parsed.data.average_points || 0);
-          setDetailedStatsLoading(false);
-          return;
-        }
-      } catch {
-        localStorage.removeItem(cacheKey);
-      }
-    }
-
     setDetailedStatsLoading(true);
     setDetailedStatsError(null);
     try {
       const res = await fetch(
-        `/api/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}` +
-        (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : '')
+        `/api/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}`
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
@@ -252,10 +161,6 @@ export default function RatingPage() {
         setDetailedStatsData(data.players);
         setDetailedStatsTotalCount(data.total_count || 0);
         setAveragePoints(data.average_points || 0);
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({ data, timestamp: Date.now() })
-        );
       } else {
         throw new Error('Некорректная структура ответа (players)');
       }
@@ -270,6 +175,7 @@ export default function RatingPage() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -278,19 +184,14 @@ export default function RatingPage() {
     else if (activeTab === 'Игры') fetchGames();
     else if (activeTab === 'Статистика') fetchDetailedStats();
 
-    fetch('/api/events')
-      .then(res => res.json())
-      .then(data => setEvents(data.events || []))
-      .catch(err => console.error("Не удалось загрузить события:", err));
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTab,
     currentPage,
     gamesCurrentPage,
     detailedStatsCurrentPage,
     isAuthenticated,
-    selectedEventId,
+    authLoading,
+    navigate
   ]);
 
   // ====== ПАГИНАЦИЯ ХЕНДЛЕРЫ ======
@@ -311,7 +212,7 @@ export default function RatingPage() {
       let attempts = 0;
       const maxAttempts = 10;
       while (attempts < maxAttempts) {
-        const eventId = selectedEventId !== 'all' ? selectedEventId : '1';
+        const eventId = '1';
         const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
         const response = await fetch(`/api/checkGameExists/${gameId}`);
@@ -323,7 +224,7 @@ export default function RatingPage() {
 
         if (!data.exists) {
           navigate(`/Event/${eventId}/Game/${gameId}`);
-          return; // Успешно, выходим из функции
+          return;
         }
         
         attempts++;
@@ -412,22 +313,6 @@ export default function RatingPage() {
           ))}
         </div>
 
-        <div className={styles.eventSelector}>
-          <label htmlFor="event-select">Рейтинг по событию:</label>
-          <select
-            id="event-select"
-            value={selectedEventId}
-            onChange={(e) => handleEventChange(e.target.value)}
-            className={styles.eventSelectInput}
-          >
-            <option value="all">Все события</option>
-            {events.map(event => (
-              <option key={event.id} value={event.id}>{event.title}</option>
-            ))}
-          </select>
-        </div>
-
-
         {activeTab === 'Общая сводка' && (
           <>
             {playersLoading && <p>Загрузка игроков...</p>}
@@ -442,7 +327,7 @@ export default function RatingPage() {
                 >
                   <div className={styles.cardsHeader}>
                     <div className={styles.cardPlayerHeader}>Игрок</div>
-                    <div className={styles.cardPointsHeader}>Баллы</div>
+                    <div className={styles.cardPointsHeader}>Рейтинг</div>
                   </div>
 
                   {playersData.map((player, index) => {
@@ -468,14 +353,14 @@ export default function RatingPage() {
                               {player.name}
                             </div>
                             <div className={styles.playerSubtitle}>
-                              {player.club}
+                              {player.club} ({player.games} игр / {player.points.toFixed(2)} Σ)
                             </div>
                           </div>
                         </div>
 
                         <div className={styles.pointsBlock}>
                           <div className={styles.cardPoints}>
-                            {player.points}
+                            {player.rating_score.toFixed(2)}
                           </div>
                         </div>
                       </article>
@@ -593,7 +478,7 @@ export default function RatingPage() {
                                   <td>{i + 1}</td>
                                   <td className={styles.nameP} > {row.name ?? row.nickname ?? ''} </td>
                                   <td>{row.role ?? row.role_name ?? ''}</td>
-                                  <td>{row.points ?? ''}</td>
+                                  <td>{row.points?.toFixed(2) ?? ''}</td>
                                 </tr>
                               ))}
                             </tbody>
