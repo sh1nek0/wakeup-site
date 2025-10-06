@@ -142,7 +142,7 @@ db = SessionLocal()
 try:
     if db.query(Event).filter(Event.title == "Cyber Couple Cup").first() is None:
         demo_event = Event(
-            id=f"event_{uuid.uuid4().hex[:8]}",
+            id="2",
             title="Cyber Couple Cup",
             dates="22.11.2025 – 23.11.2025",
             location="Физтех, Долгопрудный, ул. Институтская 9",
@@ -162,7 +162,7 @@ try:
         db.commit()
         print("Демо-событие 'Cyber Couple Cup' добавлено.")
 
-    if db.query(User).count() < 0: # не создавать
+    if db.query(User).count() == 0:
         demo_users_data = [
             {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa@example.com", "nickname": "Alfa", "club": "Polar Cats"},
             {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "bravo@example.com", "nickname": "Bravo", "club": "North Lights"},
@@ -286,21 +286,17 @@ app.add_middleware(
 )
 
 
-all_player_names_cache = None
+# --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА ---
 
 def get_all_player_names(db: SessionLocal):
-    """Получает и кэширует уникальные имена игроков из таблиц User и Game."""
-    global all_player_names_cache
-    if all_player_names_cache is not None:
-        return all_player_names_cache
-
+    """Получает актуальные имена игроков из таблиц User и Game без кэширования."""
     names = set()
     # 1. Зарегистрированные пользователи
     users = db.query(User.nickname).all()
     for user in users:
         names.add(user.nickname)
 
-    # 2. Игроки из старых игр
+    # 2. Игроки из игр
     games = db.query(Game.data).all()
     for game in games:
         try:
@@ -311,8 +307,7 @@ def get_all_player_names(db: SessionLocal):
         except (json.JSONDecodeError, TypeError):
             continue
     
-    all_player_names_cache = sorted(list(names), key=str.lower)
-    return all_player_names_cache
+    return sorted(list(names), key=str.lower)
 
 def levenshtein_distance(s1, s2):
     """Вычисляет расстояние Левенштейна между двумя строками."""
@@ -405,6 +400,11 @@ async def get_player_suggestions(query: str):
         distance_converted = levenshtein_distance(name_lower, query_converted)
         if distance_converted <= 2:
             suggestions.append({"name": name, "rank": 4 + distance_converted})
+            continue
+        
+        # УЛУЧШЕНИЕ: Ранк 5 - поиск вхождения подстроки (самый низкий приоритет)
+        if query_lower in name_lower:
+            suggestions.append({"name": name, "rank": 5})
             continue
 
     # Убираем дубликаты, оставляя только вариант с лучшим (наименьшим) рангом
@@ -1307,7 +1307,7 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
-    scheduler.add_job(backup_database, 'cron', hour=8, minute=0)
+    scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
     scheduler.start()
     print("Планировщик резервного копирования запущен.")
 
@@ -1318,4 +1318,4 @@ def shutdown_scheduler():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=2)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=1)
