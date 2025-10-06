@@ -6,6 +6,8 @@ load_dotenv()
 import re
 import uuid
 import math
+import shutil
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -138,7 +140,7 @@ Base.metadata.create_all(bind=engine)
 # Тестовые данные: вставка демо-данных, если они не существуют
 db = SessionLocal()
 try:
-    if db.query(Event).get("2") is None:
+    if db.query(Event).filter(Event.title == "Cyber Couple Cup").first() is None:
         demo_event = Event(
             id="2",
             title="Cyber Couple Cup",
@@ -158,18 +160,17 @@ try:
         )
         db.add(demo_event)
         db.commit()
+        print("Демо-событие 'Cyber Couple Cup' добавлено.")
 
     if db.query(User).count() == 0:
         demo_users_data = [
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa@example.com", "nickname": "Alfa", "club": "WakeUp | MaFIA", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "bravo@example.com", "nickname": "Bravo", "club": "North Lights", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "charlie@example.com", "nickname": "Charlie", "club": "Aurora", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "delta@example.com", "nickname": "Delta", "club": "Polar Cats", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "echo@example.com", "nickname": "Echo", "club": "Aurora", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa2@example.com", "nickname": "Alfa2", "club": "Polar Cats", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa3@example.com", "nickname": "Alfa3", "club": "WakeUp | MaFIA", "name": ""},
-    {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa4@example.com", "nickname": "Alfa4", "club": "WakeUp | MaFIA", "name": ""},  # Исправлено: nickname "Alfa4" вместо "Alfa3"
-    ]
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa@example.com", "nickname": "Alfa", "club": "Polar Cats"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "bravo@example.com", "nickname": "Bravo", "club": "North Lights"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "charlie@example.com", "nickname": "Charlie", "club": "Aurora"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "delta@example.com", "nickname": "Delta", "club": "Polar Cats"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "echo@example.com", "nickname": "Echo", "club": "Aurora"},
+            {"id": f"user_{uuid.uuid4().hex[:8]}", "email": "alfa2@example.com", "nickname": "Alfa2", "club": "Polar Cats"},
+        ]
         
         users_to_add = [
             User(
@@ -178,12 +179,12 @@ try:
                 nickname=u["nickname"],
                 hashed_password=get_password_hash("password"),
                 club=u["club"],
-                avatar="",
-                name = u["name"]
+                avatar=""
             ) for u in demo_users_data
         ]
         db.add_all(users_to_add)
         db.commit()
+        print("Демо-пользователи добавлены.")
 
         if db.query(Team).count() == 0:
             demo_teams = [
@@ -193,7 +194,7 @@ try:
             ]
             db.add_all(demo_teams)
             db.commit()
-    print("Тестовые данные добавлены")
+            print("Демо-команды добавлены.")
 except Exception as e:
     db.rollback()
     print(f"Ошибка добавления тестовых данных: {str(e)}")
@@ -285,21 +286,17 @@ app.add_middleware(
 )
 
 
-all_player_names_cache = None
+# --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА ---
 
 def get_all_player_names(db: SessionLocal):
-    """Получает и кэширует уникальные имена игроков из таблиц User и Game."""
-    global all_player_names_cache
-    if all_player_names_cache is not None:
-        return all_player_names_cache
-
+    """Получает актуальные имена игроков из таблиц User и Game без кэширования."""
     names = set()
     # 1. Зарегистрированные пользователи
     users = db.query(User.nickname).all()
     for user in users:
         names.add(user.nickname)
 
-    # 2. Игроки из старых игр
+    # 2. Игроки из игр
     games = db.query(Game.data).all()
     for game in games:
         try:
@@ -310,8 +307,7 @@ def get_all_player_names(db: SessionLocal):
         except (json.JSONDecodeError, TypeError):
             continue
     
-    all_player_names_cache = sorted(list(names), key=str.lower)
-    return all_player_names_cache
+    return sorted(list(names), key=str.lower)
 
 def levenshtein_distance(s1, s2):
     """Вычисляет расстояние Левенштейна между двумя строками."""
@@ -406,6 +402,11 @@ async def get_player_suggestions(query: str):
         if distance_converted <= 2:
             suggestions.append({"name": name, "rank": 4 + distance_converted})
             continue
+        
+        # УЛУЧШЕНИЕ: Ранк 5 - поиск вхождения подстроки (самый низкий приоритет)
+        if query_lower in name_lower:
+            suggestions.append({"name": name, "rank": 5})
+            continue
 
     # Убираем дубликаты, оставляя только вариант с лучшим (наименьшим) рангом
     unique_suggestions = {}
@@ -463,7 +464,6 @@ async def register(user: UserCreate):
             "id": new_user.id,
             "nickname": new_user.nickname,
             "role": new_user.role,
-            "id": new_user.id,
             'name': new_user.name,
             "club": new_user.club,
             "favoriteCard": new_user.favoriteCard,
@@ -512,8 +512,6 @@ async def login(user: UserLogin):
             "tg" : db_user.tg,
             "site1" : db_user.site1,
             "site2" : db_user.site2
-            # Если есть поле avatarUrl в модели User, раскомментируйте:
-            # "avatarUrl": getattr(db_user, "avatarUrl", None),
         }
 
         return {
@@ -584,7 +582,7 @@ async def get_users(event_id: str = None):
                 "email": user.email,
                 "nickname": user.nickname,
                 "role": user.role,
-                "club": user.club  # Новое поле в ответе
+                "club": user.club
             }
             for user in users
         ]
@@ -617,7 +615,7 @@ async def get_user(user_id: str):
             "site1": user_obj.site1,
             "site2": user_obj.site2
         }
-        return {"user": user_data}  # Возвращаем объект напрямую
+        return {"user": user_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения пользователя: {str(e)}")
     finally:
@@ -628,21 +626,17 @@ async def get_user(user_id: str):
 async def update_profile(request: UpdateProfileRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        # Проверка прав: только владелец или админ может обновлять
         if current_user.id != request.userId and current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для обновления этого профиля")
 
-        # Найти пользователя для обновления
         user_to_update = db.query(User).filter(User.id == request.userId).first()
         if not user_to_update:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-        # Валидация клуба (если предоставлен)
         valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"]
         if request.club and request.club not in valid_clubs:
             raise HTTPException(status_code=400, detail="Недопустимое значение клуба")
 
-        # Обновить поля
         user_to_update.name = request.name
         user_to_update.club = request.club
         user_to_update.favoriteCard = request.favoriteCard
@@ -669,12 +663,10 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
 async def get_event(event_id: str):
     db = SessionLocal()
     try:
-        # Получить событие по ID
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="Событие не найдено")
 
-        # Получить участников только из игр этого события
         games = db.query(Game).filter(Game.event_id == event_id).all()
         nicknames = set()
         for game in games:
@@ -704,11 +696,10 @@ async def get_event(event_id: str):
             for p in participants
         ]
 
-        # Получить команды для этого события
         teams = db.query(Team).filter(Team.event_id == event_id).all()
         teams_list = []
         for t in teams:
-            members_ids = json.loads(t.members)  # Парсим JSON-строку в список ID
+            members_ids = json.loads(t.members)
             members = [
                 {"id": mid, "nick": db.query(User).filter(User.id == mid).first().nickname if db.query(User).filter(User.id == mid).first() else "Неизвестный"}
                 for mid in members_ids
@@ -719,7 +710,6 @@ async def get_event(event_id: str):
                 "members": members
             })
 
-        # Сформировать ответ в формате, ожидаемом фронтендом
         event_data = {
             "title": event.title,
             "dates": event.dates,
@@ -760,14 +750,11 @@ def parse_best_move(best_move_string: str) -> list[int]:
 
     numbers = []
     
-    # Шаг 1: Сначала извлекаем все "10", чтобы избежать путаницы с "1" и "0"
     tens = re.findall(r'10', best_move_string)
     numbers.extend([10] * len(tens))
     
-    # Удаляем "10" из строки, чтобы они не мешали поиску одиночных цифр
     remaining_string = best_move_string.replace('10', '')
     
-    # Шаг 2: Извлекаем все остальные цифры от 1 до 9
     single_digits = re.findall(r'[1-9]', remaining_string)
     numbers.extend([int(d) for d in single_digits])
     
@@ -795,11 +782,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             role = player.get("role", "").lower()
             best_move_string = player.get("best_move", "")
             
-            # Штрафы за карточки (без сохранения в 'minus')
-            jk = player.get("jk", 0)
-            sk = player.get("sk", 0)
-            
-            # Рассчитываем бонус за лучший ход
             best_move_bonus = 0
             if role not in ["мафия", "дон"] and best_move_string:
                 best_move_numbers = parse_best_move(best_move_string)
@@ -816,14 +798,11 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             
             player["best_move_bonus"] = best_move_bonus
 
-            # Рассчитываем бонус за победу
             team_win_bonus = 2.5 if role in winning_roles else 0
             
-            # Инициализируем ci_bonus, если его нет
             if "ci_bonus" not in player:
                 player["ci_bonus"] = 0
 
-            # Итоговая сумма (без динамических штрафов и Ci)
             sum_points = plus + best_move_bonus + team_win_bonus
             player["sum"] = sum_points
 
@@ -857,7 +836,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         db.close()
 
 
-# Эндпоинт для получения данных игры (без изменений)
 @app.get("/getGameData/{gameId}")
 async def get_game_data(gameId: str):
     db = SessionLocal()
@@ -877,7 +855,6 @@ async def get_game_data(gameId: str):
         db.close()
 
 
-# НОВЫЙ ЭНДПОИНТ для проверки существования игры
 @app.get("/checkGameExists/{gameId}")
 async def check_game_exists(gameId: str):
     db = SessionLocal()
@@ -890,7 +867,6 @@ async def check_game_exists(gameId: str):
         db.close()
 
 
-# Новый эндпоинт для удаления игры (только админы могут использовать, с JWT)
 @app.delete("/deleteGame/{gameId}")
 async def delete_game(gameId: str, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
@@ -898,12 +874,10 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
         if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
 
-        # Найти игру по gameId
         game = db.query(Game).filter(Game.gameId == gameId).first()
         if not game:
             raise HTTPException(status_code=404, detail="Игра не найдена")
 
-        # Удалить игру
         db.delete(game)
         db.commit()
 
@@ -1026,10 +1000,8 @@ def calculate_dynamic_penalties(games: list[Game]) -> dict:
             if not name:
                 continue
 
-            # SK penalty is static
             sk_penalty = player.get("sk", 0) * 0.5
             
-            # JK penalty is dynamic
             jk_penalty = 0
             if player.get("jk", 0) > 0:
                 current_jk_count = player_jk_counts.get(name, 0)
@@ -1234,16 +1206,13 @@ async def get_events():
 async def create_team(request: CreateTeamRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
-        # Проверить существование события
         event = db.query(Event).filter(Event.id == request.event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="Событие не найдено")
 
-        # Определить размер команды
-        team_size = 2 if event.type == "pair" else 5  # Предполагаем 5 для team; можно сделать динамичным
-        min_team_size = team_size // 2 if event.type == "team" else team_size  # Минимум половина для team
+        team_size = 2 if event.type == "pair" else 5
+        min_team_size = team_size // 2 if event.type == "team" else team_size
 
-        # Валидация размера команды
         if event.type == "pair" and len(request.members) != 2:
             raise HTTPException(status_code=400, detail="Для парного турнира требуется ровно 2 участника")
         elif event.type == "team" and not (min_team_size <= len(request.members) <= team_size):
@@ -1251,16 +1220,13 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
         elif event.type == "solo":
             raise HTTPException(status_code=400, detail="Создание команд не поддерживается для личного турнира")
 
-        # Проверить, что все участники существуют
         members = db.query(User).filter(User.id.in_(request.members)).all()
         if len(members) != len(request.members):
             raise HTTPException(status_code=400, detail="Один или несколько участников не найдены")
 
-        # Проверка прав: если не админ, должен включать себя
         if current_user.role != "admin" and current_user.id not in request.members:
             raise HTTPException(status_code=403, detail="Вы можете создавать команду только с участием себя")
 
-        # Проверить, что участники не в других командах этого события
         existing_teams = db.query(Team).filter(Team.event_id == request.event_id).all()
         assigned_ids = set()
         for t in existing_teams:
@@ -1268,10 +1234,8 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
         if any(mid in assigned_ids for mid in request.members):
             raise HTTPException(status_code=400, detail="Один или несколько участников уже в другой команде")
 
-        # Сгенерировать уникальный ID команды
         team_id = f"team_{uuid.uuid4().hex[:8]}"
 
-        # Создать команду
         new_team = Team(
             id=team_id,
             event_id=request.event_id,
@@ -1292,7 +1256,6 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
         db.close()
 
 
-# Новый эндпоинт для удаления команды (только админы)
 @app.delete("/deleteTeam/{team_id}")
 async def delete_team(team_id: str, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
@@ -1300,12 +1263,10 @@ async def delete_team(team_id: str, current_user: User = Depends(get_current_use
         if current_user.role != "admin":
             raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия (требуется роль admin)")
 
-        # Найти команду
         team = db.query(Team).filter(Team.id == team_id).first()
         if not team:
             raise HTTPException(status_code=404, detail="Команда не найдена")
 
-        # Удалить команду
         db.delete(team)
         db.commit()
 
@@ -1319,6 +1280,43 @@ async def delete_team(team_id: str, current_user: User = Depends(get_current_use
     finally:
         db.close()
 
+# --- Логика резервного копирования ---
+def backup_database():
+    if not DATABASE_URL.startswith("sqlite:///"):
+        print("Резервное копирование настроено только для SQLite.")
+        return
+
+    db_path = DATABASE_URL.split("///")[1]
+    if not os.path.exists(db_path):
+        print(f"Файл базы данных не найден по пути: {db_path}")
+        return
+    
+    backup_dir = os.path.join("data", "backup")
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    backup_filename = f"{timestamp}.db"
+    backup_path = os.path.join(backup_dir, backup_filename)
+    
+    try:
+        shutil.copy2(db_path, backup_path)
+        print(f"Резервная копия базы данных успешно создана: {backup_path}")
+    except Exception as e:
+        print(f"Ошибка при создании резервной копии: {e}")
+
+scheduler = BackgroundScheduler()
+
+@app.on_event("startup")
+def start_scheduler():
+    scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
+    scheduler.start()
+    print("Планировщик резервного копирования запущен.")
+
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    scheduler.shutdown()
+    print("Планировщик резервного копирования остановлен.")
+
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=4)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=1)
