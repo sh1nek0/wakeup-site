@@ -42,7 +42,7 @@
 }
 
 .nav a:hover {
-  color: #5D43DD;
+  color: #ef741c;
 }
 
 /* Main content */
@@ -89,7 +89,7 @@
 
 .tabs button:hover,
 .tabs button:focus {
-  background-color: #5D43DD;
+  background-color: #ef741c;
   outline: none;
 }
 
@@ -126,7 +126,7 @@
   height: 280px;
   border-radius: 20px;
   object-fit: cover;
-  box-shadow: 0 8px 20px rgba(93, 67, 221, 0.6);
+  box-shadow: 0 8px 20px #ef741c;
   user-select: none;
 }
 
@@ -135,7 +135,7 @@
   position: absolute;
   top: 15px;
   right: 15px;
-  background: #5D43DD;
+  background: #ef741c;
   color: white;
   font-weight: 700;
   font-size: 24px;
@@ -146,7 +146,7 @@
   justify-content: center;
   align-items: center;
   user-select: none;
-  box-shadow: 0 0 10px #5D43DD;
+  box-shadow: 0 0 10px #ef741c;
 }
 
 /* Описание */
@@ -165,7 +165,7 @@
   margin-bottom: 15px;
   font-weight: 700;
   font-size: 24px;
-  color: #5D43DD;
+  color: #ef741c;
 }
 
 .descriptionBox p {
@@ -173,6 +173,113 @@
   font-weight: 500;
   line-height: 1.5;
   color: #DDD;
+}
+
+/* Стили для редактирования */
+.editControls {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.editControls button {
+  background-color: #ef741c;
+  border: none;
+  padding: 10px 20px;
+  color: #FFFFFF;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.editControls button:hover,
+.editControls button:focus {
+  background-color: #ef741c;
+  outline: none;
+}
+
+.editControls button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+/* Стили для input и select */
+input, select {
+  background-color: transparent;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #FFFFFF;
+  font-size: 16px;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-bottom: 2px solid #ef741c;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+/* Специальные стили для input в nickname */
+.nickname input {
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid #555;
+  border-radius: 0;
+  font-size: 36px;
+  font-weight: 800;
+  padding: 0;
+  width: 100%;
+}
+
+.nickname input:focus {
+  border-bottom: 2px solid #ef741c;
+  outline: none;
+}
+
+/* Стили для выпадающего списка (select) */
+select {
+  appearance: none; /* Убираем стандартную стрелку браузера */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23FFFFFF' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e"); /* Кастомная стрелка вниз */
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 40px; /* Место для стрелки */
+}
+
+select option {
+  background-color: #2A2A2A; /* Фон для опций */
+  color: #FFFFFF; /* Цвет текста опций */
+  padding: 10px; /* Отступы для опций */
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.errorBanner {
+  background-color: #ffcccc;
+  color: #660000;
+  border: 1px solid #cc0000;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  position: relative;
+  font-weight: 500;
+}
+
+.closeBtn {
+  position: absolute;
+  right: 10px;
+  top: 5px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #660000;
+  cursor: pointer;
 }
 
 /* Адаптивность */
@@ -215,6 +322,15 @@
     margin-left: 0;
     margin-right: 15px;
   }
+
+  .editControls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editControls button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -233,6 +349,9 @@
 
   .descriptionBox h3 {
     font-size: 20px;
- 
+  }
+
+  .nickname input {
+    font-size: 28px;
   }
 }

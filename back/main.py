@@ -78,6 +78,12 @@ class User(Base):
     club = Column(String, nullable=True)  # Новое поле для клуба (WakeUp | MIET, etc.)
     update_ai = Column(DateTime, nullable=True, default=None)  # Новое поле для даты обновления AI
     avatar = Column(String, nullable=True)  # Новое поле для аватара
+    name = Column(String, nullable=True)
+    favoriteCard = Column(String, nullable=True)
+    vk = Column(String,nullable=True)
+    tg = Column(String,nullable=True)
+    site1 = Column(String,nullable=True)
+    site2 = Column(String,nullable=True)
 
 # Модель таблицы Game (без изменений)
 class Game(Base):
@@ -153,21 +159,21 @@ try:
     if db.query(User).count() <=10:
         # Демо-участники
         demo_users = [
-            User(email="alfa@example.com", nickname="Alfa", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
-            User(email="bravo@example.com", nickname="Bravo", hashed_password=get_password_hash("password"), club="North Lights", avatar=""),
-            User(email="charlie@example.com", nickname="Charlie", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
-            User(email="delta@example.com", nickname="Delta", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
-            User(email="echo@example.com", nickname="Echo", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
-            User(email="alfa2@example.com", nickname="Alfa2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
-            User(email="bravo2@example.com", nickname="Bravo2", hashed_password=get_password_hash("password"), club="North Lights", avatar=""),
-            User(email="charlie2@example.com", nickname="Charlie2", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
-            User(email="delta2@example.com", nickname="Delta2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
-            User(email="echo2@example.com", nickname="Echo2", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
-            User(email="alfa3@example.com", nickname="Alfa3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
-            User(email="bravo3@example.com", nickname="Bravo3", hashed_password=get_password_hash("password"), club="North Lights", avatar=""),
-            User(email="charlie3@example.com", nickname="Charlie3", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
-            User(email="delta3@example.com", nickname="Delta3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar=""),
-            User(email="echo3@example.com", nickname="Echo3", hashed_password=get_password_hash("password"), club="Aurora", avatar=""),
+            User(email="alfa@example.com", nickname="Alfa", hashed_password=get_password_hash("password"), club="WakeUp | MIET", avatar="",name=""),
+            User(email="bravo@example.com", nickname="Bravo", hashed_password=get_password_hash("password"), club="WakeUp | MIET", avatar="",name=""),
+            User(email="charlie@example.com", nickname="Charlie", hashed_password=get_password_hash("password"), club="WakeUp | MIET", avatar="",name=""),
+            User(email="delta@example.com", nickname="Delta", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
+            User(email="echo@example.com", nickname="Echo", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
+            User(email="alfa2@example.com", nickname="Alfa2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
+            User(email="bravo2@example.com", nickname="Bravo2", hashed_password=get_password_hash("password"), club="North Lights", avatar="",name=""),
+            User(email="charlie2@example.com", nickname="Charlie2", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
+            User(email="delta2@example.com", nickname="Delta2", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
+            User(email="echo2@example.com", nickname="Echo2", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
+            User(email="alfa3@example.com", nickname="Alfa3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
+            User(email="bravo3@example.com", nickname="Bravo3", hashed_password=get_password_hash("password"), club="North Lights", avatar="",name=""),
+            User(email="charlie3@example.com", nickname="Charlie3", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
+            User(email="delta3@example.com", nickname="Delta3", hashed_password=get_password_hash("password"), club="Polar Cats", avatar="",name=""),
+            User(email="echo3@example.com", nickname="Echo3", hashed_password=get_password_hash("password"), club="Aurora", avatar="",name=""),
         ]
         for user in demo_users:
             db.add(user)
@@ -220,7 +226,8 @@ class UserCreate(BaseModel):
     email: str
     nickname: str
     password: str
-    club: str  # Новое поле для клуба (опциональное; сделайте str, если обязательное)
+    club: str  
+    name: str
 
 class UserLogin(BaseModel):
     nickname: str
@@ -237,6 +244,17 @@ class CreateTeamRequest(BaseModel):
     event_id: str = Field(..., description="ID события")
     name: str = Field(..., description="Название команды/пары")
     members: list[int] = Field(..., description="Список ID участников")
+
+# Pydantic модель для обновления профиля
+class UpdateProfileRequest(BaseModel):
+    userId: int = Field(..., description="ID пользователя для обновления")
+    name: str = Field("", description="Имя пользователя")
+    club: str = Field("", description="Клуб пользователя")
+    favoriteCard: str = Field("", description="Любимая карта")
+    vk: str = Field("", description="Ссылка на VK")
+    tg: str = Field("", description="Ссылка на Telegram")
+    site1: str = Field("", description="Ссылка на сайт 1 (Gomafia)")
+    site2: str = Field("", description="Ссылка на сайт 2 (MU)")
 
 # Вспомогательные функции для JWT (без изменений)
 def create_access_token(data: dict, expires_delta: timedelta = None):
@@ -262,8 +280,6 @@ app.add_middleware(
 )
 
 
-# --- НОВЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ПОИСКА ---
-# Кэш для хранения всех имен игроков
 all_player_names_cache = None
 
 def get_all_player_names(db: SessionLocal):
@@ -309,6 +325,7 @@ def levenshtein_distance(s1, s2):
         previous_row = current_row
     return previous_row[-1]
 
+
 def convert_layout(text: str) -> str:
     """Конвертирует текст между русской и английской раскладками."""
     eng_chars = "`qwertyuiop[]asdfghjkl;'\\zxcvbnm,./"
@@ -324,6 +341,7 @@ def convert_layout(text: str) -> str:
         return text.translate(rus_to_eng_map)
     else:
         return text.translate(eng_to_rus_map)
+
 
 @app.get("/get_player_suggestions")
 async def get_player_suggestions(query: str):
@@ -394,8 +412,14 @@ async def register(user: UserCreate):
             nickname=user.nickname,
             hashed_password=hashed_password,
             role="user",
+            name="",
             club=user.club,  # Новое поле
-            update_ai=datetime.utcnow()  # Новое поле: текущая дата
+            update_ai=datetime.utcnow(),  # Новое поле: текущая дата
+            favoriteCard="",
+            vk= "",
+            tg= "",
+            site1= "",
+            site2= ""
         )
         db.add(new_user)
         db.commit()
@@ -408,8 +432,14 @@ async def register(user: UserCreate):
         user_data = {
             "nickname": new_user.nickname,
             "role": new_user.role,
-            # Если есть поле avatarUrl в модели User, раскомментируйте:
-            # "avatarUrl": getattr(db_user, "avatarUrl", None),
+            "id": new_user.id,
+            'name': new_user.name,
+            "club": new_user.club,
+            "favoriteCard": new_user.favoriteCard,
+            "vk": new_user.vk,
+            "tg" : new_user.tg,
+            "site1" : new_user.site1,
+            "site2" : new_user.site2
         }
 
         return {
@@ -443,7 +473,14 @@ async def login(user: UserLogin):
         user_data = {
             "nickname": db_user.nickname,
             "role": db_user.role,
-            "id": db_user.id
+            "id": db_user.id,
+            'name': db_user.name,
+            "club": db_user.club,
+            "favoriteCard": db_user.favoriteCard,
+            "vk": db_user.vk,
+            "tg" : db_user.tg,
+            "site1" : db_user.site1,
+            "site2" : db_user.site2
             # Если есть поле avatarUrl в модели User, раскомментируйте:
             # "avatarUrl": getattr(db_user, "avatarUrl", None),
         }
@@ -490,6 +527,7 @@ async def promote_admin(request: PromoteAdminRequest, current_user: User = Depen
     finally:
         db.close()
 
+
 # Получить список пользователей (с опциональным фильтром по event_id)
 @app.get("/getUsers")
 async def get_users(event_id: str = None):
@@ -526,6 +564,74 @@ async def get_users(event_id: str = None):
         raise HTTPException(status_code=500, detail=f"Ошибка получения пользователей: {str(e)}")
     finally:
         db.close()
+
+
+@app.get("/getUser/{user_id}")
+async def get_user(user_id: int):
+    db = SessionLocal()
+    try:
+        user_obj = db.query(User).filter(User.id == user_id).first()
+        if not user_obj:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        user_data = {
+            "nickname": user_obj.nickname,
+            "role": user_obj.role,
+            "id": user_obj.id,
+            "name": user_obj.name,
+            "club": user_obj.club,
+            "favoriteCard": user_obj.favoriteCard,
+            "vk": user_obj.vk,
+            "tg": user_obj.tg,
+            "site1": user_obj.site1,
+            "site2": user_obj.site2
+        }
+        return {"user": user_data}  # Возвращаем объект напрямую
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения пользователя: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/updateProfile")
+async def update_profile(request: UpdateProfileRequest, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        # Проверка прав: только владелец или админ может обновлять
+        if current_user.id != request.userId and current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="У вас нет прав для обновления этого профиля")
+
+        # Найти пользователя для обновления
+        user_to_update = db.query(User).filter(User.id == request.userId).first()
+        if not user_to_update:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        # Валидация клуба (если предоставлен)
+        valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"]
+        if request.club and request.club not in valid_clubs:
+            raise HTTPException(status_code=400, detail="Недопустимое значение клуба")
+
+        # Обновить поля
+        user_to_update.name = request.name
+        user_to_update.club = request.club
+        user_to_update.favoriteCard = request.favoriteCard
+        user_to_update.vk = request.vk
+        user_to_update.tg = request.tg
+        user_to_update.site1 = request.site1
+        user_to_update.site2 = request.site2
+
+        db.commit()
+
+        return {"message": "Профиль обновлен успешно"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка обновления профиля: {str(e)}")
+    finally:
+        db.close()
+
 
 # Новый эндпоинт для получения информации по событию
 @app.get("/getEvent/{event_id}")
@@ -596,7 +702,6 @@ async def get_event(event_id: str):
         raise HTTPException(status_code=500, detail=f"Ошибка получения данных события: {str(e)}")
     finally:
         db.close()
-
 
 
 # Вспомогательная функция для парсинга "Лучшего хода"
@@ -702,6 +807,7 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     finally:
         db.close()
 
+
 # Эндпоинт для получения данных игры (без изменений)
 @app.get("/getGameData/{gameId}")
 async def get_game_data(gameId: str):
@@ -721,6 +827,7 @@ async def get_game_data(gameId: str):
     finally:
         db.close()
 
+
 # НОВЫЙ ЭНДПОИНТ для проверки существования игры
 @app.get("/checkGameExists/{gameId}")
 async def check_game_exists(gameId: str):
@@ -732,6 +839,7 @@ async def check_game_exists(gameId: str):
         raise HTTPException(status_code=500, detail=f"Ошибка проверки игры: {str(e)}")
     finally:
         db.close()
+
 
 # Новый эндпоинт для удаления игры (только админы могут использовать, с JWT)
 @app.delete("/deleteGame/{gameId}")
@@ -759,6 +867,7 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
         raise HTTPException(status_code=500, detail=f"Ошибка удаления игры: {str(e)}")
     finally:
         db.close()
+
 
 @app.get("/getGames")
 async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None, description="ID события для фильтрации")):
@@ -813,6 +922,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     finally:
         db.close()
 
+
 def calculate_ci_bonuses(games: list[Game]) -> dict:
     ci_bonuses = {}
     player_x_counts = {}
@@ -850,6 +960,7 @@ def calculate_ci_bonuses(games: list[Game]) -> dict:
                     ci_bonuses[player_name] = {}
                 ci_bonuses[player_name][game.gameId] = ci_bonus
     return ci_bonuses
+
 
 def calculate_dynamic_penalties(games: list[Game]) -> dict:
     penalties = {}
@@ -955,6 +1066,7 @@ async def get_rating(limit: int = Query(10, description="Количество э
         raise HTTPException(status_code=500, detail=f"Ошибка получения рейтинга: {str(e)}")
     finally:
         db.close()
+
 
 @app.get("/getDetailedStats")
 async def get_detailed_stats(
@@ -1066,6 +1178,7 @@ async def get_detailed_stats(
     finally:
         db.close()
 
+
 @app.get("/events")
 async def get_events():
     db = SessionLocal()
@@ -1088,6 +1201,7 @@ async def get_events():
         raise HTTPException(status_code=500, detail=f"Ошибка получения событий: {str(e)}")
     finally:
         db.close()
+
 
 @app.post("/createTeam")
 async def create_team(request: CreateTeamRequest, current_user: User = Depends(get_current_user)):
@@ -1150,6 +1264,7 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
         raise HTTPException(status_code=500, detail=f"Ошибка создания команды: {str(e)}")
     finally:
         db.close()
+
 
 # Новый эндпоинт для удаления команды (только админы)
 @app.delete("/deleteTeam/{team_id}")
