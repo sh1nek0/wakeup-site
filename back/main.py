@@ -363,7 +363,8 @@ async def get_player_suggestions(query: str):
         all_names = get_all_player_names(db)
     finally:
         db.close()
-
+    print(all_names)
+    
     query_lower = query.lower()
     query_converted = convert_layout(query_lower)
     query_normalized = normalize_for_search(query)

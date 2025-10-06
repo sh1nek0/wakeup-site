@@ -19,7 +19,7 @@ const NameInputWithSuggestions = ({ player, onNameChange, isPenaltyTime }) => {
                 return;
             }
             try {
-                const response = await fetch(`/api/get_player_suggestions?query=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/get_player_suggestions?query=${query}`);
                 if (response.ok) {
                     const data = await response.json();
                     setSuggestions(data);
