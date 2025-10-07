@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
 import { AuthContext } from "../AuthContext";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
@@ -13,15 +13,11 @@ const stubAvatar =
      </svg>`
   );
 
-export default function Game({
-  tournament: tournamentProp,
-  participants: participantsProp,
-  initialTeams,
-}) {
-  const { isAdmin, user, token } = useContext(AuthContext) ?? { isAdmin: false, user: null, token: null };
+export default function Game() {
+  const { isAdmin, user, token, isAuthenticated } = useContext(AuthContext) ?? { isAdmin: false, user: null, token: null, isAuthenticated: false };
   const currentUserId = user?.id ?? null;
-  const { evenId } = useParams(); // Предполагаем, что evenId передается в URL как /event/:evenId
-
+  const { evenId } = useParams();
+  const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
@@ -29,88 +25,79 @@ export default function Game({
   }, [location.pathname]);
 
   // State для данных события
-  const [tournament, setTournament] = useState(tournamentProp || {});
-  const [participants, setParticipants] = useState(participantsProp || []);
-  const [teams, setTeams] = useState(initialTeams || []);
+  const [tournament, setTournament] = useState({});
+  const [participants, setParticipants] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [pendingRegistrations, setPendingRegistrations] = useState([]);
+  const [userRegistrationStatus, setUserRegistrationStatus] = useState('none');
+  
   const [detailedStatsData, setDetailedStatsData] = useState([]);
   const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
   const [detailedStatsTotalPages, setDetailedStatsTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Добавлено: недостающие state для detailed stats
   const [detailedStatsItemsPerPage] = useState(10);
   const [selectedEventId, setSelectedEventId] = useState(evenId || 'all');
   const [detailedStatsError, setDetailedStatsError] = useState(null);
   const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
-  const [detailedStatsTotalCount, setDetailedStatsTotalCount] = useState(0);
-  const [averagePoints, setAveragePoints] = useState(0);
-
-  // Получение данных по событию
   
-  useEffect(() => {
+  const fetchEventData = async () => {
     if (!evenId) return;
 
     setLoading(true);
-    fetch(`/api/getEvent/${evenId}`, {
-      headers: {
-        'Cache-Control': 'no-cache',
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Ошибка загрузки данных события");
-        return res.json();
-      })
-      .then((data) => {
-        setTournament(data);
-        setParticipants(data.participants || []);
-        setTeams(data.teams || []);
-      })
-      .catch((err) => {
-        console.error("Ошибка:", err);
-        // Можно показать сообщение об ошибке пользователю
-      })
-      .finally(() => setLoading(false));
-  }, [evenId]);
+    try {
+      const headers = { 'Cache-Control': 'no-cache' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/getEvent/${evenId}`, { headers });
+      if (!res.ok) throw new Error("Ошибка загрузки данных события");
+      const data = await res.json();
+      
+      setTournament(data);
+      setParticipants(data.participants || []);
+      setTeams(data.teams || []);
+      setPendingRegistrations(data.pending_registrations || []);
+      setUserRegistrationStatus(data.user_registration_status || 'none');
+    } catch (err) {
+      console.error("Ошибка:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Изменено: useEffect для загрузки detailed stats - теперь загружаем все данные сразу, пагинация на клиенте
+  useEffect(() => {
+    fetchEventData();
+  }, [evenId, token]);
+
   useEffect(() => {
     const fetchDetailedStats = async () => {
       setDetailedStatsLoading(true);
       setDetailedStatsError(null);
-
       try {
         const res = await fetch(
-          `/api/getDetailedStats?limit=999` + // ИСПРАВЛЕНО: Запрашиваем всех игроков
+          `/api/getDetailedStats?limit=999` +
           (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : ''),
-          {
-            headers: {
-              'Cache-Control': 'no-cache',
-            },
-          }
+          { headers: { 'Cache-Control': 'no-cache' } }
         );
         if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
         const data = await res.json();
         if (data && Array.isArray(data.players)) {
           setDetailedStatsData(data.players);
-          setDetailedStatsTotalCount(data.players.length);
-          setAveragePoints(data.average_points || 0);
           setDetailedStatsTotalPages(Math.ceil(data.players.length / detailedStatsItemsPerPage));
-          setDetailedStatsCurrentPage(1); // Сброс на первую страницу при новой загрузке
+          setDetailedStatsCurrentPage(1);
         } else {
           throw new Error('Некорректная структура ответа (players)');
         }
       } catch (e) {
         setDetailedStatsError(e.message);
         setDetailedStatsData([]);
-        setDetailedStatsTotalCount(0);
-        setAveragePoints(0);
       } finally {
         setDetailedStatsLoading(false);
       }
     };
-
     fetchDetailedStats();
-  }, [selectedEventId, detailedStatsItemsPerPage]); // Убрана зависимость от currentPage, чтобы не перезагружать при смене страницы
+  }, [selectedEventId, detailedStatsItemsPerPage]);
 
   const teamSize = useMemo(() => {
     if (tournament.type === "pair") return 2;
@@ -121,7 +108,6 @@ export default function Game({
   const assignedIds = new Set(teams.flatMap((t) => t.members.map(m => m.id)));
   const freeParticipants = participants.filter((p) => !assignedIds.has(p.id));
 
-  /* форма создания */
   const [teamName, setTeamName] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const toggleMember = (id) =>
@@ -129,24 +115,7 @@ export default function Game({
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
 
-  /* --- ограничения создания команды/пары --- */
-  const mustIncludeSelf = !isAdmin && !!currentUserId;
-  const includeSelfOk = !mustIncludeSelf || selectedIds.includes(currentUserId);
-
-  const minTeamForTeamType = Math.ceil(teamSize / 2); // «половина» состава
-  const sizeOk =
-    tournament.type === "pair"
-      ? selectedIds.length === 2
-      : tournament.type === "team"
-      ? selectedIds.length === teamSize ||
-        selectedIds.length === minTeamForTeamType
-      : selectedIds.length >= 1;
-
-  const nameOk = teamName.trim().length > 0;
-
-  const canCreateTeam = isAdmin
-    ? nameOk && selectedIds.length >= 2 && selectedIds.length <= teamSize
-    : nameOk && includeSelfOk && sizeOk;
+  const canCreateTeam = isAdmin && teamName.trim().length > 0 && selectedIds.length > 0;
 
   const createTeam = async () => {
     if (!canCreateTeam) return;
@@ -192,7 +161,7 @@ export default function Game({
       setTeamName("");
       setSelectedIds([]);
 
-      alert(data.message); // Или использовать более элегантный способ показа сообщений
+      alert(data.message);
     } catch (error) {
       console.error("Ошибка создания команды:", error);
       alert(`Ошибка: ${error.message}`);
@@ -201,35 +170,64 @@ export default function Game({
 
   const deleteTeam = async (id) => {
     if (!isAdmin) return;
-
-    if (!token) {
-      alert("Токен авторизации отсутствует");
-      return;
-    }
-
     try {
       const response = await fetch(`/api/deleteTeam/${id}`, {
         method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Ошибка удаления");
+      setTeams((prev) => prev.filter((t) => t.id !== id));
+      alert("Команда удалена");
+    } catch (error) {
+      alert(`Ошибка: ${error.message}`);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/events/${evenId}/register`, {
+        method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
         },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Ошибка удаления команды");
-      }
-
       const data = await response.json();
-      // Обновляем локальный state команд, удаляя команду
-      setTeams((prev) => prev.filter((t) => t.id !== id));
-
-      alert(data.message); // Или использовать более элегантный способ показа сообщений
+      if (!response.ok) {
+        throw new Error(data.detail || "Ошибка регистрации");
+      }
+      alert(data.message);
+      setUserRegistrationStatus('pending'); // Сразу обновляем статус для UI
     } catch (error) {
-      console.error("Ошибка удаления команды:", error);
       alert(`Ошибка: ${error.message}`);
     }
   };
+
+  const handleManageRegistration = async (registrationId, action) => {
+    if (!isAdmin) return;
+    try {
+      const response = await fetch(`/api/registrations/${registrationId}/manage`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || "Ошибка при обработке заявки");
+      }
+      alert(data.message);
+      fetchEventData(); // Перезагружаем все данные о событии, чтобы обновить списки
+    } catch (error) {
+      alert(`Ошибка: ${error.message}`);
+    }
+  };
+
 
   const PAGE_SIZE = 10;
   const handleDetailedStatsPageChange = (p) =>
@@ -237,28 +235,44 @@ export default function Game({
       Math.min(Math.max(1, p), detailedStatsTotalPages)
     );
 
-  /* ===== вкладки результатов ===== */
   const tabs = ["Игры", "Личный зачёт"];
   if (tournament.type !== "solo") {
     tabs.push("Командный зачёт");
   }
-
   const [activeTab, setActiveTab] = useState(1);
 
   if (loading) {
-    return <div>Загрузка...</div>; // Простой индикатор загрузки
+    return <div>Загрузка...</div>;
   }
+
+  const isEventFull = tournament.participantsCount >= tournament.participantsLimit;
+  let regButtonText = "Зарегистрироваться";
+  let isRegButtonDisabled = false;
+
+  if (isEventFull) {
+    regButtonText = "Регистрация закрыта";
+    isRegButtonDisabled = true;
+  } else if (!isAuthenticated) {
+    regButtonText = "Войдите для регистрации";
+    isRegButtonDisabled = false; // Кнопка активна, чтобы перенаправить на логин
+  } else if (userRegistrationStatus === 'pending') {
+    regButtonText = "Заявка отправлена";
+    isRegButtonDisabled = true;
+  } else if (userRegistrationStatus === 'approved') {
+    regButtonText = "Вы участник";
+    isRegButtonDisabled = true;
+  }
+
 
   return (
     <section className={styles.pageWrap}>
-      {/* ===== верхний блок ===== */}
       <header className={styles.header}>
         <h1 className={styles.title}>{tournament.title}</h1>
       </header>
 
       <div className={styles.topGrid}>
-        {/* левая зона */}
         <div className={styles.infoGrid}>
+          {/* ... info cards ... */}
           <div className={styles.infoCard}>
             <div className={styles.caption}>Даты проведения</div>
             <div className={styles.value}>{tournament.dates}</div>
@@ -283,7 +297,6 @@ export default function Game({
               {tournament.participantsCount} из {tournament.participantsLimit}
             </div>
           </div>
-
           <button
             type="button"
             className={styles.discussBtn}
@@ -293,8 +306,8 @@ export default function Game({
           </button>
         </div>
 
-        {/* правая колонка */}
         <aside className={styles.rightCol}>
+          {/* ... person cards ... */}
           <div className={styles.personCard}>
             <img
               src={tournament.gs?.avatar || stubAvatar}
@@ -318,29 +331,48 @@ export default function Game({
               <div className={styles.personRole}>{tournament.org?.role}</div>
             </div>
           </div>
-
           <div className={styles.feeCard}>
             <div className={styles.caption}>Стоимость участия</div>
             <div className={styles.fee}>
-              {/* {tournament.fee?.toLocaleString()} {tournament.currency} */}
-              O {tournament.currency}
+              {tournament.fee?.toLocaleString()} {tournament.currency}
             </div>
             <button
               type="button"
-              className={styles.primaryBtn}
-              onClick={() => alert("Регистрация")}
+              className={isRegButtonDisabled ? styles.primaryBtnDisabled : styles.primaryBtn}
+              onClick={handleRegister}
+              disabled={isRegButtonDisabled}
             >
-              Зарегистрироваться
+              {regButtonText}
             </button>
           </div>
         </aside>
       </div>
 
-      {/* ===== участники ===== */}
+      {/* --- НОВЫЙ БЛОК ДЛЯ АДМИНА: ЗАЯВКИ НА УЧАСТИЕ --- */}
+      {isAdmin && pendingRegistrations.length > 0 && (
+        <section className={styles.adminSection}>
+          <h2 className={styles.h2}>Заявки на участие ({pendingRegistrations.length})</h2>
+          <div className={styles.pendingList}>
+            {pendingRegistrations.map(reg => (
+              <div key={reg.registration_id} className={styles.pendingItem}>
+                <div className={styles.pendingUserInfo}>
+                  <img src={reg.user.avatar || stubAvatar} alt={reg.user.nick} className={styles.memberAvatar} />
+                  <span>{reg.user.nick} ({reg.user.club})</span>
+                </div>
+                <div className={styles.pendingActions}>
+                  <button onClick={() => handleManageRegistration(reg.registration_id, 'approve')} className={styles.approveBtn}>Одобрить</button>
+                  <button onClick={() => handleManageRegistration(reg.registration_id, 'reject')} className={styles.rejectBtn}>Отклонить</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className={styles.qualifiedWrap}>
         <h2 className={styles.h2}>Участники</h2>
         {participants.length === 0 ? (
-          <div className={styles.emptyHint}>Ты можешь стать первым!</div>
+          <div className={styles.emptyHint}>Пока нет подтвержденных участников.</div>
         ) : (
           <div className={styles.qualifiedGrid}>
             {participants.map((p) => (
@@ -358,15 +390,14 @@ export default function Game({
         )}
       </section>
 
-      {/* ===== команды/пары ===== */}
-      {(tournament.type === "pair" || tournament.type === "team") && (
+      {/* --- ФОРМА СОЗДАНИЯ КОМАНД ТЕПЕРЬ ТОЛЬКО ДЛЯ АДМИНА --- */}
+      {isAdmin && (tournament.type === "pair" || tournament.type === "team") && (
         <section className={styles.teamsWrap}>
           <h2 className={styles.h2}>
             {tournament.type === "pair" ? "Пары" : "Команды"}
           </h2>
-
-          {/* Форма */}
           <div className={styles.teamForm}>
+            {/* ... form content ... */}
             <div className={styles.formRow}>
               <label className={styles.formLabel}>
                 Название {tournament.type === "pair" ? "пары" : "команды"}
@@ -425,18 +456,7 @@ export default function Game({
             >
               Создать {tournament.type === "pair" ? "пару" : "команду"}
             </button>
-
-            {!isAdmin && (
-              <div className={styles.hint}>
-                Можно создавать{" "}
-                {tournament.type === "pair" ? "пару" : "команду"} только с
-                участием себя. Для командного турнира разрешено минимум
-                половина состава.
-              </div>
-            )}
           </div>
-
-          {/* Список команд/пар (под формой) */}
           <div className={styles.teamsList}>
             {teams.length === 0 ? (
               <div className={styles.emptyHint}>
@@ -478,8 +498,8 @@ export default function Game({
         </section>
       )}
 
-      {/* ===== РЕЗУЛЬТАТЫ (вкладки) ===== */}
       <section className={styles.resultsWrap}>
+        {/* ... tabs and results ... */}
         <div className={styles.tabs}>
           {tabs.map((t, i) => (
             <button
@@ -558,9 +578,7 @@ export default function Game({
   );
 }
 
-/* =========================
-   Детальная таблица — компактная версия
-   ========================= */
+// ... DetailedStatsTable component remains unchanged ...
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
   const roleCell = (wins = 0, games = 0, plusArr = []) => {
     const g = games || 0;

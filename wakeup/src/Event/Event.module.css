@@ -10,6 +10,8 @@
   --accent: #ff6f00;
   --accent-2: #6e61ff;
   --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --green: #4CAF50;
+  --red: #f44336;
 }
 
 /* чтобы ни один элемент не «выпирал» из контейнеров */
@@ -136,6 +138,54 @@
 }
 .primaryBtn:hover { transform: translateY(-1px); filter: brightness(1.05); }
 .primaryBtnDisabled { opacity: .55; cursor: not-allowed; }
+
+/* =============== СЕКЦИЯ АДМИНА =============== */
+.adminSection {
+  margin-top: 36px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+}
+.pendingList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pendingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: var(--panel-2);
+  border-radius: 12px;
+}
+.pendingUserInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+.pendingActions {
+  display: flex;
+  gap: 8px;
+}
+.approveBtn, .rejectBtn {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.approveBtn {
+  background-color: var(--green);
+  color: white;
+}
+.rejectBtn {
+  background-color: var(--red);
+  color: white;
+}
+
 
 /* =============== участники =============== */
 .qualifiedWrap { margin-top: 36px; }

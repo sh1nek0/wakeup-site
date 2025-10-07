@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './EventPage.module.css';
-import CCC from '../images/CCC.png';
+import CCC from '../EventPrew/CCC-prew.png';
 import { NavLink } from "react-router-dom";
 
 function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
@@ -53,7 +53,7 @@ export default function EventsPage() {
       .then(data => {
         const eventsWithImages = data.events.map(event => ({
           ...event,
-          imageUrl: event.id === "2" ? CCC : null, // Пример для существующего события
+          imageUrl: CCC, 
           dateRange: event.dates,
           capacity: `(${event.participants_count}/${event.participants_limit}) человек`
         }));
