@@ -24,10 +24,11 @@ import Junior_prew from "../EventPrew/Junior.png"
 import Dec_prew from "../EventPrew/Dec-main.png"
 
 
-const tournaments = [
-  { id:2, title: "Cyber Couple Cup", desc: "Парный турнир с трехлетней историей проводимый в честь вечной дружбы и сотрудничества между Физтехом и МИЭТом", color: "#1f1f1f", img: CCC_prew, btn_text:"Зарегистрироваться", btn_to:"/Event/2" },
-  { id:3, title: "WakeUp.Junior", desc: "Первый шанс для молодых игроков в мафию почувстовать на себе дух соревнования и получить турьерный опыт", color: "#110C07", img: Junior_prew, btn_text:"Скоро регистрация", btn_to:"/"  },
-  { id:4, title: "Тематический", desc: "Стилистический турнир в личном зачете, погружающий в атмосферу выбранной темы", color: "#181312ff", img: rockcupImg, btn_text: "Скоро регистрация", btn_to:"/"   },
+// Статические данные для UI (картинки, описания). Ссылки будут обновлены динамически.
+const staticTournaments = [
+  { id:2, title: "Cyber Couple Cup", desc: "Парный турнир с трехлетней историей проводимый в честь вечной дружбы и сотрудничества между Физтехом и МИЭТом", color: "#1f1f1f", img: CCC_prew, btn_text:"Зарегистрироваться", btn_to:"#" },
+  { id:3, title: "WakeUp.Junior", desc: "Первый шанс для молодых игроков в мафию почувстовать на себе дух соревнования и получить турьерный опыт", color: "#110C07", img: Junior_prew, btn_text:"Скоро регистрация", btn_to:"#"  },
+  { id:4, title: "Тематический", desc: "Стилистический турнир в личном зачете, погружающий в атмосферу выбранной темы", color: "#181312ff", img: rockcupImg, btn_text: "Скоро регистрация", btn_to:"#"   },
   { id:5, title: "Турнир десяти", desc: "Традиционный закрытый турнир WakeUp Mafia, претепевший модифиакции прохода", color: "#1a1d1cff", img: Dec_prew, btn_text:"Подробнее", btn_to:"/rating"   },
   { id:6, title: "Break the Silence", desc: "главный турнир года, попасть в который смогут только лучшие игроки сезона", color: "#272232ff", img: btsImg, btn_text:"Подробнее", btn_to:"/BTS"   }
 ];
@@ -41,12 +42,52 @@ const roles = [
 
 const HomePage = () => {
   // Состояния для каруселей
+  const [tournaments, setTournaments] = useState(staticTournaments);
   const [activeTournament, setActiveTournament] = useState(0);
   const [activeRole, setActiveRole] = useState(2); // Стартуем с "Мирный житель"
   const [isHovered, setIsHovered] = useState(false);
 
   const carousel1Ref = useRef(null);
   const rail2Ref = useRef(null);
+
+  // --- НОВАЯ ЛОГИКА: Загрузка и обновление ссылок на турниры ---
+  useEffect(() => {
+    const fetchAndMergeTournaments = async () => {
+      try {
+        const response = await fetch('/api/events');
+        if (!response.ok) {
+          console.error("Не удалось загрузить события с сервера");
+          return;
+        }
+        const data = await response.json();
+        const backendEvents = data.events;
+
+        // Создаем карту для быстрого поиска ID по названию
+        const eventsMap = new Map(backendEvents.map(event => [event.title, event.id]));
+
+        // Обновляем статические данные актуальными ссылками
+        const mergedTournaments = staticTournaments.map(staticTourney => {
+          const dynamicId = eventsMap.get(staticTourney.title);
+          
+          // Обновляем ссылку только если турнир найден и это не специальная ссылка
+          const isSpecialLink = staticTourney.btn_to === "/rating" || staticTourney.btn_to === "/BTS";
+          
+          if (dynamicId && !isSpecialLink) {
+            return { ...staticTourney, btn_to: `/Event/${dynamicId}` };
+          }
+          return staticTourney; // Возвращаем как есть, если совпадения нет или ссылка специальная
+        });
+
+        setTournaments(mergedTournaments);
+
+      } catch (error) {
+        console.error("Ошибка при загрузке или обработке данных о турнирах:", error);
+      }
+    };
+
+    fetchAndMergeTournaments();
+  }, []); // Пустой массив зависимостей означает, что эффект выполнится один раз при монтировании
+
 
   // Эффект для карусели турниров
   useEffect(() => {
@@ -245,21 +286,26 @@ const handleWheel = (e) => {
 
 
 {/* Карусель турниров */}
-<div className={styles["content-box-three"]} id="box1" style={{ background: tournaments[activeTournament].color }}>
+<div className={styles["content-box-three"]} id="box1" style={{ background: tournaments.length > 0 ? tournaments[activeTournament].color : '#1f1f1f' }}>
   <div className={styles["title-tournament"]}>Турниры</div>
   <div className={styles["carousel-box"]}>
     <div className={styles["text-block"]}>
-      <h2 id="title1">{tournaments[activeTournament].title}</h2>
-      <p id="desc1">{tournaments[activeTournament].desc}</p>
-      <NavLink to={tournaments[activeTournament].btn_to}><button className={styles.cta}>{tournaments[activeTournament].btn_text}</button></NavLink>
+      {tournaments.length > 0 && (
+        <>
+          <h2 id="title1">{tournaments[activeTournament].title}</h2>
+          <p id="desc1">{tournaments[activeTournament].desc}</p>
+          <NavLink to={tournaments[activeTournament].btn_to}>
+            <button className={styles.cta}>{tournaments[activeTournament].btn_text}</button>
+          </NavLink>
+        </>
+      )}
     </div>
     <div className={styles["carousel-wrapper"]}>
       <div 
         className={styles.viewport} 
         id="viewport1" 
-        // Убрал onWheel={handleWheel}, так как используем глобальный wheel в useEffect
-        onMouseEnter={() => setIsHovered(true)}  // Наведение: включаем блокировку скролла и переключение слайдов
-        onMouseLeave={() => setIsHovered(false)}  // Уход мыши: выключаем
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <div className={styles.carousel} id="carousel1" ref={carousel1Ref}>
           {tournaments.map((t, i) => (

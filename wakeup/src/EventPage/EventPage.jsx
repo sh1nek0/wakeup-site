@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './EventPage.module.css';
-import CCC from '../images/CCC.png';
+import CCC from '../EventPrew/CCC-prew.png';
 import { NavLink } from "react-router-dom";
 
 function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
