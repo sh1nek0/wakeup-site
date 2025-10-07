@@ -53,7 +53,7 @@ export default function EventsPage() {
       .then(data => {
         const eventsWithImages = data.events.map(event => ({
           ...event,
-          imageUrl: event.id === "2" ? CCC : null, // Пример для существующего события
+          imageUrl: CCC, 
           dateRange: event.dates,
           capacity: `(${event.participants_count}/${event.participants_limit}) человек`
         }));
