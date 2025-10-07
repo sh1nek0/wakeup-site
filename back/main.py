@@ -7,13 +7,13 @@ import re
 import uuid
 import math
 import shutil
+from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, ForeignKey
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 import uvicorn
 from transliterate import translit
@@ -26,9 +26,11 @@ from jose import JWTError, jwt
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -44,6 +46,24 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+def get_optional_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    if credentials is None:
+        return None
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        nickname: str = payload.get("sub")
+        if nickname is None:
+            return None
+        db = SessionLocal()
+        user = db.query(User).filter(User.nickname == nickname).first()
+        db.close()
+        return user
+    except JWTError:
+        return None
+
 
 # Настройка базы данных (SQLite для примера; замените на вашу БД, если нужно)
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -134,21 +154,36 @@ class Team(Base):
     # Связь с Event (опционально, для удобства)
     event = relationship("Event", backref="teams")
 
+# --- НОВАЯ МОДЕЛЬ ДЛЯ РЕГИСТРАЦИЙ ---
+class Registration(Base):
+    __tablename__ = "registrations"
+
+    id = Column(String, primary_key=True, index=True)
+    event_id = Column(String, ForeignKey("events.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    status = Column(String, default="pending", nullable=False)  # pending, approved, rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    event = relationship("Event")
+
+
 # Создание таблиц (запустите один раз; при изменении модели может потребоваться миграция)
 Base.metadata.create_all(bind=engine)
 
 # Тестовые данные: вставка демо-данных, если они не существуют
 db = SessionLocal()
 try:
+    # --- ИСПРАВЛЕННАЯ ЛОГИКА СОЗДАНИЯ ДЕМО-ДАННЫХ ---
     if db.query(Event).filter(Event.title == "Cyber Couple Cup").first() is None:
         demo_event = Event(
-            id="2",
+            id=f"event_{uuid.uuid4().hex[:8]}", # Генерируем уникальный ID
             title="Cyber Couple Cup",
             dates="22.11.2025 – 23.11.2025",
             location="Физтех, Долгопрудный, ул. Институтская 9",
             type="pair",
             participants_limit=40,
-            participants_count=6,
+            participants_count=0,
             fee=1700,
             currency="₽",
             gs_name="Антон Третьяков",
@@ -186,15 +221,11 @@ try:
         db.commit()
         print("Демо-пользователи добавлены.")
 
-        if db.query(Team).count() == 0:
-            demo_teams = [
-                Team(id="team_1", event_id="2", name="FrostBite", members=json.dumps([demo_users_data[0]["id"], demo_users_data[1]["id"]])),
-                Team(id="team_2", event_id="2", name="IceStorm", members=json.dumps([demo_users_data[2]["id"], demo_users_data[3]["id"]])),
-                Team(id="team_3", event_id="2", name="SnowWolf", members=json.dumps([demo_users_data[4]["id"], demo_users_data[5]["id"]])),
-            ]
-            db.add_all(demo_teams)
-            db.commit()
-            print("Демо-команды добавлены.")
+        # Удаляем старые демо-команды, так как логика участников изменилась
+        db.query(Team).delete()
+        db.commit()
+        print("Старые демо-команды удалены.")
+
 except Exception as e:
     db.rollback()
     print(f"Ошибка добавления тестовых данных: {str(e)}")
@@ -262,6 +293,11 @@ class UpdateProfileRequest(BaseModel):
     site1: str = Field("", description="Ссылка на сайт 1 (Gomafia)")
     site2: str = Field("", description="Ссылка на сайт 2 (MU)")
 
+# --- НОВАЯ МОДЕЛЬ ДЛЯ УПРАВЛЕНИЯ РЕГИСТРАЦИЕЙ ---
+class ManageRegistrationRequest(BaseModel):
+    action: str = Field(..., description="Действие: 'approve' или 'reject'")
+
+
 # Вспомогательные функции для JWT (без изменений)
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -284,7 +320,6 @@ app.add_middleware(
     allow_methods=["*"],  # Разрешить все методы (GET, POST и т.д.)
     allow_headers=["*"],  # Разрешить все заголовки
 )
-
 
 # --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА ---
 
@@ -359,7 +394,6 @@ async def get_player_suggestions(query: str):
         all_names = get_all_player_names(db)
     finally:
         db.close()
-    print(all_names)
     
     query_lower = query.lower()
     query_converted = convert_layout(query_lower)
@@ -565,16 +599,13 @@ async def get_users(event_id: str = None):
         if event_id is None or event_id == "1":
             users = db.query(User).all()
         else:
-            games = db.query(Game).filter(Game.event_id == event_id).all()
-            nicknames = set()
-            for game in games:
-                game_data = json.loads(game.data)
-                players = game_data.get("players", [])
-                for player in players:
-                    name = player.get("name", "")
-                    if name:
-                        nicknames.add(name)
-            users = db.query(User).filter(User.nickname.in_(nicknames)).all()
+            # Получаем ID одобренных участников
+            approved_user_ids = db.query(Registration.user_id).filter(
+                Registration.event_id == event_id,
+                Registration.status == "approved"
+            ).all()
+            user_ids = [uid for (uid,) in approved_user_ids]
+            users = db.query(User).filter(User.id.in_(user_ids)).all()
 
         users_list = [
             {
@@ -658,57 +689,72 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
         db.close()
 
 
-# Новый эндпоинт для получения информации по событию
+# --- ОБНОВЛЕННЫЙ ЭНДПОИНТ ДЛЯ ПОЛУЧЕНИЯ ИНФОРМАЦИИ ПО СОБЫТИЮ ---
 @app.get("/getEvent/{event_id}")
-async def get_event(event_id: str):
+async def get_event(event_id: str, current_user: User = Depends(get_optional_current_user)):
     db = SessionLocal()
     try:
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="Событие не найдено")
 
-        games = db.query(Game).filter(Game.event_id == event_id).all()
-        nicknames = set()
-        for game in games:
-            try:
-                game_data = json.loads(game.data)
-                players = game_data.get("players", [])
-                for player in players:
-                    name = player.get("name", "")
-                    if name:
-                        nicknames.add(name)
-            except (json.JSONDecodeError, TypeError):
-                continue
-        
-        participants_query = db.query(User)
-        if nicknames:
-            participants_query = participants_query.filter(User.nickname.in_(nicknames))
-        
-        participants = participants_query.all()
+        # Получаем все регистрации для события
+        registrations = db.query(Registration).filter(Registration.event_id == event_id).all()
 
+        # 1. Одобренные участники
+        approved_regs = [reg for reg in registrations if reg.status == "approved"]
         participants_list = [
             {
-                "id": p.id,
-                "nick": p.nickname,
-                "avatar": p.avatar or "",
-                "club": p.club
+                "id": reg.user.id,
+                "nick": reg.user.nickname,
+                "avatar": reg.user.avatar or "",
+                "club": reg.user.club
             }
-            for p in participants
+            for reg in approved_regs
         ]
 
+        # 2. Заявки на рассмотрении (только для админов)
+        pending_registrations_list = []
+        if current_user and current_user.role == "admin":
+            pending_regs = [reg for reg in registrations if reg.status == "pending"]
+            pending_registrations_list = [
+                {
+                    "registration_id": reg.id,
+                    "user": {
+                        "id": reg.user.id,
+                        "nick": reg.user.nickname,
+                        "avatar": reg.user.avatar or "",
+                        "club": reg.user.club
+                    }
+                }
+                for reg in pending_regs
+            ]
+
+        # 3. Статус регистрации для текущего пользователя
+        user_registration_status = "none"
+        if current_user:
+            user_reg = next((reg for reg in registrations if reg.user_id == current_user.id), None)
+            if user_reg:
+                user_registration_status = user_reg.status # "pending" или "approved"
+
+        # Команды (логика не изменилась, но теперь она основана на одобренных участниках)
         teams = db.query(Team).filter(Team.event_id == event_id).all()
         teams_list = []
         for t in teams:
             members_ids = json.loads(t.members)
-            members = [
-                {"id": mid, "nick": db.query(User).filter(User.id == mid).first().nickname if db.query(User).filter(User.id == mid).first() else "Неизвестный"}
-                for mid in members_ids
-            ]
-            teams_list.append({
-                "id": t.id,
-                "name": t.name,
-                "members": members
-            })
+            # Проверяем, что все участники команды одобрены
+            approved_member_ids = {p["id"] for p in participants_list}
+            if all(mid in approved_member_ids for mid in members_ids):
+                members = [
+                    {"id": mid, "nick": p["nick"]}
+                    for mid in members_ids
+                    if (p := next((p_data for p_data in participants_list if p_data["id"] == mid), None))
+                ]
+                teams_list.append({
+                    "id": t.id,
+                    "name": t.name,
+                    "members": members
+                })
 
         event_data = {
             "title": event.title,
@@ -719,18 +765,12 @@ async def get_event(event_id: str):
             "participantsCount": event.participants_count,
             "fee": event.fee,
             "currency": event.currency,
-            "gs": {
-                "name": event.gs_name,
-                "role": event.gs_role,
-                "avatar": event.gs_avatar
-            },
-            "org": {
-                "name": event.org_name,
-                "role": event.org_role,
-                "avatar": event.org_avatar
-            },
+            "gs": {"name": event.gs_name, "role": event.gs_role, "avatar": event.gs_avatar},
+            "org": {"name": event.org_name, "role": event.org_role, "avatar": event.org_avatar},
             "participants": participants_list,
-            "teams": teams_list
+            "teams": teams_list,
+            "pending_registrations": pending_registrations_list,
+            "user_registration_status": user_registration_status
         }
 
         return event_data
@@ -738,6 +778,7 @@ async def get_event(event_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка получения данных события: {str(e)}")
     finally:
         db.close()
@@ -1206,6 +1247,9 @@ async def get_events():
 async def create_team(request: CreateTeamRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="Только администраторы могут создавать команды")
+
         event = db.query(Event).filter(Event.id == request.event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="Событие не найдено")
@@ -1220,12 +1264,14 @@ async def create_team(request: CreateTeamRequest, current_user: User = Depends(g
         elif event.type == "solo":
             raise HTTPException(status_code=400, detail="Создание команд не поддерживается для личного турнира")
 
-        members = db.query(User).filter(User.id.in_(request.members)).all()
-        if len(members) != len(request.members):
-            raise HTTPException(status_code=400, detail="Один или несколько участников не найдены")
+        # Проверяем, что все участники одобрены
+        approved_user_ids = {reg.user_id for reg in db.query(Registration).filter(
+            Registration.event_id == request.event_id,
+            Registration.status == "approved"
+        ).all()}
 
-        if current_user.role != "admin" and current_user.id not in request.members:
-            raise HTTPException(status_code=403, detail="Вы можете создавать команду только с участием себя")
+        if not all(member_id in approved_user_ids for member_id in request.members):
+            raise HTTPException(status_code=400, detail="Один или несколько выбранных участников не являются подтвержденными участниками турнира")
 
         existing_teams = db.query(Team).filter(Team.event_id == request.event_id).all()
         assigned_ids = set()
@@ -1279,6 +1325,94 @@ async def delete_team(team_id: str, current_user: User = Depends(get_current_use
         raise HTTPException(status_code=500, detail=f"Ошибка удаления команды: {str(e)}")
     finally:
         db.close()
+
+# --- НОВЫЕ ЭНДПОИНТЫ ДЛЯ РЕГИСТРАЦИИ ---
+
+@app.post("/events/{event_id}/register")
+async def register_for_event(event_id: str, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Событие не найдено")
+
+        if event.participants_count >= event.participants_limit:
+            raise HTTPException(status_code=400, detail="Регистрация на событие закрыта, достигнут лимит участников")
+
+        existing_registration = db.query(Registration).filter(
+            Registration.event_id == event_id,
+            Registration.user_id == current_user.id
+        ).first()
+
+        if existing_registration:
+            raise HTTPException(status_code=400, detail="Вы уже подали заявку на участие в этом событии")
+
+        new_registration = Registration(
+            id=f"reg_{uuid.uuid4().hex[:12]}",
+            event_id=event_id,
+            user_id=current_user.id,
+            status="pending"
+        )
+        db.add(new_registration)
+        db.commit()
+
+        return {"message": "Ваша заявка на участие успешно подана и ожидает подтверждения"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при подаче заявки: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/registrations/{registration_id}/manage")
+async def manage_registration(registration_id: str, request: ManageRegistrationRequest, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
+
+        registration = db.query(Registration).filter(Registration.id == registration_id).first()
+        if not registration:
+            raise HTTPException(status_code=404, detail="Заявка не найдена")
+
+        event = db.query(Event).filter(Event.id == registration.event_id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Событие, связанное с заявкой, не найдено")
+
+        if request.action == "approve":
+            if registration.status == "approved":
+                return {"message": "Заявка уже была одобрена"}
+            
+            if event.participants_count >= event.participants_limit:
+                raise HTTPException(status_code=400, detail="Невозможно одобрить заявку, достигнут лимит участников")
+
+            registration.status = "approved"
+            event.participants_count += 1
+            db.commit()
+            return {"message": "Заявка успешно одобрена"}
+
+        elif request.action == "reject":
+            if registration.status == "approved":
+                event.participants_count -= 1
+
+            db.delete(registration)
+            db.commit()
+            return {"message": "Заявка успешно отклонена"}
+
+        else:
+            raise HTTPException(status_code=400, detail="Недопустимое действие")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при управлении заявкой: {str(e)}")
+    finally:
+        db.close()
+
 
 # --- Логика резервного копирования ---
 def backup_database():
