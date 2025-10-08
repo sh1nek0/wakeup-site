@@ -353,7 +353,7 @@ export default function RatingPage() {
                               {player.name}
                             </div>
                             <div className={styles.playerSubtitle}>
-                              {player.club} ({player.games} игр / {player.points.toFixed(2)} Σ)
+                              {player.club}
                             </div>
                           </div>
                         </div>
@@ -449,6 +449,9 @@ export default function RatingPage() {
                     );
                     return (
                       <article key={game.id} className={styles.sheetCard}>
+                        <div className={styles.sheetJudge}>
+                          Судья: {game.judge_nickname || 'Не указан'}
+                        </div>
                         <div className={styles.sheetTop}>
                           <span className={styles.sheetTitle}>
                             Игра #{gameNumber}
@@ -474,11 +477,16 @@ export default function RatingPage() {
                             </thead>
                             <tbody>
                               {rows.map((row, i) => (
-                                <tr key={`${game.id}-${i}`}>
+                                <tr key={`${game.id}-${i}`} className={row.best_move ? styles.eliminatedRow : ''}>
                                   <td>{i + 1}</td>
                                   <td className={styles.nameP} > {row.name ?? row.nickname ?? ''} </td>
                                   <td>{row.role ?? row.role_name ?? ''}</td>
-                                  <td>{row.points?.toFixed(2) ?? ''}</td>
+                                  <td>
+                                    {row.points?.toFixed(2) ?? ''}
+                                    {row.best_move && (
+                                      <span className={styles.bestMoveText}> (ЛХ: {row.best_move.replace(/[^0-9,]/g, '')})</span>
+                                    )}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>

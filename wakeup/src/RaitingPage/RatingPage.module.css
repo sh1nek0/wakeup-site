@@ -230,6 +230,14 @@
   padding:10px; display:flex; flex-direction:column; gap:10px; position:relative;
 }
 
+.sheetJudge {
+  text-align: right;
+  font-size: 12px;
+  color: #aaa;
+  padding: 0 4px 4px;
+  font-style: italic;
+}
+
 /* верхняя панель */
 .sheetTop{
   display:flex;
@@ -306,7 +314,7 @@
 .sheetTable thead th:first-child,
 :global(.sheetTable) thead th:first-child{ width:64px; text-align:center; }
 .sheetTable thead th:last-child,
-:global(.sheetTable) thead th:last-child{ width:96px; text-align:center; }
+:global(.sheetTable) thead th:last-child{ width:96px; text-align:left; }
 
 .sheetTable tbody td,
 :global(.sheetTable) tbody td{
@@ -323,8 +331,23 @@
 .sheetTable tbody td:first-child,
 :global(.sheetTable) tbody td:first-child{ text-align:center; }
 .sheetTable tbody td:last-child,
-:global(.sheetTable) tbody td:last-child{ text-align:center; }
+:global(.sheetTable) tbody td:last-child{ text-align:left; }
 
+.eliminatedRow td {
+  background-color: #cccccc !important;
+  color: #111 !important;
+}
+
+.bestMoveText {
+  font-size: 0.8em;
+  color: #555;
+  margin-left: 4px;
+  font-style: italic;
+}
+
+.eliminatedRow .bestMoveText {
+  color: #222;
+}
 
 
 /* нижняя панель */
@@ -377,22 +400,28 @@
   font-size: .9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: filter .2s, transform .12s;
+  transition: background-color .2s, transform .12s;
+  border-radius: 4px;
 }
 
 .sheetEditBtn:hover, .sheetDeleteBtn:hover {
-  filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
 .sheetEditBtn {
-  background: #4a90e2;
-  color: #fff;
+  background: #4a4a4a;
+  color: #e0e0e0;
+}
+.sheetEditBtn:hover {
+  background: #5a5a5a;
 }
 
 .sheetDeleteBtn {
-  background: #d32f2f;
-  color: #fff;
+  background: #5a2a2a;
+  color: #e5caca;
+}
+.sheetDeleteBtn:hover {
+  background: #6b3a3a;
 }
 
 .sheetDeleteBtn:disabled {
@@ -558,7 +587,7 @@
 .sheetTable thead th:first-child,
 :global(.sheetTable) thead th:first-child{ width:64px; text-align:center; }
 .sheetTable thead th:last-child,
-:global(.sheetTable) thead th:last-child{ width:96px; text-align:center; }
+:global(.sheetTable) thead th:last-child{ width:96px; text-align:left; }
 
 .sheetTable tbody td,
 :global(.sheetTable) tbody td{

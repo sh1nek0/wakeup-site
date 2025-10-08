@@ -10,19 +10,59 @@ body{
   line-height:1.6;
 }
 
+/* --- НАЧАЛО ИЗМЕНЕНИЙ: Стили для верхних контролов и судьи --- */
+.topControlsContainer {
+  max-width: 1200px;
+  margin: 20px auto 0;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.btnWrap{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.judgeInputContainer {
+  position: relative;
+  width: 200px; /* Фиксированная ширина для инпута судьи */
+}
+
+/* Переопределяем стили для инпута судьи, чтобы он был похож на другие */
+.judgeInput {
+  width: 100%;
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  background: #444 !important;
+  border: 1px solid #555 !important;
+  border-radius: 10px !important;
+}
+
+.judgeInput:focus {
+  background: #555 !important;
+  box-shadow: 0 0 0 2px rgba(255, 111, 0, .35) !important;
+}
+/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
+
+
 /* =========================
    Основной контейнер
    ========================= */
 .gameWrapper{
   max-width:1200px;
-  margin:50px auto;
+  margin:20px auto 50px; /* Уменьшен верхний отступ */
   padding:20px;
   background:#1f1f1f;
   border-radius:12px;
   box-shadow:0 6px 18px rgba(0,0,0,.35);
   display:flex;
   gap:20px;
-  position: relative; /* Добавлено для позиционирования btnWrap относительно gameWrapper */
+  position: relative;
 }
 
 /* =========================
@@ -154,18 +194,6 @@ body{
    ========================= */
 .timerBlock{ display:flex; flex-direction:column; align-items:center; padding:20px 15px; border-radius:12px; gap:20px; }
 .timerContainer{ display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; }
-
-.btnWrap{
-  position: absolute;
-  margin-left: 350px;
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  z-index: 10001; /* Увеличен, чтобы btnWrap был выше roleOptions (z-index:9999) */
-  width: fit-content; /* Добавлено, чтобы элементы не растягивались на весь экран */
-  justify-content: flex-start; /* Добавлено для выравнивания по левому краю */
-}
 
 .timerTimeRunning{ font-size:2.5rem; font-weight:700; color:#ff6f00; user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
 .timerTimePaused{   font-size:2.5rem; font-weight:700; color:#ccc;     user-select:none; padding:10px 20px; border-radius:6px; text-align:center; cursor:pointer; }
@@ -486,7 +514,8 @@ body{
   .votingNav{ grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } /* Адаптив для голосования: на мобильных авто-заполнение */
   .modalContent{ padding:15px; max-width:300px; }
   .modalActions{ flex-direction:column; }
-  .btnWrap{ display: none; } /* Добавлено: на мобильных элементы btnWrap вертикально, чтобы не растягиваться */
+  .btnWrap{ flex-direction: column; align-items: stretch; }
+  .judgeInputContainer { width: 100%; }
 }
 
 /* --- СТИЛИ ДЛЯ ПОДСКАЗОК --- */
