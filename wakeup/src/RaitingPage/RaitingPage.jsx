@@ -643,6 +643,14 @@ export default function RatingPage() {
 /* ------------------ ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ------------------ */
 
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
+  const navigate = useNavigate();
+
+  const handlePlayerClick = (playerId) => {
+    if (playerId) {
+      navigate(`/profile/${playerId}`);
+    }
+  };
+
   const renderRoleStats = (wins, games, rolePlusArr) => {
     const gamesCount = games || 0;
     const winsCount = wins || 0;
@@ -697,7 +705,11 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                     className={p.nickname === user?.nickname ? styles.currentUserRow : ''}
                   >
                     <td>{rank}</td>
-                    <td><span className={styles.link}>{p.nickname}</span></td>
+                    <td>
+                      <span className={styles.link} onClick={() => handlePlayerClick(p.id)}>
+                        {p.nickname}
+                      </span>
+                    </td>
                     <td>{p.totalPoints?.toFixed(2) || 0}</td>
                     <td>{totalWins}</td>
                     <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>

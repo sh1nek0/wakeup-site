@@ -303,19 +303,19 @@
 .sheetTable tbody td:last-child { text-align:left; }
 
 /* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
-.sheetTable .eliminatedRow td {
-  background-color: #ffbf8e !important;
+.eliminatedRow td {
+  background-color: #cccccc !important;
   color: #111 !important;
 }
 
 .bestMoveText {
   font-size: 0.8em;
-  color: #000000;
+  color: #aaaaaa;
   margin-left: 4px;
   font-style: italic;
 }
 
-.sheetTable .eliminatedRow .bestMoveText {
+.eliminatedRow .bestMoveText {
   color: #222 !important;
 }
 
