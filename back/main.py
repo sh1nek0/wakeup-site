@@ -1564,7 +1564,7 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
-    scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
+    scheduler.add_job(backup_database, 'cron', hour=8, minute=0)
     scheduler.start()
     print("Планировщик резервного копирования запущен.")
 
