@@ -644,6 +644,45 @@ async def get_users(event_id: str = None):
         db.close()
 
 
+# --- НОВЫЙ ЭНДПОИНТ ДЛЯ СПИСКА ИГРОКОВ ---
+@app.get("/getPlayersList")
+async def get_players_list():
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        games = db.query(Game).all()
+
+        player_game_counts = {user.nickname: 0 for user in users}
+
+        for game in games:
+            try:
+                game_data = json.loads(game.data)
+                player_names_in_game = {p.get("name") for p in game_data.get("players", []) if p.get("name")}
+                for name in player_names_in_game:
+                    if name in player_game_counts:
+                        player_game_counts[name] += 1
+            except (json.JSONDecodeError, TypeError):
+                continue
+        
+        players_list = []
+        for user in users:
+            players_list.append({
+                "id": user.id,
+                "nickname": user.nickname,
+                "club": user.club,
+                "game_count": player_game_counts.get(user.nickname, 0)
+            })
+
+        sorted_players = sorted(players_list, key=lambda p: p["game_count"], reverse=True)
+
+        return {"players": sorted_players}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения списка игроков: {str(e)}")
+    finally:
+        db.close()
+
+
 @app.get("/getUser/{user_id}")
 async def get_user(user_id: str):
     db = SessionLocal()
@@ -1544,7 +1583,7 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
-    scheduler.add_job(backup_database, 'cron', hour=3, minute=0)
+    scheduler.add_job(backup_database, 'cron', hour=8, minute=0)
     scheduler.start()
     print("Планировщик резервного копирования запущен.")
 
