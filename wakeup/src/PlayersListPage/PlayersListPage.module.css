@@ -1,0 +1,99 @@
+.pageWrapper {
+    min-height: 100vh;
+    background: #1f1f1f;
+    color: #fff;
+    font-family: 'Arial', sans-serif;
+    padding: 24px;
+}
+
+.main {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.title {
+    font-size: 48px;
+    font-weight: 800;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.listWrapper {
+    margin-bottom: 18px;
+}
+
+.listHeader {
+    display: flex;
+    align-items: center;
+    background: #1A1A1A;
+    border: 1px solid #2A2A2A;
+    padding: 12px 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.headerRank {
+    flex: 0 0 50px;
+}
+
+.headerPlayer {
+    flex: 1 1 auto;
+}
+
+.headerGames {
+    flex: 0 0 120px;
+    text-align: right;
+}
+
+.playerRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #2E2E2E;
+    border: 1px solid #1F1F1F;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    transition: background-color .2s, transform .15s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.playerRow:hover {
+    background: #2A2A2A;
+    transform: translateY(-2px);
+}
+
+.playerInfo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.rank {
+    font-weight: 700;
+    color: #B0B0B0;
+    width: 30px;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+}
+
+.playerName {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.playerClub {
+    color: #B0B0B0;
+    font-size: 12px;
+}
+
+.gameCount {
+    font-size: 20px;
+    font-weight: 800;
+    width: 120px;
+    text-align: right;
+}
