@@ -1,15 +1,15 @@
-import React, { useContext, useState, useEffect } from "react";
+// ProfilePage.jsx
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import styles from "./ProfilePage.module.css";
-import avatar from "../images/profile_photo/soon.png";
-import { AuthContext } from '../AuthContext';
-import { useParams, useNavigate } from "react-router-dom";
+import { AuthContext } from "../AuthContext";
+import placeholderAvatar from "../images/profile_photo/soon.png";
 
-// --- НАЧАЛО: Компонент для отображения игр игрока ---
+/* ===================== PlayerGames: список игр игрока ===================== */
 const PlayerGames = ({ nickname }) => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!nickname) return;
@@ -18,13 +18,10 @@ const PlayerGames = ({ nickname }) => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/getPlayerGames/${nickname}`);
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить историю игр");
-        }
+        const response = await fetch(`/api/getPlayerGames/${encodeURIComponent(nickname)}`);
+        if (!response.ok) throw new Error("Не удалось загрузить историю игр");
         const data = await response.json();
-        // Сервер уже сортирует по убыванию даты, так что массив готов к использованию
-        setGames(data.games || []);
+        setGames(Array.isArray(data?.games) ? data.games : []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -35,6 +32,7 @@ const PlayerGames = ({ nickname }) => {
     fetchGames();
   }, [nickname]);
 
+  if (!nickname) return <div>Никнейм отсутствует.</div>;
   if (loading) return <div>Загрузка игр...</div>;
   if (error) return <div className={styles.errorBanner}>Ошибка: {error}</div>;
   if (games.length === 0) return <div>У этого игрока пока нет сыгранных игр в рейтинге.</div>;
@@ -44,337 +42,574 @@ const PlayerGames = ({ nickname }) => {
   return (
     <div className={styles.gamesGrid}>
       {games.map((game, index) => (
-        <article key={game.id} className={styles.gameCard}>
+        <article key={game.id ?? `${nickname}-${index}`} className={styles.gameCard}>
           <div className={styles.gameHeader}>
-            {/* Корректная нумерация в обратном порядке */}
             <span>Игра #{totalGames - index}</span>
             <time>{game.date}</time>
           </div>
-          {/* Отображение судьи */}
+
           <div className={styles.gameJudge}>
-            Судья: {game.judge_nickname || 'Не указан'}
+            Судья: {game.judge_nickname || "Не указан"}
           </div>
+
           <table className={styles.gameTable}>
             <tbody>
-              {game.players.map((player, playerIndex) => (
-                <tr key={playerIndex} className={player.name === nickname ? styles.highlightedRow : ''}>
-                  <td className={styles.playerNumber}>{playerIndex + 1}</td>
+              {(game.players || []).map((player, i) => (
+                <tr
+                  key={i}
+                  className={player.name === nickname ? styles.highlightedRow : ""}
+                >
+                  <td className={styles.playerNumber}>{i + 1}</td>
                   <td className={styles.playerName}>{player.name}</td>
                   <td className={styles.playerRole}>{player.role}</td>
-                  <td className={styles.playerPoints}>{player.sum?.toFixed(2)}</td>
+                  <td className={styles.playerPoints}>
+                    {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
           <div className={styles.gameFooter}>
-            <span>{game.badgeColor === 'black' ? 'Победа мафии' : 'Победа мирных'}</span>
+            <span>
+              {game.badgeColor === "black" ? "Победа мафии" : "Победа мирных"}
+            </span>
           </div>
         </article>
       ))}
     </div>
   );
 };
-// --- КОНЕЦ: Компонент для отображения игр игрока ---
+/* ===================== /PlayerGames ===================== */
 
 
-const ProfilePage = ({
-  favoriteCard = "Шериф",
-  club = "WakeUp Mafia | МИЭТ",
-  photoSrc = avatar,
-  number = 3,
-  description = "Здесь будет текст описания игрока..."
-}) => {
-  const { user, token } = useContext(AuthContext);
+/* ===== Утилита: человекочитаемый размер файла ===== */
+const humanFileSize = (bytes) => {
+  const thresh = 1024;
+  if (Math.abs(bytes) < thresh) return bytes + " B";
+  const units = ["KB", "MB", "GB", "TB"];
+  let u = -1;
+  do {
+    bytes /= thresh;
+    ++u;
+  } while (Math.abs(bytes) >= thresh && u < units.length - 1);
+  return bytes.toFixed(1) + " " + units[u];
+};
+
+const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"];
+const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"];
+
+const ProfilePage = () => {
+  const { user, token } = useContext(AuthContext) || {};
   const { profileId } = useParams();
-  const navigate = useNavigate();
-  const targetUserId = profileId;
 
-  const isAdmin = user?.role === 'admin';
-  const isOwnProfile = targetUserId === user?.id;
+  const targetUserId = profileId || user?.id;
+  const isOwnProfile = useMemo(
+    () => !!user && targetUserId === String(user.id),
+    [user, targetUserId]
+  );
+  const isAdmin = user?.role === "admin";
+  const canEdit = isOwnProfile || isAdmin;
 
+  // Состояния профиля
   const [profileData, setProfileData] = useState({
-    nickname: '',
-    name: '',
-    club: club,
-    favoriteCard: favoriteCard,
-    vk: '',
-    tg: '',
-    site1: '',
-    site2: ''
+    nickname: "",
+    name: "",
+    club: "",
+    favoriteCard: "",
+    vk: "",
+    tg: "",
+    site1: "",
+    site2: "",
+    photoUrl: null,
   });
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('Профиль'); // Новое состояние для вкладок
+  const [loadError, setLoadError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveOk, setSaveOk] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  const clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"];
-  const favoriteCards = ["Шериф", "Мирный", "Мафия", "Дон"];
+  const [activeTab, setActiveTab] = useState("profile");
 
+  // Аватар
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const MAX_BYTES = 2 * 1024 * 1024;
+
+  // Нормализация аватара: поддержка старых путей /uploads → /static
+  const normalizeAvatarPath = (url) =>
+    typeof url === "string" && url.startsWith("/uploads/avatars/")
+      ? url.replace("/uploads/avatars/", "/static/avatars/")
+      : url;
+
+  // Поддерживаем два формата ответа бэка: {user:{...}} и плоский {...}
   const resetProfileData = (data) => {
+    const src = data?.user || data || {};
     setProfileData({
-      nickname: data?.nickname || '',
-      name: data?.name || '',
-      club: data?.club || club,
-      favoriteCard: data?.favoriteCard || favoriteCard,
-      vk: data?.vk || '',
-      tg: data?.tg || '',
-      site1: data?.site1 || '',
-      site2: data?.site2 || ''
+      nickname: src.nickname || "",
+      name: src.name || "Здесь будет твое имя",
+      club: src.club || clubsList[0],
+      favoriteCard: src.favoriteCard || favoriteCardsList[0],
+      vk: src.vk || "",
+      tg: src.tg || "",
+      site1: src.site1 || "",
+      site2: src.site2 || "",
+      photoUrl: src.photoUrl || null,
     });
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!targetUserId) {
-        setLoading(false);
-        return;
+  // Загрузка профиля
+  const fetchProfile = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      if (!targetUserId) throw new Error("Не указан ID профиля.");
+      const res = await fetch(`/api/getUser/${encodeURIComponent(targetUserId)}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) {
+        let msg = `Ошибка загрузки профиля (${res.status})`;
+        try {
+          const j = await res.json();
+          msg = j.detail || j.message || msg;
+        } catch {}
+        throw new Error(msg);
       }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        const response = await fetch(`/api/getUser/${targetUserId}`, { method: 'GET', headers });
-
-        if (!response.ok) {
-          let errorMessage = "Ошибка загрузки профиля";
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.detail || errorMessage;
-          } catch {
-            const text = await response.text();
-            if (text.includes('<!DOCTYPE')) {
-              errorMessage = "Ошибка сервера: возвращён HTML вместо JSON.";
-            }
-          }
-          throw new Error(errorMessage);
-        }
-
-        const data = await response.json();
-        resetProfileData(data.user);
-      } catch (err) {
-        console.error("Ошибка загрузки профиля:", err);
-        setError(err.message);
-        if (isOwnProfile && user) resetProfileData(user);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [targetUserId, token, isOwnProfile, user]);
-
-  const handleChange = (field, value) => {
-    setProfileData(prev => ({ ...prev, [field]: value }));
+      const data = await res.json();
+      resetProfileData(data);
+    } catch (e) {
+      setLoadError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = async () => {
+  useEffect(() => {
+    fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetUserId]);
+
+  // Изменение полей
+  const onChangeField = (field) => (e) => {
+    const val = e.target.value;
+    setProfileData((prev) => ({ ...prev, [field]: val }));
+    setSaveOk(false);
+    setSaveError(null);
+  };
+
+  const onToggleEdit = () => {
+    if (!canEdit) return;
+    setIsEditing((v) => !v);
+    setSaveOk(false);
+    setSaveError(null);
+    if (isEditing) {
+      fetchProfile();
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setUploadError(null);
+    }
+  };
+
+  const onSave = async () => {
+    if (!canEdit) return;
     if (!token) {
-      setError("Необходима авторизация для сохранения");
+      setSaveError("Необходима авторизация.");
       return;
     }
-
     setSaving(true);
-    setError(null);
-
+    setSaveError(null);
+    setSaveOk(false);
     try {
-      const response = await fetch('/api/updateProfile', {
-        method: 'POST',
+      // как во втором файле: POST /api/updateProfile
+      const res = await fetch(`/api/updateProfile`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           userId: targetUserId,
-          ...profileData
+          name: profileData.name,
+          club: profileData.club,
+          favoriteCard: profileData.favoriteCard,
+          vk: profileData.vk,
+          tg: profileData.tg,
+          site1: profileData.site1,
+          site2: profileData.site2,
+          // nickname намеренно НЕ отправляем (запрет редактирования никнейма)
         }),
       });
-
-      if (!response.ok) {
-        let errorMessage = "Ошибка сохранения профиля";
+      if (!res.ok) {
+        let msg = `Ошибка сохранения (${res.status})`;
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorMessage;
-        } catch {
-          const text = await response.text();
-          if (text.includes('<!DOCTYPE')) {
-            errorMessage = "Ошибка сервера: возвращён HTML вместо JSON.";
-          }
-        }
-        throw new Error(errorMessage);
+          const j = await res.json();
+          msg = j.detail || j.message || msg;
+        } catch {}
+        throw new Error(msg);
       }
-
-      const data = await response.json();
-      alert(data.message || "Профиль обновлен");
+      setSaveOk(true);
       setIsEditing(false);
-    } catch (err) {
-      console.error("Ошибка сохранения:", err);
-      setError(err.message);
+      fetchProfile();
+    } catch (e) {
+      setSaveError(e.message);
     } finally {
+      window.location.reload();
       setSaving(false);
     }
   };
 
-  const handleCancel = () => setIsEditing(false);
-  const canEdit = (isAdmin || isOwnProfile) && !!token;
+  // Работа с аватаром
+  const onPickAvatar = (file) => {
+    setUploadError(null);
+    setAvatarFile(null);
+    setAvatarPreview(null);
 
-  const tabs = ["Профиль", "Игры", "Статистика", "Турниры"];
+    if (!file) return;
+    if (file.type !== "image/png") {
+      setUploadError("Допустим только PNG-файл.");
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setUploadError(
+        `Файл слишком большой (${humanFileSize(file.size)}). Лимит: ${humanFileSize(MAX_BYTES)}.`
+      );
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setAvatarFile(file);
+    setAvatarPreview(url);
+  };
+
+  const uploadAvatar = async () => {
+    if (!canEdit) return;
+    if (!token) {
+      setUploadError("Необходима авторизация для загрузки файла.");
+      return;
+    }
+    if (!avatarFile) {
+      setUploadError("Сначала выберите PNG-файл.");
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append("avatar", avatarFile);
+      form.append("userId", String(targetUserId));
+
+      const res = await fetch("/api/profile/avatar", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      if (!res.ok) {
+        let msg = "Ошибка загрузки файла.";
+        try {
+          const j = await res.json();
+          msg = j.detail || j.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setProfileData((prev) => ({ ...prev, photoUrl: data.url }));
+    } catch (e) {
+      setUploadError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Источник фото (с нормализацией старых путей)
+  const photoSrc =
+    avatarPreview ||
+    normalizeAvatarPath(profileData.photoUrl) ||
+    placeholderAvatar;
+
+  // Состояния загрузки
+  if (loading) return <div className={styles.pageWrapper}>Загрузка…</div>;
+  if (loadError)
+    return (
+      <div className={styles.pageWrapper}>
+        <div>{loadError}</div>
+        <button onClick={fetchProfile}>Повторить</button>
+      </div>
+    );
 
   return (
     <div className={styles.pageWrapper}>
-      
-      {error && (
-        <div className={styles.errorBanner}>
-          ⚠️ {error}
-          <button onClick={() => setError(null)} className={styles.closeBtn}>×</button>
-        </div>
-      )}
+      {saveOk && <div className={styles.successBanner}>Изменения сохранены ✅</div>}
+      {saveError && <div className={styles.errorBanner}>{saveError}</div>}
 
       <div className={styles.mainContent}>
-        {loading ? (
-          <div>Загрузка профиля...</div>
-        ) : (
-          <>
-            <div className={styles.left}>
-              <h2 className={styles.nickname}>
-                {profileData.nickname || "Имя не указано"}
-              </h2>
+        {/* Левая колонка */}
+        <div className={styles.left}>
+          {/* Никнейм — НЕ редактируем */}
+          <div className={styles.nickname}>{profileData.nickname || "—"}</div>
 
-              <div className={styles.tabs}>
-                {tabs.map(tab => (
-                  <button 
-                    key={tab} 
-                    onClick={() => setActiveTab(tab)}
-                    className={activeTab === tab ? styles.activeTab : ''}
+          {/* Вкладки */}
+          <div className={styles.tabsWrapper}>
+            <button
+              className={`${styles.tabButton} ${activeTab === "profile" ? styles.active : ""}`}
+              onClick={() => setActiveTab("profile")}
+            >
+              Профиль
+            </button>
+            <button
+              className={`${styles.tabButton} ${activeTab === "stats" ? styles.active : ""}`}
+              onClick={() => setActiveTab("stats")}
+            >
+              Статистика
+            </button>
+            <button
+              className={`${styles.tabButton} ${activeTab === "tournaments" ? styles.active : ""}`}
+              onClick={() => setActiveTab("tournaments")}
+            >
+              Турниры
+            </button>
+            <button
+              className={`${styles.tabButton} ${activeTab === "games" ? styles.active : ""}`}
+              onClick={() => setActiveTab("games")}
+            >
+              Игры
+            </button>
+          </div>
+
+          {/* Контент вкладок */}
+          {activeTab === "profile" && (
+            <div className={styles.infoBox}>
+              {/* Имя */}
+              <p>
+                <span>Имя:</span>{" "}
+                {isEditing && canEdit ? (
+                  <input
+                    type="text"
+                    value={profileData.name}
+                    onChange={onChangeField("name")}
+                    placeholder="Введите имя"
+                  />
+                ) : (
+                  profileData.name || "—"
+                )}
+              </p>
+
+              {/* Любимая карта (select) */}
+              <p>
+                <span>Любимая карта:</span>{" "}
+                {isEditing && canEdit ? (
+                  <select
+                    value={profileData.favoriteCard}
+                    onChange={onChangeField("favoriteCard")}
                   >
-                    {tab}
+                    {favoriteCardsList.map((card) => (
+                      <option key={card} value={card}>
+                        {card}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  profileData.favoriteCard || "—"
+                )}
+              </p>
+
+              {/* Клуб (select) */}
+              <p>
+                <span>Клуб:</span>{" "}
+                {isEditing && canEdit ? (
+                  <select
+                    value={profileData.club}
+                    onChange={onChangeField("club")}
+                  >
+                    {clubsList.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  profileData.club || "—"
+                )}
+              </p>
+
+              {/* VK */}
+              <p>
+                <span>VK:</span>{" "}
+                {isEditing && canEdit ? (
+                  <input
+                    type="text"
+                    value={profileData.vk}
+                    onChange={onChangeField("vk")}
+                    placeholder="Ссылка на VK"
+                  />
+                ) : profileData.vk ? (
+                  <a href={profileData.vk} target="_blank" rel="noreferrer">
+                    {profileData.vk}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </p>
+
+              {/* Telegram */}
+              <p>
+                <span>Telegram:</span>{" "}
+                {isEditing && canEdit ? (
+                  <input
+                    type="text"
+                    value={profileData.tg}
+                    onChange={onChangeField("tg")}
+                    placeholder="Ссылка на Telegram"
+                  />
+                ) : profileData.tg ? (
+                  <a href={profileData.tg} target="_blank" rel="noreferrer">
+                    {profileData.tg}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </p>
+
+              {/* Gomafia */}
+              <p>
+                <span>Gomafia:</span>{" "}
+                {isEditing && canEdit ? (
+                  <input
+                    type="text"
+                    value={profileData.site1}
+                    onChange={onChangeField("site1")}
+                    placeholder="Ссылка на Gomafia"
+                  />
+                ) : profileData.site1 ? (
+                  <a href={profileData.site1} target="_blank" rel="noreferrer">
+                    {profileData.site1}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </p>
+
+              {/* Mafia Universe */}
+              <p>
+                <span>Mafia Universe:</span>{" "}
+                {isEditing && canEdit ? (
+                  <input
+                    type="text"
+                    value={profileData.site2}
+                    onChange={onChangeField("site2")}
+                    placeholder="Ссылка на Mafia Universe"
+                  />
+                ) : profileData.site2 ? (
+                  <a href={profileData.site2} target="_blank" rel="noreferrer">
+                    {profileData.site2}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </p>
+            </div>
+          )}
+
+          {activeTab === "stats" && (
+            <div className={styles.statsContainer}>
+              <h3 className={styles.statsTitle}>Общая статистика</h3>
+              <table className={styles.statsTable}>
+                <tbody>
+                  <tr><td>Игры</td><td>0</td></tr>
+                  <tr><td>Победы</td><td>0</td></tr>
+                  <tr><td>Поражения</td><td>0</td></tr>
+                  <tr><td>Ничьи</td><td>0</td></tr>
+                  <tr><td>Winrate</td><td>0%</td></tr>
+                </tbody>
+              </table>
+
+              <h3 className={styles.statsTitle}>По ролям</h3>
+              <table className={styles.statsTable}>
+                <thead>
+                  <tr><th>Роль</th><th>Игры</th><th>Победы</th><th>%</th><th>Поражения</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Черная карта</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                  <tr><td>Дон</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                  <tr><td>Мафия</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                  <tr><td>Красная карта</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                  <tr><td>Шериф</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                  <tr><td>Мирный</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === "tournaments" && (
+            <div className={styles.infoBox}>Турниры скоро появятся…</div>
+          )}
+
+          {activeTab === "games" && (
+            <PlayerGames nickname={profileData.nickname} />
+          )}
+
+          {/* Кнопки редактирования снизу (только на вкладке «Профиль») */}
+          {canEdit && activeTab === "profile" && (
+            <div className={styles.editControls}>
+              {!isEditing ? (
+                <button onClick={onToggleEdit}>Редактировать</button>
+              ) : (
+                <>
+                  <button onClick={onSave} disabled={saving}>
+                    {saving ? "Сохранение…" : "Сохранить"}
                   </button>
-                ))}
-              </div>
-
-              {activeTab === 'Профиль' && (
-                <div className={styles.infoBox}>
-                  <p><span>Имя: </span>
-                    {isEditing && canEdit ? (
-                      <input
-                        type="text"
-                        value={profileData.name}
-                        onChange={(e) => handleChange('name', e.target.value)}
-                        placeholder="Введите имя"
-                      />
-                    ) : (profileData.name || "Не указано")}
-                  </p>
-
-                  <p><span>Любимая карта:</span>
-                    {isEditing && canEdit ? (
-                      <select
-                        value={profileData.favoriteCard}
-                        onChange={(e) => handleChange('favoriteCard', e.target.value)}
-                      >
-                        {favoriteCards.map(card => (
-                          <option key={card} value={card}>{card}</option>
-                        ))}
-                      </select>
-                    ) : profileData.favoriteCard}
-                  </p>
-
-                  <p><span>Клуб:</span>
-                    {isEditing && canEdit ? (
-                      <select
-                        value={profileData.club}
-                        onChange={(e) => handleChange('club', e.target.value)}
-                      >
-                        {clubs.map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    ) : profileData.club}
-                  </p>
-
-                  <p><span>VK:</span>
-                    {isEditing && canEdit ? (
-                      <input
-                        type="text"
-                        value={profileData.vk}
-                        onChange={(e) => handleChange('vk', e.target.value)}
-                        placeholder="Ссылка на VK"
-                      />
-                    ) : (profileData.vk ? <a href={profileData.vk} target="_blank" rel="noopener noreferrer">{profileData.vk}</a> : "Не указано")}
-                  </p>
-
-                  <p><span>Telegram:</span>
-                    {isEditing && canEdit ? (
-                      <input
-                        type="text"
-                        value={profileData.tg}
-                        onChange={(e) => handleChange('tg', e.target.value)}
-                        placeholder="Ссылка на Telegram"
-                      />
-                    ) : (profileData.tg ? <a href={profileData.tg} target="_blank" rel="noopener noreferrer">{profileData.tg}</a> : "Не указано")}
-                  </p>
-
-                  <p><span>Gomafia:</span>
-                    {isEditing && canEdit ? (
-                      <input
-                        type="text"
-                        value={profileData.site1}
-                        onChange={(e) => handleChange('site1', e.target.value)}
-                        placeholder="Ссылка на Gomafia"
-                      />
-                    ) : (profileData.site1 ? <a href={profileData.site1} target="_blank" rel="noopener noreferrer">{profileData.site1}</a> : "Не указано")}
-                  </p>
-
-                  <p><span>Mafia Universe:</span>
-                    {isEditing && canEdit ? (
-                      <input
-                        type="text"
-                        value={profileData.site2}
-                        onChange={(e) => handleChange('site2', e.target.value)}
-                        placeholder="Ссылка на Mafia Universe"
-                      />
-                    ) : (profileData.site2 ? <a href={profileData.site2} target="_blank" rel="noopener noreferrer">{profileData.site2}</a> : "Не указано")}
-                  </p>
-                </div>
-              )}
-
-              {activeTab === 'Игры' && (
-                <PlayerGames nickname={profileData.nickname} />
-              )}
-              
-              {activeTab === 'Статистика' && <div>Статистика скоро появится...</div>}
-              {activeTab === 'Турниры' && <div>Турниры скоро появятся...</div>}
-
-              {canEdit && activeTab === 'Профиль' && (
-                <div className={styles.editControls}>
-                  {isEditing ? (
-                    <>
-                      <button onClick={handleSave} disabled={saving}>
-                        {saving ? "Сохранение..." : "Сохранить"}
-                      </button>
-                      <button onClick={handleCancel}>Отмена</button>
-                    </>
-                  ) : (
-                    <button onClick={() => setIsEditing(true)}>Редактировать</button>
-                  )}
-                </div>
+                  <button onClick={onToggleEdit}>Отмена</button>
+                </>
               )}
             </div>
+          )}
+        </div>
 
-            <div className={styles.right}>
-              <img src={photoSrc} alt="Фото профиля" className={styles.photo} />
+        {/* Правая колонка */}
+        <div className={styles.right}>
+          <img
+            src={photoSrc}
+            alt="Фото профиля"
+            className={styles.photo}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = placeholderAvatar;
+            }}
+          />
+
+          {canEdit && isEditing && (
+            <div className={styles.uploadBox}>
+              <label className={styles.fileLabel}>
+                <input
+                  type="file"
+                  accept="image/png"
+                  onChange={(e) => onPickAvatar(e.target.files?.[0] || null)}
+                />
+                Выбрать PNG
+              </label>
+              {avatarPreview && (
+                <div className={styles.hint}>
+                  Предпросмотр — нажмите «Загрузить»
+                </div>
+              )}
+              <button onClick={uploadAvatar} disabled={uploading || !avatarFile}>
+                {uploading ? "Загрузка…" : "Загрузить аватар"}
+              </button>
+              {uploadError && <div className={styles.errorText}>{uploadError}</div>}
             </div>
-          </>
-        )}
-      </div>
-
-      <div className={styles.descriptionBox}>
-        <h3>Описание игрока</h3>
-        <p>{description}</p>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,16 +1,20 @@
 import os
 from dotenv import load_dotenv
+import io
+from PIL import Image
+from sqlalchemy.orm import Session
 
 load_dotenv()
-
+from pathlib import Path
 import re
 import uuid
 import math
 import shutil
 from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi.staticfiles import StaticFiles
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException,Form,File,UploadFile, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
@@ -25,6 +29,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 
 security = HTTPBearer(auto_error=False)
 
@@ -74,6 +79,14 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+AVATAR_DIR = Path("uploads") / "avatars"
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+
+
+
+MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 # Настройки для JWT и паролей
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -321,6 +334,13 @@ app.add_middleware(
     allow_headers=["*"],  # Разрешить все заголовки
 )
 
+AVATAR_DIR = Path("sratic") / "avatars"
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static/avatars", StaticFiles(directory=str(AVATAR_DIR)), name="avatars")
+
+MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
 # --- ИСПРАВЛЕННАЯ ЛОГИКА ПОИСКА ---
 
 def get_all_player_names(db: SessionLocal):
@@ -451,8 +471,6 @@ async def get_player_suggestions(query: str):
     # Сортируем по рангу и берем топ-10
     sorted_suggestions = sorted(unique_suggestions.values(), key=lambda x: x["rank"])
     return [s["name"] for s in sorted_suggestions[:10]]
-
-
 
 # Эндпоинт для регистрации (обновлён: добавлена обработка club и update_ai)
 @app.post("/register")
@@ -644,7 +662,8 @@ async def get_user(user_id: str):
             "vk": user_obj.vk,
             "tg": user_obj.tg,
             "site1": user_obj.site1,
-            "site2": user_obj.site2
+            "site2": user_obj.site2,
+            'photoUrl':user_obj.avatar
         }
         return {"user": user_data}
     except Exception as e:
@@ -675,7 +694,7 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
         user_to_update.tg = request.tg
         user_to_update.site1 = request.site1
         user_to_update.site2 = request.site2
-
+        
         db.commit()
 
         return {"message": "Профиль обновлен успешно"}
@@ -1533,6 +1552,149 @@ def start_scheduler():
 def shutdown_scheduler():
     scheduler.shutdown()
     print("Планировщик резервного копирования остановлен.")
+
+
+
+
+# -----------------------------------------------------------------------------
+# Pydantic-модели для ответов
+# -----------------------------------------------------------------------------
+class AvatarUploadResponse(BaseModel):
+    url: str
+
+class ProfileResponse(BaseModel):
+    id: str
+    nickname: Optional[str] = None
+    name: Optional[str] = None
+    club: Optional[str] = None
+    favoriteCard: Optional[str] = None
+    vk: Optional[str] = None
+    tg: Optional[str] = None
+    site1: Optional[str] = None
+    site2: Optional[str] = None
+    photoUrl: Optional[str] = None
+
+# -----------------------------------------------------------------------------
+# Хелперы
+# -----------------------------------------------------------------------------
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def human_size(n: int) -> str:
+    units = ["B", "KB", "MB", "GB"]
+    i = 0
+    f = float(n)
+    while f >= 1024 and i < len(units) - 1:
+        f /= 1024
+        i += 1
+    return f"{f:.1f} {units[i]}"
+
+# -----------------------------------------------------------------------------
+# API: Загрузка PNG-аватара
+# -----------------------------------------------------------------------------
+@app.post("/profile/avatar", response_model=AvatarUploadResponse)
+async def upload_avatar(
+    userId: str = Form(..., description="ID пользователя, чей аватар обновляем"),
+    avatar: UploadFile = File(..., description="PNG-файл с аватаром"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db), 
+):
+    # ---- ACL: можно править свой профиль или если admin
+    if (str(current_user.id) != str(userId)) and (getattr(current_user, "role", "user") != "admin"):
+        raise HTTPException(status_code=403, detail="У вас нет прав для обновления этого аватара")
+
+    # ---- Найдём пользователя
+    user: Optional[User] = db.query(User).filter(User.id == userId).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    # ---- Проверка типа из заголовков (не полагаемся на это полностью)
+    if avatar.content_type != "image/png":
+        raise HTTPException(status_code=400, detail="Допустим только PNG-файл")
+
+    # ---- Считываем с лимитом размера
+    total = 0
+    chunks = bytearray()
+    try:
+        while True:
+            chunk = await avatar.read(1024 * 1024)  # 1MB чанки
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Файл слишком большой ({human_size(total)}). Лимит: {human_size(MAX_BYTES)}",
+                )
+            chunks.extend(chunk)
+    finally:
+        await avatar.close()
+
+    data = bytes(chunks)
+
+    # ---- Проверка «магической» подписи PNG
+    if not data.startswith(PNG_SIGNATURE):
+        raise HTTPException(status_code=400, detail="Файл не является корректным PNG")
+
+    # ---- Безопасная обработка через Pillow:
+    #      - открываем из памяти
+    #      - конвертируем в RGBA/RGB
+    #      - ресайзим до 512x512 (cover)
+    #      - повторно кодируем в PNG с оптимизацией и БЕЗ EXIF
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            # Если изображение «узкое»/«высокое» — приводим к квадрату cover-обрезкой
+            # 1) посчитаем кроп в центр под квадрат
+            w, h = im.size
+            side = min(w, h)
+            left = (w - side) // 2
+            top = (h - side) // 2
+            right = left + side
+            bottom = top + side
+            im = im.crop((left, top, right, bottom))
+
+            # 2) ресайз до 512
+            im = im.resize((512, 512), Image.LANCZOS)
+
+            # 3) конвертация (убирает цветовые профили/метаданные)
+            if im.mode not in ("RGB", "RGBA"):
+                im = im.convert("RGBA")
+
+            out_buf = io.BytesIO()
+            im.save(out_buf, format="PNG", optimize=True, compress_level=9)
+            safe_png = out_buf.getvalue()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Не удалось обработать изображение: {e}")
+
+    # ---- Сохраняем под детерминированным именем
+    filename = f"{userId}.png"
+    filepath = AVATAR_DIR / filename
+    try:
+        with open(filepath, "wb") as f:
+            f.write(safe_png)
+        os.chmod(filepath, 0o644)  # права только на чтение для всех
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка записи файла: {e}")
+
+    # ---- Обновляем ссылку в БД (можете хранить относительный путь)
+    url = f"http://127.0.0.1:8000/static/avatars/{filename}"
+    try:
+        user.avatar = url
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Не удалось обновить профиль: {e}")
+
+    # ---- Возврат ссылки
+    return AvatarUploadResponse(url=url)
+
+
 
 
 if __name__ == "__main__":
