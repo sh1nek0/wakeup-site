@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
 import { AuthContext } from '../AuthContext';
 
-// --- НОВЫЙ КОМПОНЕНТ ДЛЯ ИНПУТА С ПОДСКАЗКАМИ ---
-const NameInputWithSuggestions = ({ player, onNameChange, isPenaltyTime }) => {
+// --- КОМПОНЕНТ ДЛЯ ИНПУТА С ПОДСКАЗКАМИ ---
+const SuggestionInput = ({ value, onChange, placeholder, disabled, className }) => {
     const [suggestions, setSuggestions] = useState([]);
     const [isActive, setIsActive] = useState(false);
     const debounceTimeoutRef = useRef(null);
@@ -30,17 +30,17 @@ const NameInputWithSuggestions = ({ player, onNameChange, isPenaltyTime }) => {
                 console.error("Failed to fetch suggestions:", error);
                 setSuggestions([]);
             }
-        }, 300); // 300ms задержка
+        }, 300);
     };
 
     const handleChange = (e) => {
-        const { value } = e.target;
-        onNameChange(player.id, value);
-        fetchSuggestions(value);
+        const newValue = e.target.value;
+        onChange(newValue);
+        fetchSuggestions(newValue);
     };
 
     const handleSuggestionClick = (name) => {
-        onNameChange(player.id, name);
+        onChange(name);
         setSuggestions([]);
     };
 
@@ -48,14 +48,13 @@ const NameInputWithSuggestions = ({ player, onNameChange, isPenaltyTime }) => {
         <div className={styles.nameInputContainer}>
             <input
                 type="text"
-                className={styles.nameInput}
-                value={player.name}
-                placeholder={`Игрок ${player.id}`}
+                className={`${styles.nameInput} ${className || ''}`}
+                value={value}
+                placeholder={placeholder}
                 onChange={handleChange}
                 onFocus={() => setIsActive(true)}
-                onBlur={() => setTimeout(() => setIsActive(false), 200)} // Задержка, чтобы успел сработать клик
-                disabled={isPenaltyTime}
-                aria-label={`Имя игрока ${player.id}`}
+                onBlur={() => setTimeout(() => setIsActive(false), 200)}
+                disabled={disabled}
                 autoComplete="off"
             />
             {isActive && suggestions.length > 0 && (
@@ -64,7 +63,6 @@ const NameInputWithSuggestions = ({ player, onNameChange, isPenaltyTime }) => {
                         <div
                             key={index}
                             className={styles.suggestionItem}
-                            // onMouseDown используется вместо onClick, чтобы сработать до onBlur инпута
                             onMouseDown={() => handleSuggestionClick(name)}
                         >
                             {name}
@@ -364,6 +362,8 @@ const Game = () => {
   const [sheriffResults, setSheriffResults] = useState({});
   const [activeTab, setActiveTab] = useState('fouls');
   const [badgeColor, setBadgeColor] = useState('red');
+  
+  const [judgeNickname, setJudgeNickname] = useState('');
 
   // показ ролей
   const [visibleRole, setVisibleRole] = useState(true)
@@ -409,7 +409,7 @@ const Game = () => {
 
     const dataToSave = {
       players,
-      gameInfo: { votingResults, shootingResults, donResults, sheriffResults },
+      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname }, // Добавляем судью в localStorage
       currentDay,
       currentPhase,
       badgeColor,
@@ -429,6 +429,7 @@ const Game = () => {
     currentDay,
     currentPhase,
     badgeColor,
+    judgeNickname, // Добавляем судью в зависимости
     loading,
   ]);
   const showMessage = (message, isError = false) => {
@@ -672,6 +673,7 @@ const Game = () => {
     setCurrentDay('Д.1');
     setCurrentPhase('nominating');
     setBadgeColor('red');
+    setJudgeNickname(user?.nickname || '');
   };
 
   const fetchGameData = async () => {
@@ -690,6 +692,7 @@ const Game = () => {
         setCurrentDay(data.currentDay || 'Д.1');
         setCurrentPhase(data.currentPhase || 'nominating');
         setBadgeColor(data.badgeColor || 'red');
+        setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
         setLoading(false);
         console.log("Данные игры загружены из localStorage.");
         return;
@@ -715,6 +718,7 @@ const Game = () => {
         setShootingResults(data.gameInfo.shootingResults || {});
         setDonResults(data.gameInfo.donResults || {});
         setSheriffResults(data.gameInfo.sheriffResults || {});
+        setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
       }
       if (data.currentDay) setCurrentDay(data.currentDay);
       if (data.currentPhase) setCurrentPhase(data.currentPhase);
@@ -732,7 +736,7 @@ const Game = () => {
   useEffect(() => {
     fetchGameData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId]);
+  }, [gameId, user]); // Добавляем user в зависимости, чтобы установить судью по умолчанию
 
   const clearSavedData = () => {
     localStorage.removeItem(getLocalStorageKey());
@@ -752,7 +756,6 @@ const Game = () => {
     showMessage("Сохраненные данные для этой игры очищены.");
   };
 
-  // ИЗМЕНЕНИЕ: Функция для очистки кэша списков на странице рейтинга
   const clearRatingPageCache = () => {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('players_') || key.startsWith('games_') || key.startsWith('detailedStats_')) {
@@ -777,7 +780,13 @@ const Game = () => {
       eventId,
       players,
       fouls: players.map(({ id, fouls }) => ({ playerId: id, fouls })),
-      gameInfo: { votingResults, shootingResults, donResults, sheriffResults },
+      gameInfo: { 
+        votingResults, 
+        shootingResults, 
+        donResults, 
+        sheriffResults,
+        judgeNickname 
+      },
       currentDay,
       currentPhase,
       badgeColor,
@@ -797,9 +806,7 @@ const Game = () => {
         const result = await response.json();
         showMessage(result.message);
         localStorage.removeItem(getLocalStorageKey());
-        // ИЗМЕНЕНИЕ: Очищаем кэш списков после успешного сохранения
         clearRatingPageCache();
-        // ИЗМЕНЕНИЕ: Перенаправляем на страницу рейтинга, на вкладку "Игры"
         setTimeout(() => navigate('/rating', { state: { defaultTab: 'Игры' } }), 500);
       } else {
         let errorMsg = 'Неизвестная ошибка';
@@ -853,24 +860,37 @@ const Game = () => {
           {errorMessage}
         </div>
       )}
-      <div className={styles.btnWrap}>
-        <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} />
-        <button
-          type="button"
-          onClick={() => !isPenaltyTime && clearSavedData()} // Дизейбл
-          className={styles.clearBtn}
-          disabled={isPenaltyTime}
-        >
-          Очистить форму
-        </button>
-        <button
-          type="button"
-          onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
-          disabled={isPenaltyTime}
-          className={styles.clearBtn}
-        >
-          {!visibleRole ? "Показать роли" : "Скрыть роль"}
-        </button>
+      <div className={styles.topControlsContainer}>
+        <div className={styles.btnWrap}>
+          <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} />
+          <button
+            type="button"
+            onClick={() => !isPenaltyTime && clearSavedData()}
+            className={styles.clearBtn}
+            disabled={isPenaltyTime}
+          >
+            Очистить форму
+          </button>
+          <button
+            type="button"
+            onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
+            disabled={isPenaltyTime}
+            className={styles.clearBtn}
+          >
+            {!visibleRole ? "Показать роли" : "Скрыть роль"}
+          </button>
+        </div>
+        {isAdmin && (
+          <div className={styles.judgeInputContainer}>
+            <SuggestionInput
+              value={judgeNickname}
+              onChange={setJudgeNickname}
+              placeholder="Судья"
+              disabled={isPenaltyTime}
+              className={styles.judgeInput}
+            />
+          </div>
+        )}
       </div>
 
       <div
@@ -915,10 +935,11 @@ const Game = () => {
                 </td>
 
                 <td>
-                  <NameInputWithSuggestions
-                    player={player}
-                    onNameChange={handleNameChange}
-                    isPenaltyTime={isPenaltyTime}
+                  <SuggestionInput
+                    value={player.name}
+                    onChange={(value) => handleNameChange(player.id, value)}
+                    placeholder={`Игрок ${player.id}`}
+                    disabled={isPenaltyTime}
                   />
                 </td>
 

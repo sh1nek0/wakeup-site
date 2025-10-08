@@ -353,7 +353,7 @@ export default function RatingPage() {
                               {player.name}
                             </div>
                             <div className={styles.playerSubtitle}>
-                              {player.club} ({player.games} игр / {player.points.toFixed(2)} Σ)
+                              {player.club}
                             </div>
                           </div>
                         </div>
@@ -449,6 +449,9 @@ export default function RatingPage() {
                     );
                     return (
                       <article key={game.id} className={styles.sheetCard}>
+                        <div className={styles.sheetJudge}>
+                          Судья: {game.judge_nickname || 'Не указан'}
+                        </div>
                         <div className={styles.sheetTop}>
                           <span className={styles.sheetTitle}>
                             Игра #{gameNumber}
@@ -474,11 +477,26 @@ export default function RatingPage() {
                             </thead>
                             <tbody>
                               {rows.map((row, i) => (
-                                <tr key={`${game.id}-${i}`}>
+                                <tr
+                                  key={`${game.id}-${i}`}
+                                  className={
+                                    row.best_move ? styles.eliminatedRow : ''
+                                  }
+                                >
                                   <td>{i + 1}</td>
-                                  <td className={styles.nameP} > {row.name ?? row.nickname ?? ''} </td>
+                                  <td className={styles.nameP}>
+                                    {row.name ?? row.nickname ?? ''}
+                                  </td>
                                   <td>{row.role ?? row.role_name ?? ''}</td>
-                                  <td>{row.points?.toFixed(2) ?? ''}</td>
+                                  <td>
+                                    {row.points?.toFixed(2) ?? ''}
+                                    {row.best_move && (
+                                      <span className={styles.bestMoveText}>
+                                        {' '}
+                                        (ЛХ: {row.best_move})
+                                      </span>
+                                    )}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -625,6 +643,14 @@ export default function RatingPage() {
 /* ------------------ ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ------------------ */
 
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
+  const navigate = useNavigate();
+
+  const handlePlayerClick = (playerId) => {
+    if (playerId) {
+      navigate(`/profile/${playerId}`);
+    }
+  };
+
   const renderRoleStats = (wins, games, rolePlusArr) => {
     const gamesCount = games || 0;
     const winsCount = wins || 0;
@@ -679,7 +705,11 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                     className={p.nickname === user?.nickname ? styles.currentUserRow : ''}
                   >
                     <td>{rank}</td>
-                    <td><span className={styles.link}>{p.nickname}</span></td>
+                    <td>
+                      <span className={styles.link} onClick={() => handlePlayerClick(p.id)}>
+                        {p.nickname}
+                      </span>
+                    </td>
                     <td>{p.totalPoints?.toFixed(2) || 0}</td>
                     <td>{totalWins}</td>
                     <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>

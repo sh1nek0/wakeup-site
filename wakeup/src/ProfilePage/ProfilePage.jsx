@@ -2,7 +2,80 @@ import React, { useContext, useState, useEffect } from "react";
 import styles from "./ProfilePage.module.css";
 import avatar from "../images/profile_photo/soon.png";
 import { AuthContext } from '../AuthContext';
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+
+// --- НАЧАЛО: Компонент для отображения игр игрока ---
+const PlayerGames = ({ nickname }) => {
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!nickname) return;
+
+    const fetchGames = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/getPlayerGames/${nickname}`);
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить историю игр");
+        }
+        const data = await response.json();
+        // Сервер уже сортирует по убыванию даты, так что массив готов к использованию
+        setGames(data.games || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGames();
+  }, [nickname]);
+
+  if (loading) return <div>Загрузка игр...</div>;
+  if (error) return <div className={styles.errorBanner}>Ошибка: {error}</div>;
+  if (games.length === 0) return <div>У этого игрока пока нет сыгранных игр в рейтинге.</div>;
+
+  const totalGames = games.length;
+
+  return (
+    <div className={styles.gamesGrid}>
+      {games.map((game, index) => (
+        <article key={game.id} className={styles.gameCard}>
+          <div className={styles.gameHeader}>
+            {/* Корректная нумерация в обратном порядке */}
+            <span>Игра #{totalGames - index}</span>
+            <time>{game.date}</time>
+          </div>
+          {/* Отображение судьи */}
+          <div className={styles.gameJudge}>
+            Судья: {game.judge_nickname || 'Не указан'}
+          </div>
+          <table className={styles.gameTable}>
+            <tbody>
+              {game.players.map((player, playerIndex) => (
+                <tr key={playerIndex} className={player.name === nickname ? styles.highlightedRow : ''}>
+                  <td className={styles.playerNumber}>{playerIndex + 1}</td>
+                  <td className={styles.playerName}>{player.name}</td>
+                  <td className={styles.playerRole}>{player.role}</td>
+                  <td className={styles.playerPoints}>{player.sum?.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className={styles.gameFooter}>
+            <span>{game.badgeColor === 'black' ? 'Победа мафии' : 'Победа мирных'}</span>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+};
+// --- КОНЕЦ: Компонент для отображения игр игрока ---
+
 
 const ProfilePage = ({
   favoriteCard = "Шериф",
@@ -13,10 +86,11 @@ const ProfilePage = ({
 }) => {
   const { user, token } = useContext(AuthContext);
   const { profileId } = useParams();
+  const navigate = useNavigate();
   const targetUserId = profileId;
 
   const isAdmin = user?.role === 'admin';
-  const isOwnProfile = targetUserId == user?.id;
+  const isOwnProfile = targetUserId === user?.id;
 
   const [profileData, setProfileData] = useState({
     nickname: '',
@@ -32,7 +106,8 @@ const ProfilePage = ({
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); // теперь не блокирует интерфейс
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('Профиль'); // Новое состояние для вкладок
 
   const clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"];
   const favoriteCards = ["Шериф", "Мирный", "Мафия", "Дон"];
@@ -148,10 +223,11 @@ const ProfilePage = ({
   const handleCancel = () => setIsEditing(false);
   const canEdit = (isAdmin || isOwnProfile) && !!token;
 
+  const tabs = ["Профиль", "Игры", "Статистика", "Турниры"];
+
   return (
     <div className={styles.pageWrapper}>
       
-      {/* 🔔 Блок уведомлений об ошибке */}
       {error && (
         <div className={styles.errorBanner}>
           ⚠️ {error}
@@ -170,97 +246,110 @@ const ProfilePage = ({
               </h2>
 
               <div className={styles.tabs}>
-                <button>Профиль</button>
-                <button>Статистика</button>
-                <button>Турниры</button>
-                <button>Альбомы</button>
+                {tabs.map(tab => (
+                  <button 
+                    key={tab} 
+                    onClick={() => setActiveTab(tab)}
+                    className={activeTab === tab ? styles.activeTab : ''}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
 
-              <div className={styles.infoBox}>
-                {/* стандартные поля */}
-                <p><span>Имя: </span>
-                  {isEditing && canEdit ? (
-                    <input
-                      type="text"
-                      value={profileData.name}
-                      onChange={(e) => handleChange('name', e.target.value)}
-                      placeholder="Введите имя"
-                    />
-                  ) : (profileData.name || "Не указано")}
-                </p>
+              {activeTab === 'Профиль' && (
+                <div className={styles.infoBox}>
+                  <p><span>Имя: </span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.name}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                        placeholder="Введите имя"
+                      />
+                    ) : (profileData.name || "Не указано")}
+                  </p>
 
-                <p><span>Любимая карта:</span>
-                  {isEditing && canEdit ? (
-                    <select
-                      value={profileData.favoriteCard}
-                      onChange={(e) => handleChange('favoriteCard', e.target.value)}
-                    >
-                      {favoriteCards.map(card => (
-                        <option key={card} value={card}>{card}</option>
-                      ))}
-                    </select>
-                  ) : profileData.favoriteCard}
-                </p>
+                  <p><span>Любимая карта:</span>
+                    {isEditing && canEdit ? (
+                      <select
+                        value={profileData.favoriteCard}
+                        onChange={(e) => handleChange('favoriteCard', e.target.value)}
+                      >
+                        {favoriteCards.map(card => (
+                          <option key={card} value={card}>{card}</option>
+                        ))}
+                      </select>
+                    ) : profileData.favoriteCard}
+                  </p>
 
-                <p><span>Клуб:</span>
-                  {isEditing && canEdit ? (
-                    <select
-                      value={profileData.club}
-                      onChange={(e) => handleChange('club', e.target.value)}
-                    >
-                      {clubs.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  ) : profileData.club}
-                </p>
+                  <p><span>Клуб:</span>
+                    {isEditing && canEdit ? (
+                      <select
+                        value={profileData.club}
+                        onChange={(e) => handleChange('club', e.target.value)}
+                      >
+                        {clubs.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    ) : profileData.club}
+                  </p>
 
-                <p><span>VK:</span>
-                  {isEditing && canEdit ? (
-                    <input
-                      type="text"
-                      value={profileData.vk}
-                      onChange={(e) => handleChange('vk', e.target.value)}
-                      placeholder="Ссылка на VK"
-                    />
-                  ) : (profileData.vk || "Не указано")}
-                </p>
+                  <p><span>VK:</span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.vk}
+                        onChange={(e) => handleChange('vk', e.target.value)}
+                        placeholder="Ссылка на VK"
+                      />
+                    ) : (profileData.vk ? <a href={profileData.vk} target="_blank" rel="noopener noreferrer">{profileData.vk}</a> : "Не указано")}
+                  </p>
 
-                <p><span>Telegram:</span>
-                  {isEditing && canEdit ? (
-                    <input
-                      type="text"
-                      value={profileData.tg}
-                      onChange={(e) => handleChange('tg', e.target.value)}
-                      placeholder="Ссылка на Telegram"
-                    />
-                  ) : (profileData.tg || "Не указано")}
-                </p>
+                  <p><span>Telegram:</span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.tg}
+                        onChange={(e) => handleChange('tg', e.target.value)}
+                        placeholder="Ссылка на Telegram"
+                      />
+                    ) : (profileData.tg ? <a href={profileData.tg} target="_blank" rel="noopener noreferrer">{profileData.tg}</a> : "Не указано")}
+                  </p>
 
-                <p><span>Gomafia:</span>
-                  {isEditing && canEdit ? (
-                    <input
-                      type="text"
-                      value={profileData.site1}
-                      onChange={(e) => handleChange('site1', e.target.value)}
-                      placeholder="Ссылка на сайт 1"
-                    />
-                  ) : (profileData.site1 || "Не указано")}
-                </p>
+                  <p><span>Gomafia:</span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.site1}
+                        onChange={(e) => handleChange('site1', e.target.value)}
+                        placeholder="Ссылка на Gomafia"
+                      />
+                    ) : (profileData.site1 ? <a href={profileData.site1} target="_blank" rel="noopener noreferrer">{profileData.site1}</a> : "Не указано")}
+                  </p>
 
-                <p><span>MU:</span>
-                  {isEditing && canEdit ? (
-                    <input
-                      type="text"
-                      value={profileData.site2}
-                      onChange={(e) => handleChange('site2', e.target.value)}
-                      placeholder="Ссылка на сайт 2"
-                    />
-                  ) : (profileData.site2 || "Не указано")}
-                </p>
-              </div>
+                  <p><span>Mafia Universe:</span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.site2}
+                        onChange={(e) => handleChange('site2', e.target.value)}
+                        placeholder="Ссылка на Mafia Universe"
+                      />
+                    ) : (profileData.site2 ? <a href={profileData.site2} target="_blank" rel="noopener noreferrer">{profileData.site2}</a> : "Не указано")}
+                  </p>
+                </div>
+              )}
 
-              {canEdit && (
+              {activeTab === 'Игры' && (
+                <PlayerGames nickname={profileData.nickname} />
+              )}
+              
+              {activeTab === 'Статистика' && <div>Статистика скоро появится...</div>}
+              {activeTab === 'Турниры' && <div>Турниры скоро появятся...</div>}
+
+              {canEdit && activeTab === 'Профиль' && (
                 <div className={styles.editControls}>
                   {isEditing ? (
                     <>

@@ -89,9 +89,14 @@
 
 .tabs button:hover,
 .tabs button:focus {
-  background-color: #ef741c;
+  background-color: #444;
   outline: none;
 }
+
+.tabs .activeTab {
+  background-color: #ef741c;
+}
+
 
 /* Информационный блок */
 .infoBox {
@@ -110,6 +115,14 @@
 .infoBox span {
   font-weight: 700;
   color: #ffffff;
+}
+
+.infoBox a {
+  color: #ef741c;
+  text-decoration: none;
+}
+.infoBox a:hover {
+  text-decoration: underline;
 }
 
 /* Правая часть */
@@ -195,7 +208,7 @@
 
 .editControls button:hover,
 .editControls button:focus {
-  background-color: #ef741c;
+  background-color: #d86818;
   outline: none;
 }
 
@@ -281,6 +294,90 @@ select option {
   color: #660000;
   cursor: pointer;
 }
+
+/* --- СТИЛИ ДЛЯ ВКЛАДКИ "ИГРЫ" --- */
+.gamesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.gameCard {
+  background-color: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gameHeader {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.gameJudge {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  color: #aaa;
+  font-style: italic;
+  background-color: #2e2e2e;
+}
+
+.gameTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.gameTable tr {
+  border-bottom: 1px solid #3a3a3a;
+}
+.gameTable tr:last-child {
+  border-bottom: none;
+}
+
+.gameTable td {
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+.playerNumber {
+  width: 30px;
+  text-align: center;
+  color: #999;
+}
+
+.playerName {
+  font-weight: 600;
+}
+
+.playerRole {
+  color: #ccc;
+}
+
+.playerPoints {
+  text-align: right;
+  font-weight: 700;
+}
+
+.highlightedRow {
+  background-color: #cccccc;
+}
+
+.highlightedRow td {
+  color: #111 !important; /* Важно, чтобы перебить другие стили */
+}
+
+.gameFooter {
+  padding: 8px 12px;
+  background-color: #333;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 
 /* Адаптивность */
 @media (max-width: 768px) {

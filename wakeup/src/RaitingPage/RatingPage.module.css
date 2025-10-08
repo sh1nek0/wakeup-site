@@ -209,11 +209,6 @@
   gap:20px;
   margin-bottom:20px;
 }
-/* fallback на случай, если где-то используются негешированные классы */
-:global(.gamesGridSheet){
-  display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
-  gap:20px; margin-bottom:20px;
-}
 
 /* ====== ОДИН ЛИСТ ИГРЫ ====== */
 .sheetCard{
@@ -225,9 +220,13 @@
   gap:10px;
   position:relative;
 }
-:global(.sheetCard){
-  background:var(--sheet-outer); border:1px solid var(--frame);
-  padding:10px; display:flex; flex-direction:column; gap:10px; position:relative;
+
+.sheetJudge {
+  text-align: right;
+  font-size: 12px;
+  color: #aaa;
+  padding: 0 4px 4px;
+  font-style: italic;
 }
 
 /* верхняя панель */
@@ -241,14 +240,8 @@
   min-height:58px;
   position:relative;
 }
-:global(.sheetTop){
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  background:var(--panel); padding:14px 18px; min-height:58px; position:relative;
-}
 .sheetTitle{ color:#fff; font-weight:800; font-size:18px; letter-spacing:.2px; }
-:global(.sheetTitle){ color:#fff; font-weight:800; font-size:18px; letter-spacing:.2px; }
 .sheetDate{ color:#fff; font-weight:800; font-size:16px; }
-:global(.sheetDate){ color:#fff; font-weight:800; font-size:16px; }
 
 /* наклонная полоса вверху */
 .sheetSlashTop{
@@ -261,10 +254,6 @@
   transform:skewX(-30deg);
   pointer-events:none;
 }
-:global(.sheetSlashTop){
-  position:absolute; left:66%; top:0; width:18px; height:100%;
-  background:var(--FF7A1A); transform:skewX(-30deg); pointer-events:none;
-}
 
 /* разделительная полоса под шапкой */
 .sheetTop::after{
@@ -274,57 +263,61 @@
   height:10px;
   background:var(--panel-line);
 }
-:global(.sheetTop)::after{
-  content:""; position:absolute; left:0; right:0; bottom:-10px;
-  height:10px; background:var(--panel-line);
-}
 
 /* таблица */
 .sheetTableWrap{
   background:var(--grid-bg);
   padding:8px 10px 10px;
 }
-:global(.sheetTableWrap){ background:var(--grid-bg); padding:8px 10px 10px; }
 
 .sheetTable{
   width:100%;
   border-collapse:collapse !important;
   table-layout:fixed;
 }
-:global(.sheetTable){ width:100%; border-collapse:collapse !important; table-layout:fixed; }
 
-.sheetTable thead th,
-:global(.sheetTable) thead th{
-  background:var(--FF7A1A) !important;
-  color:#ffffff !important;
+.sheetTable thead th {
+  background: #ff6f00 !important;
+  color: #1f1f1f !important;
   font-weight:800;
   font-size:14px;
   padding:10px 12px;
   text-align:left;
   border:1px solid var(--grid-bg) !important;
 }
-.sheetTable thead th:first-child,
-:global(.sheetTable) thead th:first-child{ width:64px; text-align:center; }
-.sheetTable thead th:last-child,
-:global(.sheetTable) thead th:last-child{ width:96px; text-align:center; }
+.sheetTable thead th:first-child{ width:40px; text-align:center; }
+.sheetTable thead th:last-child{ width:96px; text-align:left; }
 
-.sheetTable tbody td,
-:global(.sheetTable) tbody td{
-  background:var(--cell) !important;
-  color:var(--txt-dark) !important;
+.sheetTable tbody td {
+  background: #2E2E2E;
+  color: #E0E0E0;
   font-size:14px;
   padding:12px 12px;
-  border:1px solid var(--cell-border) !important;
+  border:1px solid #444 !important;
   height:44px;
   vertical-align:middle;
   overflow:hidden;
 }
 
-.sheetTable tbody td:first-child,
-:global(.sheetTable) tbody td:first-child{ text-align:center; }
-.sheetTable tbody td:last-child,
-:global(.sheetTable) tbody td:last-child{ text-align:center; }
+.sheetTable tbody td:first-child { text-align:center; }
+.sheetTable tbody td:last-child { text-align:left; }
 
+/* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
+.eliminatedRow td {
+  background-color: #cccccc !important;
+  color: #111 !important;
+}
+
+.bestMoveText {
+  font-size: 0.8em;
+  color: #aaaaaa;
+  margin-left: 4px;
+  font-style: italic;
+}
+
+.eliminatedRow .bestMoveText {
+  color: #222 !important;
+}
 
 
 /* нижняя панель */
@@ -337,15 +330,9 @@
   min-height:48px;
   position:relative;
 }
-:global(.sheetBottom){
-  display:flex; align-items:center; justify-content:space-between;
-  background:var(--panel); padding:12px 18px; min-height:48px; position:relative;
-}
 
 .sheetBottomLeft{ color:#fff; font-weight:800; font-size:16px; }
-:global(.sheetBottomLeft){ color:#fff; font-weight:800; font-size:16px; }
 .sheetBottomRight{ color:#fff; font-weight:800; font-size:16px; }
-:global(.sheetBottomRight){ color:#fff; font-weight:800; font-size:16px; }
 
 /* наклонная полоса внизу */
 .sheetSlashBottom{
@@ -357,10 +344,6 @@
   background:var(--FF7A1A);
   transform:skewX(-30deg);
   pointer-events:none;
-}
-:global(.sheetSlashBottom){
-  position:absolute; left:66%; bottom:0; width:18px; height:100%;
-  background:var(--FF7A1A); transform:skewX(-30deg); pointer-events:none;
 }
 
 /* Кнопки админа на карточке */
@@ -377,22 +360,28 @@
   font-size: .9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: filter .2s, transform .12s;
+  transition: background-color .2s, transform .12s;
+  border-radius: 4px;
 }
 
 .sheetEditBtn:hover, .sheetDeleteBtn:hover {
-  filter: brightness(1.05);
   transform: translateY(-1px);
 }
 
 .sheetEditBtn {
-  background: #4a90e2;
-  color: #fff;
+  background: #4a4a4a;
+  color: #e0e0e0;
+}
+.sheetEditBtn:hover {
+  background: #5a5a5a;
 }
 
 .sheetDeleteBtn {
-  background: #d32f2f;
-  color: #fff;
+  background: #5a2a2a;
+  color: #e5caca;
+}
+.sheetDeleteBtn:hover {
+  background: #6b3a3a;
 }
 
 .sheetDeleteBtn:disabled {
@@ -516,38 +505,29 @@
 
 /* меньше расстояние между карточками */
 .gamesGridSheet { gap:12px; }
-:global(.gamesGridSheet){ gap:12px; }
 
 /* сама карточка и внутренние отступы */
 .sheetCard{ padding:6px; gap:6px; }
-:global(.sheetCard){ padding:6px; gap:6px; }
 
 /* верхняя панель (шапка) */
 .sheetTop{
   padding:6px 10px;
   min-height:30px;
 }
-:global(.sheetTop){ padding:6px 10px; min-height:30px; }
 
 .sheetTitle{ font-size:13px; }
-:global(.sheetTitle){ font-size:13px; }
 
 .sheetDate{ font-size:12px; }
-:global(.sheetDate){ font-size:12px; }
 
 /* декоративные элементы — тоньше/уже */
 .sheetSlashTop{ width:10px; }
-:global(.sheetSlashTop){ width:10px; }
 
 .sheetTop::after{ bottom:-4px; height:4px; }
-:global(.sheetTop)::after{ bottom:-4px; height:4px; }
 
 /* таблица — минимизируем отступы и высоту строк */
 .sheetTableWrap{ padding:4px 6px 6px; }
-:global(.sheetTableWrap){ padding:4px 6px 6px; }
 
-.sheetTable thead th,
-:global(.sheetTable) thead th{
+.sheetTable thead th{
   background:var(--FF7A1A) !important;
   color:#ffffff !important;
   font-weight:800;
@@ -555,26 +535,16 @@
   padding:4px 6px;
   line-height:1.05;
 }
-.sheetTable thead th:first-child,
-:global(.sheetTable) thead th:first-child{ width:64px; text-align:center; }
-.sheetTable thead th:last-child,
-:global(.sheetTable) thead th:last-child{ width:96px; text-align:center; }
+.sheetTable thead th:first-child{ width:64px; text-align:center; }
+.sheetTable thead th:last-child{ width:96px; text-align:left; }
 
-.sheetTable tbody td,
-:global(.sheetTable) tbody td{
-  background:var(--cell) !important;
-  color:var(--txt-dark) !important;
+.sheetTable tbody td{
+  background:var(--cell); /* Убрано !important */
+  color:var(--txt-dark); /* Убрано !important */
   font-size:12px;
   padding:3px 6px;
   height:20px;           /* было ~44px */
   line-height:1.05;
-  overflow:hidden;
-}
-:global(.sheetTable) tbody td{
-  font-size:12px !important;
-  padding:3px 6px !important;
-  height:20px !important;
-  line-height:1.05 !important;
   overflow:hidden;
 }
 
@@ -583,22 +553,16 @@
   padding:6px 10px;
   min-height:28px;
 }
-:global(.sheetBottom){ padding:6px 10px; min-height:28px; }
 
 .sheetBottomLeft,
 .sheetBottomRight{ font-size:12px; }
-:global(.sheetBottomLeft),
-:global(.sheetBottomRight){ font-size:12px; }
 
 .sheetSlashBottom{ width:10px; }
-:global(.sheetSlashBottom){ width:10px; }
 
 /* на мобильных ужмём ещё чуть-чуть */
 @media (max-width:768px){
   .sheetTable thead th{ font-size:10px; padding:3px 4px; }
   .sheetTable tbody td{ font-size:11px; padding:2px 4px; height:18px; }
-  :global(.sheetTable) thead th{ font-size:10px !important; padding:3px 4px !important; }
-  :global(.sheetTable) tbody td{ font-size:11px !important; padding:2px 4px !important; height:18px !important; }
   .sheetTop{ padding:5px 8px; min-height:26px; }
   .sheetBottom{ padding:5px 8px; min-height:24px; }
 }

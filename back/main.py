@@ -846,15 +846,30 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
 
             sum_points = plus + best_move_bonus + team_win_bonus
             player["sum"] = sum_points
+        
+        game_info = data.gameInfo
+        
+        existing_game = db.query(Game).filter(Game.gameId == data.gameId).first()
+
+        if existing_game:
+            existing_data = json.loads(existing_game.data)
+            existing_judge = existing_data.get("gameInfo", {}).get("judgeNickname")
+            
+            # Если в запросе не пришел ник судьи (пустая строка), используем старый
+            if not game_info.get("judgeNickname") and existing_judge:
+                game_info["judgeNickname"] = existing_judge
+        else:
+            # Если игра новая и судья не указан, назначаем текущего пользователя
+            if "judgeNickname" not in game_info or not game_info["judgeNickname"]:
+                game_info["judgeNickname"] = current_user.nickname
 
         game_json = json.dumps({
             "players": data.players,
             "fouls": data.fouls,
-            "gameInfo": data.gameInfo,
+            "gameInfo": game_info,
             "badgeColor": data.badgeColor
         }, ensure_ascii=False)
 
-        existing_game = db.query(Game).filter(Game.gameId == data.gameId).first()
         if existing_game:
             existing_game.data = game_json
             existing_game.event_id = data.eventId
@@ -968,7 +983,8 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 processed_players.append({
                     "name": name,
                     "role": p.get("role", ""),
-                    "points": final_points
+                    "points": final_points,
+                    "best_move": p.get("best_move", "")
                 })
 
             games_list.append({
@@ -976,7 +992,8 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 "date": game.created_at.strftime("%d.%m.%Y %H:%M"),
                 "badgeColor": data.get("badgeColor", ""),
                 "event_id": game.event_id,
-                "players": processed_players
+                "players": processed_players,
+                "judge_nickname": data.get("gameInfo", {}).get("judgeNickname")
             })
 
         return {"games": games_list, "total_count": total_count}
@@ -987,15 +1004,58 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         db.close()
 
 
+@app.get("/getPlayerGames/{nickname}")
+async def get_player_games(nickname: str):
+    db = SessionLocal()
+    try:
+        all_games = db.query(Game).order_by(Game.created_at.desc()).all()
+        player_games = []
+
+        for game in all_games:
+            try:
+                data = json.loads(game.data)
+                players = data.get("players", [])
+                
+                # Проверяем, участвовал ли игрок в этой игре
+                if any(p.get("name") == nickname for p in players):
+                    player_games.append({
+                        "id": game.gameId,
+                        "date": game.created_at.strftime("%d.%m.%Y %H:%M"),
+                        "badgeColor": data.get("badgeColor", ""),
+                        "event_id": game.event_id,
+                        "players": data.get("players", []),
+                        "judge_nickname": data.get("gameInfo", {}).get("judgeNickname")
+                    })
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+        return {"games": player_games}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения игр игрока: {str(e)}")
+    finally:
+        db.close()
+
+
 def calculate_ci_bonuses(games: list[Game]) -> dict:
     ci_bonuses = {}
-    player_x_counts = {}
-    n = 0
+    player_x_counts = {}    # Динамический счетчик X (успешных "лучших ходов")
+    total_player_games = {} # Здесь будет храниться N для каждого игрока
 
+    # --- ЭТАП 1: Предварительный расчет N для каждого игрока ---
+    # N - это общее количество игр, сыгранных игроком в предоставленном наборе `games`.
+    for game in games:
+        game_data = json.loads(game.data)
+        players_in_game = game_data.get("players", [])
+        for p in players_in_game:
+            name = p.get("name")
+            if name:
+                total_player_games[name] = total_player_games.get(name, 0) + 1
+
+    # --- ЭТАП 2: Расчет бонусов Ci в хронологическом порядке ---
     sorted_games = sorted(games, key=lambda g: g.created_at)
 
     for game in sorted_games:
-        n += 1
         game_data = json.loads(game.data)
         players_in_game = game_data.get("players", [])
         player_roles = {p.get("id"): p.get("role", "").lower() for p in players_in_game}
@@ -1015,14 +1075,26 @@ def calculate_ci_bonuses(games: list[Game]) -> dict:
         if found_black:
             player_x_counts[player_name] = player_x_counts.get(player_name, 0) + 1
 
+        # Расчет бонуса
         current_x = player_x_counts.get(player_name, 0)
-        if current_x > 0:
-            k = max(0, current_x - (n // 10))
+        # Используем предрассчитанное общее N для игрока
+        total_n = total_player_games.get(player_name)
+
+        if current_x > 0 and total_n and total_n > 0:
+            # K = max(0, X - N/10)
+            k = max(0, current_x - (total_n / 10.0))
+
             if k > 0:
-                ci_bonus = 0.5 * (k * (k + 1) / 2)
+                # Ci = (K * (K + 1)) / sqrt(N)
+                ci_bonus = (k * (k + 1)) / math.sqrt(total_n)
+                
+                # Округляем до 2 знаков после запятой, как вы просили
+                rounded_ci_bonus = round(ci_bonus, 2)
+
                 if player_name not in ci_bonuses:
                     ci_bonuses[player_name] = {}
-                ci_bonuses[player_name][game.gameId] = ci_bonus
+                ci_bonuses[player_name][game.gameId] = rounded_ci_bonus
+                
     return ci_bonuses
 
 
@@ -1129,7 +1201,8 @@ async def get_detailed_stats(
 ):
     db = SessionLocal()
     try:
-        clubs = {p.nickname: p.club for p in db.query(User).all()}
+        users = db.query(User).all()
+        user_map = {p.nickname: p for p in users}
         
         games_query = db.query(Game)
         if event_id and event_id != 'all':
@@ -1141,7 +1214,7 @@ async def get_detailed_stats(
         dynamic_penalties = calculate_dynamic_penalties(games)
         
         player_stats = {}
-
+        # ... (логика расчета статистики остается прежней) ...
         for game in games:
             game_data = json.loads(game.data)
             badge_color = game_data.get("badgeColor", "")
@@ -1199,7 +1272,17 @@ async def get_detailed_stats(
                     if is_win:
                         stats["wins"][mapped_role] += 1
 
-        players_list = [{"nickname": name, "club": clubs.get(name, None), **stats} for name, stats in player_stats.items()]
+        players_list = []
+        for name, stats in player_stats.items():
+            user_obj = user_map.get(name)
+            player_data = {
+                "id": user_obj.id if user_obj else None,
+                "nickname": name,
+                "club": user_obj.club if user_obj else None,
+                **stats
+            }
+            players_list.append(player_data)
+
         players_list.sort(key=lambda x: x["totalPoints"], reverse=True)
 
         total_count = len(players_list)
