@@ -11,6 +11,7 @@ import Game from "./Event/Event.jsx";
 import React, { useEffect, createContext, useState, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import ProfilePage from "./ProfilePage/ProfilePage.jsx";
+import PlayersListPage from "./PlayersListPage/PlayersListPage.jsx"; // <-- ИМПОРТ НОВОГО КОМПОНЕНТА
 
 // --- AuthContext Logic ---
 export const AuthContext = createContext(null);
@@ -99,6 +100,7 @@ export function App(props) {
         <Route path="/" element={<HomePage />} />
         <Route path="/Event/:eventId/Game/:gameId" element={<PlayersTable />} />
         <Route path="/rating" element={<RatingPage/>} />
+        <Route path="/players" element={<PlayersListPage />} /> {/* <-- НОВЫЙ МАРШРУТ */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/BTS" element={<RoadToBreak />}/>

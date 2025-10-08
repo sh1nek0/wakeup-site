@@ -38,6 +38,15 @@ const Navbar = () => {
                 Рейтинг
               </NavLink>
             </li>
+            {/* --- НОВАЯ ССЫЛКА "ИГРОКИ" --- */}
+            <li className={styles.navbarItem}>
+              <NavLink
+                to="/players"
+                className={({ isActive }) => isActive ? styles.active : undefined}
+              >
+                Игроки
+              </NavLink>
+            </li>
             {isAuthenticated && (
               <li className={styles.navbarItem}>
                 <NavLink to={"/profile/"+user.id} 
