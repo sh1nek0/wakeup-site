@@ -317,6 +317,28 @@ const ProfilePage = ({
                       />
                     ) : (profileData.tg ? <a href={profileData.tg} target="_blank" rel="noopener noreferrer">{profileData.tg}</a> : "Не указано")}
                   </p>
+
+                  <p><span>Gomafia:</span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.site1}
+                        onChange={(e) => handleChange('site1', e.target.value)}
+                        placeholder="Ссылка на Gomafia"
+                      />
+                    ) : (profileData.site1 ? <a href={profileData.site1} target="_blank" rel="noopener noreferrer">{profileData.site1}</a> : "Не указано")}
+                  </p>
+
+                  <p><span>Mafia Universe:</span>
+                    {isEditing && canEdit ? (
+                      <input
+                        type="text"
+                        value={profileData.site2}
+                        onChange={(e) => handleChange('site2', e.target.value)}
+                        placeholder="Ссылка на Mafia Universe"
+                      />
+                    ) : (profileData.site2 ? <a href={profileData.site2} target="_blank" rel="noopener noreferrer">{profileData.site2}</a> : "Не указано")}
+                  </p>
                 </div>
               )}
 

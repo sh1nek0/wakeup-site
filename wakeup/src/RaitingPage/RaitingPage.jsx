@@ -477,14 +477,24 @@ export default function RatingPage() {
                             </thead>
                             <tbody>
                               {rows.map((row, i) => (
-                                <tr key={`${game.id}-${i}`} className={row.best_move ? styles.eliminatedRow : ''}>
+                                <tr
+                                  key={`${game.id}-${i}`}
+                                  className={
+                                    row.best_move ? styles.eliminatedRow : ''
+                                  }
+                                >
                                   <td>{i + 1}</td>
-                                  <td className={styles.nameP} > {row.name ?? row.nickname ?? ''} </td>
+                                  <td className={styles.nameP}>
+                                    {row.name ?? row.nickname ?? ''}
+                                  </td>
                                   <td>{row.role ?? row.role_name ?? ''}</td>
                                   <td>
                                     {row.points?.toFixed(2) ?? ''}
                                     {row.best_move && (
-                                      <span className={styles.bestMoveText}> (ЛХ: {row.best_move.replace(/[^0-9,]/g, '')})</span>
+                                      <span className={styles.bestMoveText}>
+                                        {' '}
+                                        (ЛХ: {row.best_move})
+                                      </span>
                                     )}
                                   </td>
                                 </tr>
