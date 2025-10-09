@@ -139,6 +139,15 @@ input:focus,select:focus{
   box-shadow:0 6px 16px rgba(0,0,0,.35);
 }
 
+.loadbutton{
+  background: #ef741c;
+  margin-top: 5px;
+  border: none;
+  padding: 5px;
+}
+
+
+
 /* КНОПКИ РЕДАКТИРОВАНИЯ */
 .editControls{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 .editControls button{
@@ -189,6 +198,8 @@ input:focus,select:focus{
 .gameTable td{padding:6px 10px;font-size:.95rem}
 .playerNumber{width:28px;text-align:center;color:#a7a7a7}
 .playerName{font-weight:700}
+
+
 .playerRole{color:#cfcfcf}
 .playerPoints{text-align:right;font-weight:800}
 

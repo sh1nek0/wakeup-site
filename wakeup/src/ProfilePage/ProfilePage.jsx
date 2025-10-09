@@ -59,7 +59,7 @@ const PlayerGames = ({ nickname }) => {
                   key={i}
                   className={player.name === nickname ? styles.highlightedRow : ""}
                 >
-                  <td className={styles.playerNumber}>{i + 1}</td>
+                  <td className={player.name == nickname ? styles.playerNumber+styles.active : styles.playerNumber }>{i + 1}</td>
                   <td className={styles.playerName}>{player.name}</td>
                   <td className={styles.playerRole}>{player.role}</td>
                   <td className={styles.playerPoints}>
@@ -238,7 +238,8 @@ const ProfilePage = () => {
         body: JSON.stringify({
           userId: targetUserId,
           name: profileData.name,
-          club: profileData.club,
+          club:' profileData.club',
+          
           favoriteCard: profileData.favoriteCard,
           vk: profileData.vk,
           tg: profileData.tg,
@@ -347,7 +348,7 @@ const ProfilePage = () => {
         <button onClick={fetchProfile}>Повторить</button>
       </div>
     );
-
+    console.log(profileData)
   return (
     <div className={styles.pageWrapper}>
       {saveOk && <div className={styles.successBanner}>Изменения сохранены ✅</div>}
@@ -603,9 +604,9 @@ const ProfilePage = () => {
                   Предпросмотр — нажмите «Загрузить»
                 </div>
               )}
-              <button onClick={uploadAvatar} disabled={uploading || !avatarFile}>
+              {avatarPreview && <button onClick={uploadAvatar} disabled={uploading || !avatarFile} className={styles.loadbutton}>
                 {uploading ? "Загрузка…" : "Загрузить аватар"}
-              </button>
+              </button>}
               {uploadError && <div className={styles.errorText}>{uploadError}</div>}
             </div>
           )}
