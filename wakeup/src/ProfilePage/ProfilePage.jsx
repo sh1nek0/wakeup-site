@@ -1,3 +1,5 @@
+// wakeup-site/wakeup/src/ProfilePage/ProfilePage.jsx
+
 // ProfilePage.jsx
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -6,32 +8,7 @@ import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
 
 /* ===================== PlayerGames: список игр игрока ===================== */
-const PlayerGames = ({ nickname }) => {
-  const [games, setGames] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!nickname) return;
-
-    const fetchGames = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(`/api/getPlayerGames/${encodeURIComponent(nickname)}`);
-        if (!response.ok) throw new Error("Не удалось загрузить историю игр");
-        const data = await response.json();
-        setGames(Array.isArray(data?.games) ? data.games : []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGames();
-  }, [nickname]);
-
+const PlayerGames = ({ nickname, games, loading, error }) => {
   if (!nickname) return <div>Никнейм отсутствует.</div>;
   if (loading) return <div>Загрузка игр...</div>;
   if (error) return <div className={styles.errorBanner}>Ошибка: {error}</div>;
@@ -59,7 +36,7 @@ const PlayerGames = ({ nickname }) => {
                   key={i}
                   className={player.name === nickname ? styles.highlightedRow : ""}
                 >
-                  <td className={player.name == nickname ? styles.playerNumber+styles.active : styles.playerNumber }>{i + 1}</td>
+                  <td className={styles.playerNumber}>{i + 1}</td>
                   <td className={styles.playerName}>{player.name}</td>
                   <td className={styles.playerRole}>{player.role}</td>
                   <td className={styles.playerPoints}>
@@ -140,6 +117,11 @@ const ProfilePage = () => {
   const [uploadError, setUploadError] = useState(null);
   const MAX_BYTES = 2 * 1024 * 1024;
 
+  // Состояние для игр, поднятое из PlayerGames
+  const [playerGames, setPlayerGames] = useState([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
+  const [gamesError, setGamesError] = useState(null);
+
   // Нормализация аватара: поддержка старых путей /uploads → /static
   const normalizeAvatarPath = (url) =>
     typeof url === "string" && url.startsWith("/uploads/avatars/")
@@ -197,6 +179,103 @@ const ProfilePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUserId]);
 
+  // Загрузка игр при наличии никнейма
+  useEffect(() => {
+    if (!profileData.nickname) return;
+
+    const fetchGames = async () => {
+      setGamesLoading(true);
+      setGamesError(null);
+      try {
+        const response = await fetch(`/api/getPlayerGames/${encodeURIComponent(profileData.nickname)}`);
+        if (!response.ok) throw new Error("Не удалось загрузить историю игр");
+        const data = await response.json();
+        setPlayerGames(Array.isArray(data?.games) ? data.games : []);
+      } catch (err) {
+        setGamesError(err.message);
+      } finally {
+        setGamesLoading(false);
+      }
+    };
+
+    fetchGames();
+  }, [profileData.nickname]);
+
+  // Вычисление статистики
+  const playerStats = useMemo(() => {
+    const stats = {
+      totalGames: 0,
+      totalWins: 0,
+      totalLosses: 0,
+      winrate: 0,
+      byRole: {
+        'Черная карта': { games: 0, wins: 0 },
+        'Дон': { games: 0, wins: 0 },
+        'Мафия': { games: 0, wins: 0 },
+        'Красная карта': { games: 0, wins: 0 },
+        'Шериф': { games: 0, wins: 0 },
+        'Мирный': { games: 0, wins: 0 },
+      }
+    };
+
+    if (!playerGames || playerGames.length === 0) {
+      return stats;
+    }
+
+    stats.totalGames = playerGames.length;
+
+    const roleMap = {
+      'мирный': 'Мирный',
+      'шериф': 'Шериф',
+      'мафия': 'Мафия',
+      'дон': 'Дон',
+    };
+
+    playerGames.forEach(game => {
+      const playerInGame = game.players.find(p => p.name === profileData.nickname);
+      if (!playerInGame || !playerInGame.role) return;
+
+      const rawRole = playerInGame.role.toLowerCase();
+      const mappedRole = roleMap[rawRole];
+
+      const isRedPlayer = rawRole === 'мирный' || rawRole === 'шериф';
+      const isBlackPlayer = rawRole === 'мафия' || rawRole === 'дон';
+
+      let isWin = false;
+      if (game.badgeColor === 'red' && isRedPlayer) {
+        isWin = true;
+      } else if (game.badgeColor === 'black' && isBlackPlayer) {
+        isWin = true;
+      }
+
+      if (isWin) {
+        stats.totalWins++;
+      } else if (game.badgeColor === 'red' || game.badgeColor === 'black') {
+        stats.totalLosses++;
+      }
+
+      if (mappedRole && stats.byRole[mappedRole]) {
+        stats.byRole[mappedRole].games++;
+        if (isWin) stats.byRole[mappedRole].wins++;
+      }
+      
+      if (isRedPlayer) {
+        stats.byRole['Красная карта'].games++;
+        if (isWin) stats.byRole['Красная карта'].wins++;
+      }
+      if (isBlackPlayer) {
+        stats.byRole['Черная карта'].games++;
+        if (isWin) stats.byRole['Черная карта'].wins++;
+      }
+    });
+
+    if (stats.totalGames > 0) {
+      stats.winrate = Math.round((stats.totalWins / stats.totalGames) * 100);
+    }
+
+    return stats;
+  }, [playerGames, profileData.nickname]);
+
   // Изменение полей
   const onChangeField = (field) => (e) => {
     const val = e.target.value;
@@ -228,7 +307,6 @@ const ProfilePage = () => {
     setSaveError(null);
     setSaveOk(false);
     try {
-      // как во втором файле: POST /api/updateProfile
       const res = await fetch(`/api/updateProfile`, {
         method: "POST",
         headers: {
@@ -238,14 +316,12 @@ const ProfilePage = () => {
         body: JSON.stringify({
           userId: targetUserId,
           name: profileData.name,
-          club:' profileData.club',
-          
+          club: profileData.club,
           favoriteCard: profileData.favoriteCard,
           vk: profileData.vk,
           tg: profileData.tg,
           site1: profileData.site1,
           site2: profileData.site2,
-          // nickname намеренно НЕ отправляем (запрет редактирования никнейма)
         }),
       });
       if (!res.ok) {
@@ -262,7 +338,6 @@ const ProfilePage = () => {
     } catch (e) {
       setSaveError(e.message);
     } finally {
-      window.location.reload();
       setSaving(false);
     }
   };
@@ -348,7 +423,7 @@ const ProfilePage = () => {
         <button onClick={fetchProfile}>Повторить</button>
       </div>
     );
-    console.log(profileData)
+
   return (
     <div className={styles.pageWrapper}>
       {saveOk && <div className={styles.successBanner}>Изменения сохранены ✅</div>}
@@ -357,10 +432,8 @@ const ProfilePage = () => {
       <div className={styles.mainContent}>
         {/* Левая колонка */}
         <div className={styles.left}>
-          {/* Никнейм — НЕ редактируем */}
           <div className={styles.nickname}>{profileData.nickname || "—"}</div>
 
-          {/* Вкладки */}
           <div className={styles.tabsWrapper}>
             <button
               className={`${styles.tabButton} ${activeTab === "profile" ? styles.active : ""}`}
@@ -388,10 +461,8 @@ const ProfilePage = () => {
             </button>
           </div>
 
-          {/* Контент вкладок */}
           {activeTab === "profile" && (
             <div className={styles.infoBox}>
-              {/* Имя */}
               <p>
                 <span>Имя:</span>{" "}
                 {isEditing && canEdit ? (
@@ -405,8 +476,6 @@ const ProfilePage = () => {
                   profileData.name || "—"
                 )}
               </p>
-
-              {/* Любимая карта (select) */}
               <p>
                 <span>Любимая карта:</span>{" "}
                 {isEditing && canEdit ? (
@@ -424,8 +493,6 @@ const ProfilePage = () => {
                   profileData.favoriteCard || "—"
                 )}
               </p>
-
-              {/* Клуб (select) */}
               <p>
                 <span>Клуб:</span>{" "}
                 {isEditing && canEdit ? (
@@ -443,8 +510,6 @@ const ProfilePage = () => {
                   profileData.club || "—"
                 )}
               </p>
-
-              {/* VK */}
               <p>
                 <span>VK:</span>{" "}
                 {isEditing && canEdit ? (
@@ -462,8 +527,6 @@ const ProfilePage = () => {
                   "—"
                 )}
               </p>
-
-              {/* Telegram */}
               <p>
                 <span>Telegram:</span>{" "}
                 {isEditing && canEdit ? (
@@ -481,8 +544,6 @@ const ProfilePage = () => {
                   "—"
                 )}
               </p>
-
-              {/* Gomafia */}
               <p>
                 <span>Gomafia:</span>{" "}
                 {isEditing && canEdit ? (
@@ -500,8 +561,6 @@ const ProfilePage = () => {
                   "—"
                 )}
               </p>
-
-              {/* Mafia Universe */}
               <p>
                 <span>Mafia Universe:</span>{" "}
                 {isEditing && canEdit ? (
@@ -527,11 +586,11 @@ const ProfilePage = () => {
               <h3 className={styles.statsTitle}>Общая статистика</h3>
               <table className={styles.statsTable}>
                 <tbody>
-                  <tr><td>Игры</td><td>0</td></tr>
-                  <tr><td>Победы</td><td>0</td></tr>
-                  <tr><td>Поражения</td><td>0</td></tr>
-                  <tr><td>Ничьи</td><td>0</td></tr>
-                  <tr><td>Winrate</td><td>0%</td></tr>
+                  <tr><td>Игры</td><td>{playerStats.totalGames}</td></tr>
+                  <tr><td>Победы</td><td>{playerStats.totalWins}</td></tr>
+                  <tr><td>Поражения</td><td>{playerStats.totalLosses}</td></tr>
+                  <tr><td>Ничьи</td><td>{playerStats.totalGames - playerStats.totalWins - playerStats.totalLosses}</td></tr>
+                  <tr><td>Winrate</td><td>{playerStats.winrate}%</td></tr>
                 </tbody>
               </table>
 
@@ -541,12 +600,20 @@ const ProfilePage = () => {
                   <tr><th>Роль</th><th>Игры</th><th>Победы</th><th>%</th><th>Поражения</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td>Черная карта</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
-                  <tr><td>Дон</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
-                  <tr><td>Мафия</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
-                  <tr><td>Красная карта</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
-                  <tr><td>Шериф</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
-                  <tr><td>Мирный</td><td>0</td><td>0</td><td>0%</td><td>0</td></tr>
+                  {['Черная карта', 'Дон', 'Мафия', 'Красная карта', 'Шериф', 'Мирный'].map(role => {
+                    const data = playerStats.byRole[role];
+                    const losses = data.games - data.wins;
+                    const winPercent = data.games > 0 ? Math.round((data.wins / data.games) * 100) : 0;
+                    return (
+                      <tr key={role}>
+                        <td>{role}</td>
+                        <td>{data.games}</td>
+                        <td>{data.wins}</td>
+                        <td>{winPercent}%</td>
+                        <td>{losses}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -557,10 +624,14 @@ const ProfilePage = () => {
           )}
 
           {activeTab === "games" && (
-            <PlayerGames nickname={profileData.nickname} />
+            <PlayerGames 
+              nickname={profileData.nickname} 
+              games={playerGames}
+              loading={gamesLoading}
+              error={gamesError}
+            />
           )}
 
-          {/* Кнопки редактирования снизу (только на вкладке «Профиль») */}
           {canEdit && activeTab === "profile" && (
             <div className={styles.editControls}>
               {!isEditing ? (
@@ -577,7 +648,6 @@ const ProfilePage = () => {
           )}
         </div>
 
-        {/* Правая колонка */}
         <div className={styles.right}>
           <img
             src={photoSrc}

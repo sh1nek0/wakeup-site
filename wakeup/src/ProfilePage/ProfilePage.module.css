@@ -1,3 +1,5 @@
+/* wakeup-site/wakeup/src/ProfilePage/ProfilePage.module.css */
+
 /* ProfilePage.module.css  — версия под макет №2 */
 
 /* БАЗА */
@@ -193,15 +195,34 @@ input:focus,select:focus{
 .gameCard{background:#212121;border:1px solid #2f2f2f;border-radius:10px;overflow:hidden}
 .gameHeader{display:flex;justify-content:space-between;padding:8px 12px;background:#2a2a2a;font-weight:700}
 .gameJudge{padding:6px 12px;background:#252525;color:#bfbfbf;font-style:italic}
+
+/* --- ОБНОВЛЕННЫЙ БЛОК СТИЛЕЙ ДЛЯ ТАБЛИЦЫ ИГР --- */
 .gameTable{width:100%;border-collapse:collapse}
-.gameTable tr{border-bottom:1px solid #2f2f2f}
+.gameTable tr{border-bottom:1px solid #2f2f2f; transition: background-color 0.2s ease;}
+.gameTable tr:nth-child(even) {
+  background-color: #252525; /* Stripe color for even rows */
+}
+.gameTable tr:hover {
+  background-color: #3a3a3a; /* Hover effect */
+}
 .gameTable td{padding:6px 10px;font-size:.95rem}
+
+.highlightedRow {
+  background-color: #4a4a4a !important; /* Light gray, !important to override stripes and hover */
+}
+.highlightedRow td {
+  color: #ef741c; /* Orange accent color for text */
+}
+.highlightedRow .playerName {
+  font-weight: 900;
+}
+
 .playerNumber{width:28px;text-align:center;color:#a7a7a7}
 .playerName{font-weight:700}
-
-
 .playerRole{color:#cfcfcf}
 .playerPoints{text-align:right;font-weight:800}
+/* --- КОНЕЦ ОБНОВЛЕННОГО БЛОКА --- */
+
 
 /* АДАПТИВ */
 @media (max-width:1024px){
