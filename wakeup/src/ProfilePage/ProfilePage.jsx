@@ -1,15 +1,15 @@
 // wakeup-site/wakeup/src/ProfilePage/ProfilePage.jsx
 
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // 1. Импортируем useNavigate
+import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ProfilePage.module.css";
 import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
 import RoleIcon from "../RoleIcon/RoleIcon";
 
 /* ===================== PlayerGames: список игр игрока ===================== */
-const PlayerGames = ({ nickname, games, loading, error, userMap }) => { // 2. Принимаем userMap
-  const navigate = useNavigate(); // 3. Инициализируем навигацию
+const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
+  const navigate = useNavigate();
 
   const handlePlayerClick = (playerName) => {
     const userId = userMap.get(playerName);
@@ -47,12 +47,10 @@ const PlayerGames = ({ nickname, games, loading, error, userMap }) => { // 2. П
                 >
                   <td className={styles.playerNumber}>{i + 1}</td>
                   <td className={styles.playerName}>
-                    {/* 4. Оборачиваем имя в кликабельный span */}
                     <span className={styles.clickableName} onClick={() => handlePlayerClick(player.name)}>
                       {player.name}
                     </span>
                   </td>
-                  {/* 5. Иконка теперь рядом с очками */}
                   <td className={styles.playerPoints}>
                     <RoleIcon role={player.role} />
                     <span>
@@ -105,7 +103,6 @@ const ProfilePage = () => {
   const isAdmin = user?.role === "admin";
   const canEdit = isOwnProfile || isAdmin;
 
-  // Состояния профиля
   const [profileData, setProfileData] = useState({
     nickname: "",
     name: "",
@@ -127,7 +124,6 @@ const ProfilePage = () => {
 
   const [activeTab, setActiveTab] = useState("profile");
 
-  // Аватар
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -138,10 +134,15 @@ const ProfilePage = () => {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [gamesError, setGamesError] = useState(null);
 
-  // 6. Состояние для карты пользователей (ник -> id)
   const [userMap, setUserMap] = useState(new Map());
 
-  // 7. Загружаем всех пользователей для создания карты
+  // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+  // Этот эффект сбрасывает вкладку на "Профиль" при смене ID пользователя в URL
+  useEffect(() => {
+    setActiveTab("profile");
+  }, [targetUserId]);
+  // --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
   useEffect(() => {
     const fetchAllUsers = async () => {
       try {
@@ -655,7 +656,7 @@ const ProfilePage = () => {
               games={playerGames}
               loading={gamesLoading}
               error={gamesError}
-              userMap={userMap} // 8. Передаем карту в компонент
+              userMap={userMap}
             />
           )}
 

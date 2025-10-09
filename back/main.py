@@ -1010,6 +1010,12 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
 async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
+        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
+        # 1. Получаем всех пользователей один раз для создания карты "никнейм -> id"
+        all_users = db.query(User).all()
+        user_id_map = {user.nickname: user.id for user in all_users}
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
         base_query = db.query(Game)
         if event_id and event_id != 'all':
             base_query = base_query.filter(Game.event_id == event_id)
@@ -1039,6 +1045,10 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
 
                 processed_players.append({
+                    # --- НАЧАЛО ИЗМЕНЕНИЙ ---
+                    # 2. Добавляем ID игрока в ответ
+                    "id": user_id_map.get(name), 
+                    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
                     "name": name,
                     "role": p.get("role", ""),
                     "points": final_points,

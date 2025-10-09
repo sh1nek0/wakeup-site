@@ -1,4 +1,5 @@
 // wakeup-site/wakeup/src/RaitingPage/RaitingPage.jsx
+
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
@@ -14,15 +15,12 @@ const baseURL = ""
 export default function RatingPage() {
   const [activeTab, setActiveTab] = useState('Общая сводка');
 
-  // Рейтинг (общая сводка)
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Игры
   const [gamesCurrentPage, setGamesCurrentPage] = useState(1);
-  const gamesPerPage = 9; // <-- ИЗМЕНЕНИЕ: Устанавливаем 9 игр на страницу
+  const gamesPerPage = 9;
 
-  // Детальная статистика
   const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
   const detailedStatsItemsPerPage = 10;
 
@@ -30,7 +28,6 @@ export default function RatingPage() {
   const location = useLocation();
   const { user, isAuthenticated, token, isAdmin, loading: authLoading } = useContext(AuthContext);
 
-  // ====== STATE ======
   const [playersData, setPlayersData] = useState([]);
   const [totalPlayersCount, setTotalPlayersCount] = useState(0);
   const [playersLoading, setPlayersLoading] = useState(false);
@@ -47,13 +44,19 @@ export default function RatingPage() {
   const [detailedStatsError, setDetailedStatsError] = useState(null);
   const [averagePoints, setAveragePoints] = useState(0);
 
-  // Состояние для процессов
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
 
-  // Уведомления
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // --- НАЧАЛО ИЗМЕНЕНИЙ ---
+  const handlePlayerClick = (playerId) => {
+    if (playerId) {
+      navigate(`/profile/${playerId}`);
+    }
+  };
+  // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
   useEffect(() => {
     if (location.state?.defaultTab) {
@@ -61,9 +64,8 @@ export default function RatingPage() {
     }
   }, [location.state]);
 
-  // ====== HELPERS ======
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const gamesStartIndex = (gamesCurrentPage - 1) * gamesPerPage; // <-- ИЗМЕНЕНИЕ: Используем gamesPerPage
+  const gamesStartIndex = (gamesCurrentPage - 1) * gamesPerPage;
   const detailedStatsStartIndex =
     (detailedStatsCurrentPage - 1) * detailedStatsItemsPerPage;
 
@@ -72,7 +74,7 @@ export default function RatingPage() {
       ? Math.ceil(totalPlayersCount / itemsPerPage)
       : 0;
   const gamesTotalPages =
-    totalGamesCount && gamesPerPage // <-- ИЗМЕНЕНИЕ: Используем gamesPerPage
+    totalGamesCount && gamesPerPage
       ? Math.ceil(totalGamesCount / gamesPerPage)
       : 0;
   const detailedStatsTotalPages =
@@ -102,7 +104,6 @@ export default function RatingPage() {
     });
   };
 
-  // ====== DATA FETCH ======
   const fetchPlayers = async () => {
     setPlayersLoading(true);
     setPlayersError(null);
@@ -131,7 +132,6 @@ export default function RatingPage() {
     setGamesLoading(true);
     setGamesError(null);
     try {
-      // <-- ИЗМЕНЕНИЕ: Используем gamesPerPage в запросе
       const res = await fetch(
         `/api/getGames?limit=${gamesPerPage}&offset=${gamesStartIndex}`
       );
@@ -198,7 +198,6 @@ export default function RatingPage() {
     navigate
   ]);
 
-  // ====== ПАГИНАЦИЯ ХЕНДЛЕРЫ ======
   const handlePageChange = (p) => {
     if (p >= 1 && p <= totalPages) setCurrentPage(p);
   };
@@ -209,7 +208,6 @@ export default function RatingPage() {
     if (p >= 1 && p <= detailedStatsTotalPages) setDetailedStatsCurrentPage(p);
   };
 
-  // ====== ДЕЙСТВИЯ ======
   const handleCreateGame = async () => {
     setIsCreatingGame(true);
     try {
@@ -489,7 +487,11 @@ export default function RatingPage() {
                                 >
                                   <td>{i + 1}</td>
                                   <td className={styles.nameP}>
-                                    {row.name ?? row.nickname ?? ''}
+                                    {/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */}
+                                    <span className={styles.clickableName} onClick={() => handlePlayerClick(row.id)}>
+                                      {row.name ?? row.nickname ?? ''}
+                                    </span>
+                                    {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
                                   </td>
                                   <td><RoleIcon role={row.role ?? row.role_name ?? ''} /></td>
                                   <td>

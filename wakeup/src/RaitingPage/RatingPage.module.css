@@ -479,6 +479,18 @@
 .link{ color:#FF7A1A; text-decoration:underline; cursor:pointer; }
 .link:hover{ filter:brightness(1.1); }
 
+/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */
+.clickableName {
+  cursor: pointer;
+  transition: color 0.2s ease;
+  font-weight: 600;
+  color: #111;
+}
+
+.clickableName:hover {
+  color: #FF7A1A;
+}
+
 /* =========================
    АДАПТИВ
    ========================= */
