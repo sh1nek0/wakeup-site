@@ -239,3 +239,12 @@ input:focus,select:focus{
   .nickname input{font-size:34px}
   .tabButton{padding:8px 12px;font-size:14px}
 }
+
+.gameFooter {
+  background: #2a2a2a;
+  text-align: center;
+  padding: 8px;
+  font-weight: 700;
+  color: #bdbdbd;
+  border-top: 1px solid #2f2f2f;
+}

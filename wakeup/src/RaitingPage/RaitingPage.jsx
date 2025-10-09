@@ -1,8 +1,10 @@
+// wakeup-site/wakeup/src/RaitingPage/RaitingPage.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
+import RoleIcon from '../RoleIcon/RoleIcon';
 
 const tabs = ['Общая сводка', 'Игры', 'Статистика'];
 
@@ -18,6 +20,7 @@ export default function RatingPage() {
 
   // Игры
   const [gamesCurrentPage, setGamesCurrentPage] = useState(1);
+  const gamesPerPage = 9; // <-- ИЗМЕНЕНИЕ: Устанавливаем 9 игр на страницу
 
   // Детальная статистика
   const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
@@ -60,7 +63,7 @@ export default function RatingPage() {
 
   // ====== HELPERS ======
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const gamesStartIndex = (gamesCurrentPage - 1) * itemsPerPage;
+  const gamesStartIndex = (gamesCurrentPage - 1) * gamesPerPage; // <-- ИЗМЕНЕНИЕ: Используем gamesPerPage
   const detailedStatsStartIndex =
     (detailedStatsCurrentPage - 1) * detailedStatsItemsPerPage;
 
@@ -69,8 +72,8 @@ export default function RatingPage() {
       ? Math.ceil(totalPlayersCount / itemsPerPage)
       : 0;
   const gamesTotalPages =
-    totalGamesCount && itemsPerPage
-      ? Math.ceil(totalGamesCount / itemsPerPage)
+    totalGamesCount && gamesPerPage // <-- ИЗМЕНЕНИЕ: Используем gamesPerPage
+      ? Math.ceil(totalGamesCount / gamesPerPage)
       : 0;
   const detailedStatsTotalPages =
     detailedStatsTotalCount && detailedStatsItemsPerPage
@@ -128,8 +131,9 @@ export default function RatingPage() {
     setGamesLoading(true);
     setGamesError(null);
     try {
+      // <-- ИЗМЕНЕНИЕ: Используем gamesPerPage в запросе
       const res = await fetch(
-        `/api/getGames?limit=${itemsPerPage}&offset=${gamesStartIndex}`
+        `/api/getGames?limit=${gamesPerPage}&offset=${gamesStartIndex}`
       );
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
@@ -487,7 +491,7 @@ export default function RatingPage() {
                                   <td className={styles.nameP}>
                                     {row.name ?? row.nickname ?? ''}
                                   </td>
-                                  <td>{row.role ?? row.role_name ?? ''}</td>
+                                  <td><RoleIcon role={row.role ?? row.role_name ?? ''} /></td>
                                   <td>
                                     {row.points?.toFixed(2) ?? ''}
                                     {row.best_move && (

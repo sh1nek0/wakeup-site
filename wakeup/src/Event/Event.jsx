@@ -1,3 +1,4 @@
+// wakeup-site/wakeup/src/Event/Event.jsx
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
 import { AuthContext } from "../AuthContext";
@@ -15,16 +16,33 @@ const stubAvatar =
 
 export default function Game() {
   const { isAdmin, user, token, isAuthenticated } = useContext(AuthContext) ?? { isAdmin: false, user: null, token: null, isAuthenticated: false };
-  const currentUserId = user?.id ?? null;
   const { evenId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // --- НОВАЯ ЛОГИКА УВЕДОМЛЕНИЙ ---
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const showMessage = (message, isError = false) => {
+    if (isError) {
+      setErrorMessage(message);
+      setSuccessMessage('');
+    } else {
+      setSuccessMessage(message);
+      setErrorMessage('');
+    }
+    setTimeout(() => {
+      setSuccessMessage('');
+      setErrorMessage('');
+    }, 4000);
+  };
+  // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // State для данных события
   const [tournament, setTournament] = useState({});
   const [participants, setParticipants] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -43,7 +61,6 @@ export default function Game() {
   
   const fetchEventData = async () => {
     if (!evenId) return;
-
     setLoading(true);
     try {
       const headers = { 'Cache-Control': 'no-cache' };
@@ -119,35 +136,22 @@ export default function Game() {
 
   const createTeam = async () => {
     if (!canCreateTeam) return;
-
     if (!token) {
-      alert("Токен авторизации отсутствует");
+      showMessage("Токен авторизации отсутствует", true);
       return;
     }
-
-    const requestBody = {
-      event_id: evenId,
-      name: teamName.trim(),
-      members: selectedIds,
-    };
-
+    const requestBody = { event_id: evenId, name: teamName.trim(), members: selectedIds };
     try {
       const response = await fetch("/api/createTeam", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(requestBody),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || "Ошибка создания команды");
       }
-
       const data = await response.json();
-      // Обновляем локальный state команд, добавляя новую команду
       setTeams((prev) => [
         ...prev,
         {
@@ -156,15 +160,12 @@ export default function Game() {
           members: selectedIds.map(id => ({ id, nick: participants.find(p => p.id === id)?.nick || "Неизвестный" })),
         },
       ]);
-
-      // Очищаем форму
       setTeamName("");
       setSelectedIds([]);
-
-      alert(data.message);
+      showMessage(data.message);
     } catch (error) {
       console.error("Ошибка создания команды:", error);
-      alert(`Ошибка: ${error.message}`);
+      showMessage(`Ошибка: ${error.message}`, true);
     }
   };
 
@@ -177,9 +178,9 @@ export default function Game() {
       });
       if (!response.ok) throw new Error("Ошибка удаления");
       setTeams((prev) => prev.filter((t) => t.id !== id));
-      alert("Команда удалена");
+      showMessage("Команда удалена");
     } catch (error) {
-      alert(`Ошибка: ${error.message}`);
+      showMessage(`Ошибка: ${error.message}`, true);
     }
   };
 
@@ -191,18 +192,16 @@ export default function Game() {
     try {
       const response = await fetch(`/api/events/${evenId}/register`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+        headers: { "Authorization": `Bearer ${token}` },
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.detail || "Ошибка регистрации");
       }
-      alert(data.message);
-      setUserRegistrationStatus('pending'); // Сразу обновляем статус для UI
+      showMessage(data.message);
+      setUserRegistrationStatus('pending');
     } catch (error) {
-      alert(`Ошибка: ${error.message}`);
+      showMessage(`Ошибка: ${error.message}`, true);
     }
   };
 
@@ -211,23 +210,19 @@ export default function Game() {
     try {
       const response = await fetch(`/api/registrations/${registrationId}/manage`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ action }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.detail || "Ошибка при обработке заявки");
       }
-      alert(data.message);
-      fetchEventData(); // Перезагружаем все данные о событии, чтобы обновить списки
+      showMessage(data.message);
+      fetchEventData();
     } catch (error) {
-      alert(`Ошибка: ${error.message}`);
+      showMessage(`Ошибка: ${error.message}`, true);
     }
   };
-
 
   const PAGE_SIZE = 10;
   const handleDetailedStatsPageChange = (p) =>
@@ -254,7 +249,7 @@ export default function Game() {
     isRegButtonDisabled = true;
   } else if (!isAuthenticated) {
     regButtonText = "Войдите для регистрации";
-    isRegButtonDisabled = false; // Кнопка активна, чтобы перенаправить на логин
+    isRegButtonDisabled = false;
   } else if (userRegistrationStatus === 'pending') {
     regButtonText = "Заявка отправлена";
     isRegButtonDisabled = true;
@@ -263,13 +258,16 @@ export default function Game() {
     isRegButtonDisabled = true;
   }
 
-
   return (
     <section className={styles.pageWrap}>
+      {/* --- БЛОК УВЕДОМЛЕНИЙ --- */}
+      {successMessage && <div className={styles.notificationSuccess}>{successMessage}</div>}
+      {errorMessage && <div className={styles.notificationError}>{errorMessage}</div>}
+      
       <header className={styles.header}>
         <h1 className={styles.title}>{tournament.title}</h1>
       </header>
-
+      {/* ... остальной JSX без изменений ... */}
       <div className={styles.topGrid}>
         <div className={styles.infoGrid}>
           {/* ... info cards ... */}
@@ -300,7 +298,7 @@ export default function Game() {
           <button
             type="button"
             className={styles.discussBtn}
-            onClick={() => alert("Открыть обсуждение")}
+            onClick={() => showMessage("Обсуждение скоро появится")}
           >
             💬 Перейти к обсуждению
           </button>
@@ -577,8 +575,7 @@ export default function Game() {
     </section>
   );
 }
-
-// ... DetailedStatsTable component remains unchanged ...
+// ... DetailedStatsTable component ...
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
   const roleCell = (wins = 0, games = 0, plusArr = []) => {
     const g = games || 0;

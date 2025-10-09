@@ -80,7 +80,7 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-AVATAR_DIR = Path("uploads") / "avatars"
+AVATAR_DIR = Path("../data") / "avatars"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -334,7 +334,7 @@ app.add_middleware(
     allow_headers=["*"],  # Разрешить все заголовки
 )
 
-AVATAR_DIR = Path("sratic") / "avatars"
+AVATAR_DIR = Path("../data") / "avatars"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static/avatars", StaticFiles(directory=str(AVATAR_DIR)), name="avatars")
 

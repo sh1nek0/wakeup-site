@@ -452,3 +452,38 @@
   .infoGrid { grid-template-columns: 1fr; }
   .discussBtn { text-align: center; }
 }
+
+/* =============== СТИЛИ УВЕДОМЛЕНИЙ =============== */
+.notificationSuccess, .notificationError {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 700;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: slideInUp 0.3s ease-out;
+}
+
+.notificationSuccess {
+  background-color: var(--green);
+  border-left: 5px solid #388E3C;
+}
+
+.notificationError {
+  background-color: var(--red);
+  border-left: 5px solid #D32F2F;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

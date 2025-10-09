@@ -6,6 +6,7 @@ import { useParams } from "react-router-dom";
 import styles from "./ProfilePage.module.css";
 import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
+import RoleIcon from "../RoleIcon/RoleIcon"; // <-- ДОБАВИТЬ ИМПОРТ
 
 /* ===================== PlayerGames: список игр игрока ===================== */
 const PlayerGames = ({ nickname, games, loading, error }) => {
@@ -38,7 +39,7 @@ const PlayerGames = ({ nickname, games, loading, error }) => {
                 >
                   <td className={styles.playerNumber}>{i + 1}</td>
                   <td className={styles.playerName}>{player.name}</td>
-                  <td className={styles.playerRole}>{player.role}</td>
+                  <td className={styles.playerRole}><RoleIcon role={player.role} /></td>
                   <td className={styles.playerPoints}>
                     {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
                   </td>
@@ -439,7 +440,7 @@ const ProfilePage = () => {
               className={`${styles.tabButton} ${activeTab === "profile" ? styles.active : ""}`}
               onClick={() => setActiveTab("profile")}
             >
-              Профиль
+             Профиль
             </button>
             <button
               className={`${styles.tabButton} ${activeTab === "stats" ? styles.active : ""}`}
@@ -448,16 +449,16 @@ const ProfilePage = () => {
               Статистика
             </button>
             <button
-              className={`${styles.tabButton} ${activeTab === "tournaments" ? styles.active : ""}`}
-              onClick={() => setActiveTab("tournaments")}
-            >
-              Турниры
-            </button>
-            <button
               className={`${styles.tabButton} ${activeTab === "games" ? styles.active : ""}`}
               onClick={() => setActiveTab("games")}
             >
               Игры
+            </button>
+            <button
+              className={`${styles.tabButton} ${activeTab === "tournaments" ? styles.active : ""}`}
+              onClick={() => setActiveTab("tournaments")}
+            >
+              Турниры
             </button>
           </div>
 
