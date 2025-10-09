@@ -267,7 +267,7 @@ export default function RatingPage() {
       setIsDeleting(false);
     }
   };
-
+  console.log(playersData)
   return (
     <div className={styles.pageWrapper}>
       {successMessage && (
@@ -314,7 +314,7 @@ export default function RatingPage() {
             </button>
           ))}
         </div>
-
+        
         {activeTab === 'Общая сводка' && (
           <>
             {playersLoading && <p>Загрузка игроков...</p>}
@@ -339,7 +339,7 @@ export default function RatingPage() {
                         <div className={styles.cardPlayer}>
                           <div className={styles.avatarWrap}>
                             <img
-                              src={player.avatarUrl || defaultAvatar}
+                              src={player.photoUrl || defaultAvatar}
                               alt="avatar"
                               className={styles.avatar}
                             />
