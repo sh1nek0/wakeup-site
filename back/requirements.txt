@@ -8,3 +8,4 @@ bcrypt==3.2.0
 python-dotenv==0.21.0
 transliterate==1.10.2
 APScheduler==3.10.4
+python-multipart==0.0.6
