@@ -199,12 +199,17 @@ input:focus,select:focus{
 /* --- ОБНОВЛЕННЫЙ БЛОК СТИЛЕЙ ДЛЯ ТАБЛИЦЫ ИГР --- */
 .gameTable{width:100%;border-collapse:collapse}
 .gameTable tr{border-bottom:1px solid #2f2f2f; transition: background-color 0.2s ease;}
+/* 
 .gameTable tr:nth-child(even) {
-  background-color: #252525; /* Stripe color for even rows */
-}
+  background-color: #252525;
+} 
+*/
 .gameTable tr:hover {
   background-color: #3a3a3a; /* Hover effect */
 }
+
+.gameTable td{padding:6px 10px;font-size:.95rem; vertical-align: middle;} /* Добавил vertical-align */
+
 .gameTable td{padding:6px 10px;font-size:.95rem}
 
 .highlightedRow {
@@ -217,11 +222,22 @@ input:focus,select:focus{
   font-weight: 900;
 }
 
+.clickableName {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
 .playerNumber{width:28px;text-align:center;color:#a7a7a7}
 .playerName{font-weight:700}
 .playerRole{color:#cfcfcf}
-.playerPoints{text-align:right;font-weight:800}
-/* --- КОНЕЦ ОБНОВЛЕННОГО БЛОКА --- */
+.playerPoints{
+  text-align:right;
+  font-weight:800;
+  display: flex; /* Включаем flex */
+  justify-content: flex-end; /* Прижимаем контент вправо */
+  align-items: center; /* Выравниваем по центру вертикально */
+  gap: 8px; /* Отступ между иконкой и текстом */
+}
 
 
 /* АДАПТИВ */

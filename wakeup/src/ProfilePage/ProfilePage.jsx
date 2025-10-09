@@ -1,15 +1,23 @@
 // wakeup-site/wakeup/src/ProfilePage/ProfilePage.jsx
 
-// ProfilePage.jsx
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // 1. Импортируем useNavigate
 import styles from "./ProfilePage.module.css";
 import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
-import RoleIcon from "../RoleIcon/RoleIcon"; // <-- ДОБАВИТЬ ИМПОРТ
+import RoleIcon from "../RoleIcon/RoleIcon";
 
 /* ===================== PlayerGames: список игр игрока ===================== */
-const PlayerGames = ({ nickname, games, loading, error }) => {
+const PlayerGames = ({ nickname, games, loading, error, userMap }) => { // 2. Принимаем userMap
+  const navigate = useNavigate(); // 3. Инициализируем навигацию
+
+  const handlePlayerClick = (playerName) => {
+    const userId = userMap.get(playerName);
+    if (userId) {
+      navigate(`/profile/${userId}`);
+    }
+  };
+
   if (!nickname) return <div>Никнейм отсутствует.</div>;
   if (loading) return <div>Загрузка игр...</div>;
   if (error) return <div className={styles.errorBanner}>Ошибка: {error}</div>;
@@ -38,10 +46,18 @@ const PlayerGames = ({ nickname, games, loading, error }) => {
                   className={player.name === nickname ? styles.highlightedRow : ""}
                 >
                   <td className={styles.playerNumber}>{i + 1}</td>
-                  <td className={styles.playerName}>{player.name}</td>
-                  <td className={styles.playerRole}><RoleIcon role={player.role} /></td>
+                  <td className={styles.playerName}>
+                    {/* 4. Оборачиваем имя в кликабельный span */}
+                    <span className={styles.clickableName} onClick={() => handlePlayerClick(player.name)}>
+                      {player.name}
+                    </span>
+                  </td>
+                  {/* 5. Иконка теперь рядом с очками */}
                   <td className={styles.playerPoints}>
-                    {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
+                    <RoleIcon role={player.role} />
+                    <span>
+                      {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -118,18 +134,35 @@ const ProfilePage = () => {
   const [uploadError, setUploadError] = useState(null);
   const MAX_BYTES = 2 * 1024 * 1024;
 
-  // Состояние для игр, поднятое из PlayerGames
   const [playerGames, setPlayerGames] = useState([]);
   const [gamesLoading, setGamesLoading] = useState(true);
   const [gamesError, setGamesError] = useState(null);
 
-  // Нормализация аватара: поддержка старых путей /uploads → /static
+  // 6. Состояние для карты пользователей (ник -> id)
+  const [userMap, setUserMap] = useState(new Map());
+
+  // 7. Загружаем всех пользователей для создания карты
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      try {
+        const res = await fetch('/api/getUsers');
+        const data = await res.json();
+        if (data.users) {
+          const map = new Map(data.users.map(u => [u.nickname, u.id]));
+          setUserMap(map);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user list for navigation:", error);
+      }
+    };
+    fetchAllUsers();
+  }, []);
+
   const normalizeAvatarPath = (url) =>
     typeof url === "string" && url.startsWith("/uploads/avatars/")
       ? url.replace("/uploads/avatars/", "/static/avatars/")
       : url;
 
-  // Поддерживаем два формата ответа бэка: {user:{...}} и плоский {...}
   const resetProfileData = (data) => {
     const src = data?.user || data || {};
     setProfileData({
@@ -145,7 +178,6 @@ const ProfilePage = () => {
     });
   };
 
-  // Загрузка профиля
   const fetchProfile = async () => {
     setLoading(true);
     setLoadError(null);
@@ -180,7 +212,6 @@ const ProfilePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUserId]);
 
-  // Загрузка игр при наличии никнейма
   useEffect(() => {
     if (!profileData.nickname) return;
 
@@ -202,7 +233,6 @@ const ProfilePage = () => {
     fetchGames();
   }, [profileData.nickname]);
 
-  // Вычисление статистики
   const playerStats = useMemo(() => {
     const stats = {
       totalGames: 0,
@@ -277,7 +307,6 @@ const ProfilePage = () => {
     return stats;
   }, [playerGames, profileData.nickname]);
 
-  // Изменение полей
   const onChangeField = (field) => (e) => {
     const val = e.target.value;
     setProfileData((prev) => ({ ...prev, [field]: val }));
@@ -343,7 +372,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Работа с аватаром
   const onPickAvatar = (file) => {
     setUploadError(null);
     setAvatarFile(null);
@@ -409,13 +437,11 @@ const ProfilePage = () => {
     }
   };
 
-  // Источник фото (с нормализацией старых путей)
   const photoSrc =
     avatarPreview ||
     normalizeAvatarPath(profileData.photoUrl) ||
     placeholderAvatar;
 
-  // Состояния загрузки
   if (loading) return <div className={styles.pageWrapper}>Загрузка…</div>;
   if (loadError)
     return (
@@ -431,7 +457,6 @@ const ProfilePage = () => {
       {saveError && <div className={styles.errorBanner}>{saveError}</div>}
 
       <div className={styles.mainContent}>
-        {/* Левая колонка */}
         <div className={styles.left}>
           <div className={styles.nickname}>{profileData.nickname || "—"}</div>
 
@@ -440,7 +465,7 @@ const ProfilePage = () => {
               className={`${styles.tabButton} ${activeTab === "profile" ? styles.active : ""}`}
               onClick={() => setActiveTab("profile")}
             >
-             Профиль
+              Профиль
             </button>
             <button
               className={`${styles.tabButton} ${activeTab === "stats" ? styles.active : ""}`}
@@ -630,6 +655,7 @@ const ProfilePage = () => {
               games={playerGames}
               loading={gamesLoading}
               error={gamesError}
+              userMap={userMap} // 8. Передаем карту в компонент
             />
           )}
 
