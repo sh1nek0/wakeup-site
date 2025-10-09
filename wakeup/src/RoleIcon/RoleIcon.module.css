@@ -1,0 +1,6 @@
+/* wakeup-site/wakeup/src/RoleIcon/RoleIcon.module.css */
+.roleIcon {
+  height: 1.4em; /* Высота иконки будет чуть больше высоты текста */
+  vertical-align: middle; /* Выравнивание по центру строки */
+  margin: 0 2px;
+}
