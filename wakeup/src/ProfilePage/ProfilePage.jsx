@@ -337,6 +337,7 @@ const ProfilePage = () => {
     setSaving(true);
     setSaveError(null);
     setSaveOk(false);
+    window.location.reload();
     try {
       const res = await fetch(`/api/updateProfile`, {
         method: "POST",

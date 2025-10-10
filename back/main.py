@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import io
 from PIL import Image
 from sqlalchemy.orm import Session
+import logging
 
 load_dotenv()
 from pathlib import Path
@@ -563,7 +564,8 @@ async def login(user: UserLogin):
             "vk": db_user.vk,
             "tg" : db_user.tg,
             "site1" : db_user.site1,
-            "site2" : db_user.site2
+            "site2" : db_user.site2,
+            "photoUrl": db_user.avatar
         }
 
         return {
@@ -670,7 +672,8 @@ async def get_players_list():
                 "id": user.id,
                 "nickname": user.nickname,
                 "club": user.club,
-                "game_count": player_game_counts.get(user.nickname, 0)
+                "game_count": player_game_counts.get(user.nickname, 0),
+                "photoUrl":user.avatar
             })
 
         sorted_players = sorted(players_list, key=lambda p: p["game_count"], reverse=True)
@@ -1202,61 +1205,109 @@ def calculate_dynamic_penalties(games: list[Game]) -> dict:
 
 
 @app.get("/getRating")
-async def get_rating(limit: int = Query(10, description="Количество элементов на странице"),
-                     offset: int = Query(0, description="Смещение для пагинации")):
+async def get_rating(
+limit: int = Query(10, description="Количество элементов на странице"),
+offset: int = Query(0, description="Смещение для пагинации")
+):
     db = SessionLocal()
+    logger = logging.getLogger("uvicorn.error")
     try:
-        games = db.query(Game).order_by(Game.created_at.asc()).all()
+        logger.debug("get_rating called: limit=%s offset=%s", limit, offset)
 
+        # Load all games
+        games = db.query(Game).order_by(Game.created_at.asc()).all()
+        logger.debug("Loaded %d games", len(games))
+
+        # Preload users (support both nickname and name as key)
+        raw_users = db.query(User).all()
+        users = {}
+        for u in raw_users:
+            key = getattr(u, "nickname", None) or getattr(u, "name", None)
+            if key:
+                users[key] = u
+        logger.debug("Loaded %d users", len(users))
+
+        clubs = {name: u.club for name, u in users.items()}
+
+        # Compute bonuses and penalties
         ci_bonuses = calculate_ci_bonuses(games)
         dynamic_penalties = calculate_dynamic_penalties(games)
 
-        all_players = db.query(User).all()
-        clubs = {p.nickname: p.club for p in all_players}
-
         player_stats = {}
-        for game in games:
-            game_data = json.loads(game.data)
-            players = game_data.get("players", [])
 
-            for player in players:
+        for game in games:
+            game_id = getattr(game, "id", getattr(game, "gameId", None))
+            if not game.data:
+                logger.debug("Skipping game %s — empty data", game_id)
+                continue
+
+            try:
+                game_data = json.loads(game.data)
+            except (TypeError, json.JSONDecodeError) as je:
+                logger.warning("JSON decode error for game %s: %s", game_id, je)
+                continue
+
+            for player in game_data.get("players", []):
                 name = player.get("name")
                 if not name or not name.strip():
+                    logger.debug("Skipping player with empty name in game %s", game_id)
                     continue
-                
+
+                user = users.get(name)
+                user_id = user.id if user else None
+                photo_url = getattr(user, "avatar", None) if user else None
+
                 base_sum = player.get("sum", 0)
-                ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
-                penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
-                jk_penalty = penalties.get('jk_penalty', 0)
-                sk_penalty = penalties.get('sk_penalty', 0)
+                ci_bonus = ci_bonuses.get(name, {}).get(game_id, 0)
+                penalties = dynamic_penalties.get(name, {}).get(game_id, {})
+                jk_penalty = penalties.get("jk_penalty", 0)
+                sk_penalty = penalties.get("sk_penalty", 0)
 
                 final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
 
+                # подробный дебаг одного игрока
+                logger.debug(
+                    "game=%s player=%s base=%s ci=%s jk=%s sk=%s final=%s",
+                    game_id, name, base_sum, ci_bonus, jk_penalty, sk_penalty, final_points
+                )
+
                 if name not in player_stats:
-                    player_stats[name] = {"games": 0, "total_sum": 0}
-                
+                    player_stats[name] = {
+                        "games": 0,
+                        "total_sum": 0,
+                        "user_id": user_id,
+                        "photo_url": photo_url,
+                    }
+
                 player_stats[name]["games"] += 1
                 player_stats[name]["total_sum"] += final_points
 
-        rating = [
-            {
+        rating = []
+        for name, stats in player_stats.items():
+            if stats["games"] <= 0:
+                continue
+            rating.append({
                 "name": name,
                 "games": stats["games"],
                 "points": stats["total_sum"],
-                "club": clubs.get(name, None),
-                "rating_score": (stats["total_sum"] / math.sqrt(stats["games"])) if stats["games"] > 0 else 0.0
-            }
-            for name, stats in player_stats.items() if stats["games"] > 0
-        ]
+                "club": clubs.get(name),
+                "id": stats["user_id"],
+                "photoUrl": stats["photo_url"],
+                "rating_score": stats["total_sum"] / math.sqrt(stats["games"]) if stats["games"] > 0 else 0.0
+            })
+
         rating.sort(key=lambda x: x["rating_score"], reverse=True)
-
         total_count = len(rating)
-        paginated_rating = rating[offset:offset + limit]
+        paginated_rating = rating[offset: offset + limit]
 
+        logger.debug("Returning %d players (total %d)", len(paginated_rating), total_count)
         return {"players": paginated_rating, "total_count": total_count}
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка получения рейтинга: {str(e)}")
+    except Exception:
+        logger.exception("Ошибка в get_rating")
+        # не возвращаем весь traceback в HTTP — он уже в логах
+        raise HTTPException(status_code=500, detail="Ошибка получения рейтинга")
+
     finally:
         db.close()
 
@@ -1650,7 +1701,7 @@ async def upload_avatar(
     userId: str = Form(..., description="ID пользователя, чей аватар обновляем"),
     avatar: UploadFile = File(..., description="PNG-файл с аватаром"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
 ):
     # ---- ACL: можно править свой профиль или если admin
     if (str(current_user.id) != str(userId)) and (getattr(current_user, "role", "user") != "admin"):
@@ -1661,16 +1712,16 @@ async def upload_avatar(
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    # ---- Проверка типа из заголовков (не полагаемся на это полностью)
+    # ---- Проверка типа
     if avatar.content_type != "image/png":
         raise HTTPException(status_code=400, detail="Допустим только PNG-файл")
 
-    # ---- Считываем с лимитом размера
+    # ---- Чтение и проверка размера
     total = 0
     chunks = bytearray()
     try:
         while True:
-            chunk = await avatar.read(1024 * 1024)  # 1MB чанки
+            chunk = await avatar.read(1024 * 1024)
             if not chunk:
                 break
             total += len(chunk)
@@ -1685,19 +1736,13 @@ async def upload_avatar(
 
     data = bytes(chunks)
 
-    # ---- Проверка «магической» подписи PNG
+    # ---- Проверка подписи PNG
     if not data.startswith(PNG_SIGNATURE):
         raise HTTPException(status_code=400, detail="Файл не является корректным PNG")
 
-    # ---- Безопасная обработка через Pillow:
-    #      - открываем из памяти
-    #      - конвертируем в RGBA/RGB
-    #      - ресайзим до 512x512 (cover)
-    #      - повторно кодируем в PNG с оптимизацией и БЕЗ EXIF
+    # ---- Pillow обработка
     try:
         with Image.open(io.BytesIO(data)) as im:
-            # Если изображение «узкое»/«высокое» — приводим к квадрату cover-обрезкой
-            # 1) посчитаем кроп в центр под квадрат
             w, h = im.size
             side = min(w, h)
             left = (w - side) // 2
@@ -1705,33 +1750,39 @@ async def upload_avatar(
             right = left + side
             bottom = top + side
             im = im.crop((left, top, right, bottom))
-
-            # 2) ресайз до 512
             im = im.resize((512, 512), Image.LANCZOS)
-
-            # 3) конвертация (убирает цветовые профили/метаданные)
             if im.mode not in ("RGB", "RGBA"):
                 im = im.convert("RGBA")
 
             out_buf = io.BytesIO()
             im.save(out_buf, format="PNG", optimize=True, compress_level=9)
             safe_png = out_buf.getvalue()
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Не удалось обработать изображение: {e}")
 
-    # ---- Сохраняем под детерминированным именем
-    filename = f"{userId}.png"
+    # ---- Генерируем версию файла (timestamp)
+    import time
+    version = int(time.time())
+    filename = f"{userId}_v{version}.png"
     filepath = AVATAR_DIR / filename
+
+    # ---- Сохраняем файл
     try:
         with open(filepath, "wb") as f:
             f.write(safe_png)
-        os.chmod(filepath, 0o644)  # права только на чтение для всех
+        os.chmod(filepath, 0o644)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка записи файла: {e}")
 
-    # ---- Обновляем ссылку в БД (можете хранить относительный путь)
+    # ---- Удаляем старые версии (если нужно)
+    for old_file in AVATAR_DIR.glob(f"{userId}_v*.png"):
+        if old_file.name != filename:
+            try:
+                old_file.unlink()
+            except Exception:
+                pass
+
+    # ---- Обновляем ссылку в БД
     url = f"http://127.0.0.1:8000/static/avatars/{filename}"
     try:
         user.avatar = url
@@ -1740,10 +1791,8 @@ async def upload_avatar(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Не удалось обновить профиль: {e}")
 
-    # ---- Возврат ссылки
+    # ---- Возвращаем ссылку
     return AvatarUploadResponse(url=url)
-
-
 
 
 if __name__ == "__main__":
