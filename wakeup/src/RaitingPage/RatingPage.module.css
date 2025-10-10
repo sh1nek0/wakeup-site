@@ -305,13 +305,13 @@
 
 /* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
 .eliminatedRow td {
-  background-color: #cccccc !important;
+  background-color: #8a8a8a !important;
   color: #111 !important;
 }
 
 .bestMoveText {
   font-size: 0.8em;
-  color: #aaaaaa;
+  color: #222222;
   margin-left: 4px;
   font-style: italic;
 }
