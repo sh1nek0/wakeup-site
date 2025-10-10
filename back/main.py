@@ -81,8 +81,9 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# <--- ИЗМЕНЕНИЕ 1: Путь к папке с аватарами исправлен для Docker-окружения
+# КЛЮЧЕВОЕ ИЗМЕНЕНИЕ 1: Путь к папке с аватарами.
 # Скрипт запускается из /app, а папка data монтируется в /app/data.
+# Этот путь корректен для сохранения файла внутри backend-контейнера.
 AVATAR_DIR = Path("data") / "avatars"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -337,7 +338,7 @@ app.add_middleware(
     allow_headers=["*"],  # Разрешить все заголовки
 )
 
-# <--- ИЗМЕНЕНИЕ 2: Удаляем app.mount. Раздачей статики теперь занимается Nginx.
+# Раздачей статики теперь занимается Nginx, поэтому app.mount не нужен.
 
 MAX_BYTES = 2 * 1024 * 1024  # 2 MB
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -1782,10 +1783,8 @@ async def upload_avatar(
             except Exception:
                 pass
 
-    # ---- Обновляем ссылку в БД
-    # <--- ИЗМЕНЕНИЕ 3: Генерируем корректный относительный URL
-    # Этот URL будет работать за любым прокси-сервером.
-    url = f"/static/avatars/{filename}"
+
+    url = f"http://127.0.0.1:8000/data/avatars/{filename}"
     try:
         user.avatar = url
         db.commit()

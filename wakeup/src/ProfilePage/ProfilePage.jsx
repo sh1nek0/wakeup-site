@@ -161,7 +161,7 @@ const ProfilePage = () => {
 
   const normalizeAvatarPath = (url) =>
     typeof url === "string" && url.startsWith("/uploads/avatars/")
-      ? url.replace("/uploads/avatars/", "/static/avatars/")
+      ? url.replace("/uploads/avatars/", "/data/avatars/")
       : url;
 
   const resetProfileData = (data) => {
