@@ -506,6 +506,41 @@ body {
   cursor: pointer;
 }
 
+/* =========================
+   УВЕДОМЛЕНИЯ
+   ========================= */
+.notification {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 700;
+  z-index: 1001;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: fadeInDown 0.3s ease-out;
+}
+.success {
+  background-color: #4CAF50;
+}
+.error {
+  background-color: #f44336;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+
 /* ===================
    АДАПТИВНОСТЬ
    =================== */

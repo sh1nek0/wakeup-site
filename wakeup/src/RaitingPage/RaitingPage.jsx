@@ -351,9 +351,9 @@ export default function RatingPage() {
                             </div>
                           </div>
                           <div>
-                            <div className={styles.playerName}>
-                              {player.name}
-                            </div>
+                            <div className={`${styles.playerName} ${styles.clickablePlayerName}`} onClick={() => handlePlayerClick(player.id)}>
+                               {player.name}
+                            </div> 
                             <div className={styles.playerSubtitle}>
                               {player.club}
                             </div>

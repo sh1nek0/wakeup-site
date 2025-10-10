@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import styles from "./HomePage.module.css";
-import {NavLink} from "react-router-dom"
+import { NavLink, useNavigate } from "react-router-dom";
+import { AuthContext } from "../AuthContext";
 
 import background1 from "../images/01BOX.png";
 import background2 from "../images/02BOX.png";
@@ -41,14 +42,20 @@ const roles = [
 ];
 
 const HomePage = () => {
+  const { isAuthenticated, user, token, login } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   // Состояния для каруселей
   const [tournaments, setTournaments] = useState(staticTournaments);
   const [activeTournament, setActiveTournament] = useState(0);
   const [activeRole, setActiveRole] = useState(2); // Стартуем с "Мирный житель"
-  const [isHovered, setIsHovered] = useState(false);
 
-  const carousel1Ref = useRef(null);
+  // Состояние для уведомлений
+  const [notification, setNotification] = useState({ message: '', type: '' });
+
+  const carousel1ViewportRef = useRef(null);
   const rail2Ref = useRef(null);
+  const carousel2StageRef = useRef(null);
 
   // --- НОВАЯ ЛОГИКА: Загрузка и обновление ссылок на турниры ---
   useEffect(() => {
@@ -89,36 +96,50 @@ const HomePage = () => {
   }, []); // Пустой массив зависимостей означает, что эффект выполнится один раз при монтировании
 
 
-  // Эффект для карусели турниров
+  // --- УЛУЧШЕННЫЙ ЭФФЕКТ ДЛЯ КАРУСЕЛИ ТУРНИРОВ (СВАЙПЫ + ЛОКАЛЬНЫЙ СКРОЛЛ) ---
   useEffect(() => {
-  // Обновление DOM для слайдов и трансформации
-  const carousel = carousel1Ref.current;
-  if (!carousel) return;
-  const slides = carousel.children;
-  Array.from(slides).forEach((slide, i) => slide.classList.toggle('active', i === activeTournament));
-  carousel.style.transform = `translateX(${computeTranslateX(activeTournament)}px)`;
+    const viewport = carousel1ViewportRef.current;
+    if (!viewport) return;
 
-  // Глобальный обработчик колесика для блокировки скролла и переключения слайдов
-  const handleGlobalWheel = (e) => {
-    if (isHovered) {
-      e.preventDefault();  // Блокируем скролл страницы при hover
-      if (e.deltaY > 0) {
-        nextSlide();  // Скролл вниз -> следующий слайд
-      } else {
-        prevSlide();  // Скролл вверх -> предыдущий слайд
+    const nextTournament = () => setActiveTournament(prev => (prev + 1) % tournaments.length);
+    const prevTournament = () => setActiveTournament(prev => (prev - 1 + tournaments.length) % tournaments.length);
+
+    // 1. Обработка колесика мыши (только на самом элементе)
+    const handleWheel = (e) => {
+      e.preventDefault();
+      e.deltaY > 0 ? nextTournament() : prevTournament();
+    };
+
+    // 2. Обработка свайпов
+    let touchStartX = 0;
+    const handleTouchStart = (e) => {
+      touchStartX = e.touches[0].clientX;
+    };
+    const handleTouchEnd = (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
+      if (Math.abs(deltaX) > 50) { // Порог для свайпа
+        deltaX < 0 ? nextTournament() : prevTournament();
       }
+    };
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false });
+    viewport.addEventListener('touchstart', handleTouchStart, { passive: true });
+    viewport.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    // Обновление DOM
+    const carousel = viewport.querySelector(`.${styles.carousel}`);
+    if (carousel) {
+      Array.from(carousel.children).forEach((slide, i) => slide.classList.toggle(styles.active, i === activeTournament));
+      carousel.style.transform = `translateX(${computeTranslateX(activeTournament)}px)`;
     }
-  };
 
-
-  // Добавляем слушатель на window
-  window.addEventListener('wheel', handleGlobalWheel, { passive: false });
-
-  // Очистка: убираем слушатель при размонтировании или изменении зависимостей
-  return () => {
-    window.removeEventListener('wheel', handleGlobalWheel);
-  };
-}, [activeTournament, isHovered]);  // Зависимости: activeTournament для DOM, isHovered для wheel
+    return () => {
+      viewport.removeEventListener('wheel', handleWheel);
+      viewport.removeEventListener('touchstart', handleTouchStart);
+      viewport.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [activeTournament, tournaments.length]);
 
 
   const computeTranslateX = (index) => {
@@ -127,26 +148,55 @@ const HomePage = () => {
     return -index * (CARD_W + GAP);
   };
 
-  // Эффект для карусели ролей
+  // --- УЛУЧШЕННЫЙ ЭФФЕКТ ДЛЯ КАРУСЕЛИ РОЛЕЙ (СВАЙПЫ + ЛОКАЛЬНЫЙ СКРОЛЛ) ---
   useEffect(() => {
-    const rail = rail2Ref.current;
-    if (!rail) return;
-    const cards = rail.children;
-    const CARD_W = 260;
-    const ACTIVE = 1.28;
-    const OVERLAP = 0.50;
-    const SHIFT = Math.round(CARD_W * OVERLAP);
+    const stage = carousel2StageRef.current;
+    if (!stage) return;
 
-    Array.from(cards).forEach((card, i) => {
-      const k = i - activeRole;
-      const abs = Math.abs(k);
-      const scale = k === 0 ? ACTIVE : 1 - Math.min(0.08 + abs * 0.04, 0.22);
-      const x = k * SHIFT;
-      card.style.zIndex = 100 - abs;
-      card.style.opacity = abs > 2 ? 0.45 : 1;
-      card.style.transform = `translateX(calc(-50% + ${x}px)) scale(${scale})`;
-      card.classList.toggle('is-active', k === 0);
-    });
+    const nextRole = () => setActiveRole(prev => (prev + 1) % roles.length);
+    const prevRole = () => setActiveRole(prev => (prev - 1 + roles.length) % roles.length);
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      e.deltaY > 0 ? nextRole() : prevRole();
+    };
+
+    let touchStartX = 0;
+    const handleTouchStart = (e) => { touchStartX = e.touches[0].clientX; };
+    const handleTouchEnd = (e) => {
+      const deltaX = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(deltaX) > 50) {
+        deltaX < 0 ? nextRole() : prevRole();
+      }
+    };
+
+    stage.addEventListener('wheel', handleWheel, { passive: false });
+    stage.addEventListener('touchstart', handleTouchStart, { passive: true });
+    stage.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    // Обновление DOM
+    const rail = rail2Ref.current;
+    if (rail) {
+      const cards = rail.children;
+      const CARD_W = 260, ACTIVE = 1.28, OVERLAP = 0.50;
+      const SHIFT = Math.round(CARD_W * OVERLAP);
+      Array.from(cards).forEach((card, i) => {
+        const k = i - activeRole;
+        const abs = Math.abs(k);
+        const scale = k === 0 ? ACTIVE : 1 - Math.min(0.08 + abs * 0.04, 0.22);
+        const x = k * SHIFT;
+        card.style.zIndex = 100 - abs;
+        card.style.opacity = abs > 2 ? 0.45 : 1;
+        card.style.transform = `translateX(calc(-50% + ${x}px)) scale(${scale})`;
+        card.classList.toggle(styles.isActive, k === 0);
+      });
+    }
+
+    return () => {
+      stage.removeEventListener('wheel', handleWheel);
+      stage.removeEventListener('touchstart', handleTouchStart);
+      stage.removeEventListener('touchend', handleTouchEnd);
+    };
   }, [activeRole]);
 
   // Обработчики для каруселей
@@ -158,28 +208,52 @@ const HomePage = () => {
     setActiveRole(index);
   };
 
+  // --- НОВАЯ ФУНКЦИЯ: ВЫБОР ЛЮБИМОЙ РОЛИ ---
+  const handleSelectRole = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
 
-const nextSlide = () => {
-  setActiveTournament((prev) => (prev + 1) % tournaments.length);  // Циклическое переключение
-};
+    const selectedRoleTitle = roles[activeRole].title;
+    const payload = {
+      userId: user.id,
+      name: user.name || "",
+      club: user.club || "",
+      favoriteCard: selectedRoleTitle,
+      vk: user.vk || "",
+      tg: user.tg || "",
+      site1: user.site1 || "",
+      site2: user.site2 || "",
+    };
 
-const prevSlide = () => {
-  setActiveTournament((prev) => (prev - 1 + tournaments.length) % tournaments.length);  // Циклическое переключение
-};
+    try {
+      const res = await fetch(`/api/updateProfile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Ошибка сохранения");
 
-// Обработчик колесика мыши
-const handleWheel = (e) => {
-  if (!isHovered) return;  // Если мышь не наведена на карусель, игнорируем событие
-  e.preventDefault();  // Предотвращаем скролл страницы только при hover
-  if (e.deltaY > 0) {
-    nextSlide();  // Скролл вниз -> следующий слайд
-  } else {
-    prevSlide();  // Скролл вверх -> предыдущий слайд
-  }
-};
+      // Обновляем данные пользователя в AuthContext и localStorage
+      const updatedUser = { ...user, favoriteCard: selectedRoleTitle };
+      login(updatedUser, token);
+
+      setNotification({ message: `Любимая карта обновлена на "${selectedRoleTitle}"`, type: 'success' });
+    } catch (e) {
+      setNotification({ message: e.message, type: 'error' });
+    } finally {
+      setTimeout(() => setNotification({ message: '', type: '' }), 3000);
+    }
+  };
 
   return (
     <div className={styles.container}>
+      {notification.message && (
+        <div className={`${styles.notification} ${styles[notification.type]}`}>
+          {notification.message}
+        </div>
+      )}
 
       {/* <div className={styles["unsupported-message"]}>Разрешение не поддерживается. Используйте экран шириной не менее 1000px в альбомной ориентации.</div>
        */}
@@ -302,12 +376,9 @@ const handleWheel = (e) => {
     </div>
     <div className={styles["carousel-wrapper"]}>
       <div 
-        className={styles.viewport} 
-        id="viewport1" 
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        className={styles.viewport} id="viewport1" ref={carousel1ViewportRef}
       >
-        <div className={styles.carousel} id="carousel1" ref={carousel1Ref}>
+        <div className={styles.carousel} id="carousel1">
           {tournaments.map((t, i) => (
             <div 
               key={i} 
@@ -348,10 +419,10 @@ const handleWheel = (e) => {
           <h1 className={styles.h1}>Твоя любимая карта?</h1>
           <div className={styles.grid}>
             <div className={styles["carousel-area"]}>
-              <div className={styles.stage}>
+              <div className={styles.stage} ref={carousel2StageRef}>
                 <div className={styles.rail} id="rail2" ref={rail2Ref}>
                   {roles.map((r, i) => (
-                    <div key={i} className={styles.card} onClick={() => goToRole(i)}>
+                    <div key={i} className={`${styles.card} ${i === activeRole ? styles.isActive : ''}`} onClick={() => goToRole(i)}>
                       <img src={r.img} alt={r.title} />
                     </div>
                   ))}
@@ -366,7 +437,7 @@ const handleWheel = (e) => {
             <aside className={styles.info}>
               <h2 className={styles.title} id="title2">{roles[activeRole].title}</h2>
               <p className={styles.desc} id="desc2">{roles[activeRole].desc}</p>
-              <button className={styles.cta}>Выбрать</button>
+              <button className={styles.cta} onClick={handleSelectRole}>Выбрать</button>
             </aside>
           </div>
         </section>
