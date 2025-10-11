@@ -4,6 +4,7 @@ import io
 from PIL import Image
 from sqlalchemy.orm import Session
 import logging
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 from pathlib import Path
@@ -84,7 +85,8 @@ Base = declarative_base()
 # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ 1: Путь к папке с аватарами.
 # Скрипт запускается из /app, а папка data монтируется в /app/data.
 # Этот путь корректен для сохранения файла внутри backend-контейнера.
-AVATAR_DIR = Path("data") / "avatars"
+# AVATAR_DIR = Path("data") / "avatars"
+AVATAR_DIR = Path("data") 
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -339,6 +341,9 @@ app.add_middleware(
 )
 
 # Раздачей статики теперь занимается Nginx, поэтому app.mount не нужен.
+
+
+app.mount("/data", StaticFiles(directory="data"), name="data")
 
 MAX_BYTES = 2 * 1024 * 1024  # 2 MB
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -1784,7 +1789,7 @@ async def upload_avatar(
                 pass
 
 
-    url = f"http://127.0.0.1:8000/data/avatars/{filename}"
+    url = f"http://127.0.0.1:8000/data/{filename}"
     try:
         user.avatar = url
         db.commit()
