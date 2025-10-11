@@ -1,4 +1,4 @@
-# wakeup-site/site/docker-compose.yml
+# wakeup-site/docker-compose.yml
 
 services:
   nginx:
@@ -9,8 +9,10 @@ services:
     volumes:
       - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
       - "/etc/letsencrypt:/etc/letsencrypt:ro"
+      # <--- ИЗМЕНЕНИЕ: Пробрасываем папку с аватарами в Nginx для раздачи
+      - "./data/avatars:/usr/share/nginx/html/static/avatars:ro"
     restart: always
-    depends_on: # <--- ДОБАВИТЬ ЭТОТ БЛОК
+    depends_on:
       - backend
       - frontend
 

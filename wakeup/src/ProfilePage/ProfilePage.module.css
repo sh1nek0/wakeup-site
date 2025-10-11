@@ -225,6 +225,11 @@ input:focus,select:focus{
 .clickableName {
   cursor: pointer;
   transition: color 0.2s ease;
+  font-weight: 600;
+}
+
+.clickableName:hover {
+  color: #FF7A1A;
 }
 
 .playerNumber{width:28px;text-align:center;color:#a7a7a7}

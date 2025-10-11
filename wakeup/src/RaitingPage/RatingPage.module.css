@@ -134,7 +134,7 @@
 }
 
 .avatarWrap{ position:relative; width:56px; height:56px; flex:0 0 56px; }
-.avatar{ width:56px; height:56px; object-fit:cover; border-radius:0; }
+.avatar{ width:56px; height:56px; object-fit:cover; border-radius:50%; }
 
 .rankBadge{
   position:absolute; left:-8px; bottom:-8px;
@@ -147,6 +147,16 @@
 }
 
 .playerName{ font-size:22px; font-weight:800; margin:0 0 2px; }
+
+.clickablePlayerName {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clickablePlayerName:hover {
+  color: #FF7A1A;
+}
+
 .playerSubtitle{ color:#B0B0B0; font-size:12px; }
 
 .pointsBlock{
@@ -305,13 +315,13 @@
 
 /* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
 .eliminatedRow td {
-  background-color: #cccccc !important;
+  background-color: #8a8a8a !important;
   color: #111 !important;
 }
 
 .bestMoveText {
   font-size: 0.8em;
-  color: #aaaaaa;
+  color: #222222;
   margin-left: 4px;
   font-style: italic;
 }

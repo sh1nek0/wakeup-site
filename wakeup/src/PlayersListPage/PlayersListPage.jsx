@@ -52,7 +52,7 @@ const PlayersListPage = () => {
                         <NavLink to={`/profile/${player.id}`} key={player.id} className={styles.playerRow}>
                             <div className={styles.playerInfo}>
                                 <div className={styles.rank}>{index + 1}</div>
-                                <img src={player.avatar || defaultAvatar} alt="avatar" className={styles.avatar} />
+                                <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
                                 <div>
                                     <div className={styles.playerName}>{player.nickname}</div>
                                     <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>

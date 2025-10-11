@@ -161,7 +161,7 @@ const ProfilePage = () => {
 
   const normalizeAvatarPath = (url) =>
     typeof url === "string" && url.startsWith("/uploads/avatars/")
-      ? url.replace("/uploads/avatars/", "/static/avatars/")
+      ? url.replace("/uploads/avatars/", "/data/avatars/")
       : url;
 
   const resetProfileData = (data) => {
@@ -337,6 +337,7 @@ const ProfilePage = () => {
     setSaving(true);
     setSaveError(null);
     setSaveOk(false);
+    window.location.reload();
     try {
       const res = await fetch(`/api/updateProfile`, {
         method: "POST",
