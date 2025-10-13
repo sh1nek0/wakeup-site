@@ -411,6 +411,9 @@ def normalize_for_search(text: str) -> str:
         return text.lower()
 
 
+
+
+
 @app.get("/get_player_suggestions")
 async def get_player_suggestions(query: str):
     if not query:

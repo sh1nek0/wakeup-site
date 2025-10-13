@@ -14,6 +14,7 @@ body {
   background-color: #1F1F1F;        /* оставляем фон первого файла */
   margin: 0;                        /* из второго — нормализуем */
   min-height: 100dvh;               /* из второго — безопасно */
+  background: #1F1F1F;
 }
 
 @font-face {
@@ -32,6 +33,7 @@ body {
   width: 100%;
   border-color: #303030;
 }
+
 .header {
   margin-left: 267px;
   margin-right: 267px;
