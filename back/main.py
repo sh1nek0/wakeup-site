@@ -85,8 +85,8 @@ Base = declarative_base()
 # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ 1: Путь к папке с аватарами.
 # Скрипт запускается из /app, а папка data монтируется в /app/data.
 # Этот путь корректен для сохранения файла внутри backend-контейнера.
-# AVATAR_DIR = Path("data") / "avatars"
-AVATAR_DIR = Path("data") 
+# ИЗМЕНЕНИЕ: Указываем конкретную папку для аватаров.
+AVATAR_DIR = Path("data") / "avatars"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -1789,7 +1789,9 @@ async def upload_avatar(
                 pass
 
 
-    url = f"http://127.0.0.1:8000/data/{filename}"
+    # ИЗМЕНЕНИЕ: Генерируем относительный URL, который будет обслуживать Nginx.
+    # Это правильный подход для работы за reverse-proxy.
+    url = f"/data/avatars/{filename}"
     try:
         user.avatar = url
         db.commit()
