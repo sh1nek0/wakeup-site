@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./NavBar.module.css";
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom"; // Импортируем Link
 import { AuthContext } from "../AuthContext";
 import defaultAvatar from "./avatar.png";
 import wh from "../images/WhiteHeart.png";
@@ -10,7 +10,6 @@ const Navbar = () => {
   const [currentUserData, setCurrentUserData] = useState(null);
 
   useEffect(() => {
-    // Если пользователь вышел, сбрасываем данные
     if (!user || !user.id) {
       setCurrentUserData(null);
       return;
@@ -48,12 +47,8 @@ const Navbar = () => {
     return () => {
       isCancelled = true;
     };
-  }, [user, token]); // Перезапрашиваем данные при смене пользователя или токена
+  }, [user, token]);
 
-  // ИЗМЕНЕНИЕ: Упрощенная и надежная логика получения URL аватара
-  // 1. Сначала смотрим свежие данные, полученные через fetch.
-  // 2. Если их нет, смотрим данные из AuthContext (могут быть чуть старше).
-  // 3. Если и там нет, ставим заглушку.
   const avatarSrc = currentUserData?.photoUrl || user?.photoUrl || defaultAvatar;
 
   return (
@@ -122,10 +117,11 @@ const Navbar = () => {
                 src={avatarSrc}
                 alt="Аватар пользователя"
                 className={styles.userAvatar}
-                // Добавим ключ, чтобы React принудительно обновил img при смене src
                 key={avatarSrc}
               />
-              <span className={styles.userName}>{user.nickname}</span>
+              <Link to={`/profile/${user.id}`} className={styles.userNameLink}>
+                <span className={styles.userName}>{user.nickname}</span>
+              </Link>
               <button
                 onClick={logout}
                 className={styles.logoutBtn}

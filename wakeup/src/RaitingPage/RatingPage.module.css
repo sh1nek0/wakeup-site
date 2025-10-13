@@ -79,6 +79,53 @@
 .tabBtn:hover{ border-color:#FF7A1A; transform:translateY(-1px); }
 .tabActive{ border-color:#FF7A1A; }
 
+/* --- СТИЛИ ДЛЯ ПОИСКА --- */
+.searchContainer {
+  margin-bottom: 24px;
+  position: relative; /* Для выпадающего списка */
+}
+
+.searchInput {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: #2e2e2e;
+    border: 1px solid #444;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+    border-color: #ff6f00;
+}
+
+/* Стили для выпадающего списка */
+.suggestionsList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #3a3a3a;
+  border: 1px solid #555;
+  border-top: none;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.suggestionItem {
+  padding: 10px 16px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.suggestionItem:hover {
+  background-color: #ff6f00;
+  color: #1f1f1f;
+}
+/* --- КОНЕЦ СТИЛЕЙ ПОИСКА --- */
+
 /* =========================
    ХЕДЕР СПИСКА
    ========================= */
@@ -231,6 +278,12 @@
   position:relative;
 }
 
+/* --- ИЗМЕНЕНИЯ: Цвет фона для шапки и подвала --- */
+.bgRed { background-color: #5f2323; }
+.bgBlack { background-color: #171717; } /* Возвращаем черный */
+.bgGray { background-color: #3f3f3f; }
+/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
+
 .sheetJudge {
   text-align: right;
   font-size: 12px;
@@ -300,7 +353,7 @@
 .sheetTable thead th:last-child{ width:96px; text-align:left; }
 
 .sheetTable tbody td {
-  background: #2E2E2E;
+  background: #ffffff; /* Возвращаем стандартный темный фон */
   color: #E0E0E0;
   font-size:14px;
   padding:12px 12px;
@@ -313,7 +366,6 @@
 .sheetTable tbody td:first-child { text-align:center; }
 .sheetTable tbody td:last-child { text-align:left; }
 
-/* --- ИСПРАВЛЕНИЕ ЗДЕСЬ --- */
 .eliminatedRow td {
   background-color: #8a8a8a !important;
   color: #111 !important;
@@ -388,11 +440,11 @@
 }
 
 .sheetDeleteBtn {
-  background: #5a2a2a;
+  background: #773636;
   color: #e5caca;
 }
 .sheetDeleteBtn:hover {
-  background: #6b3a3a;
+  background: #bd4c4c;
 }
 
 .sheetDeleteBtn:disabled {
@@ -563,7 +615,6 @@
 .sheetTable thead th:last-child{ width:92px; text-align:left; }
 
 .sheetTable tbody td{
-  background:var(--cell); /* Убрано !important */
   color:var(--txt-dark); /* Убрано !important */
   font-size:12px;
   padding:3px 6px;

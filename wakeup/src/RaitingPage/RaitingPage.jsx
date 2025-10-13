@@ -1,19 +1,21 @@
-// wakeup-site/wakeup/src/RaitingPage/RaitingPage.jsx
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
 import RoleIcon from '../RoleIcon/RoleIcon';
+import { useDebounce } from '../useDebounce'; // Импортируем новый хук
 
 const tabs = ['Общая сводка', 'Игры', 'Статистика'];
 
 const baseURL = ""
 
-
 export default function RatingPage() {
   const [activeTab, setActiveTab] = useState('Общая сводка');
+  const [searchTerm, setSearchTerm] = useState(''); // Общее состояние для поиска
+  const [suggestions, setSuggestions] = useState([]); // Состояние для подсказок
+  const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Отложенное значение
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -50,13 +52,11 @@ export default function RatingPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // --- НАЧАЛО ИЗМЕНЕНИЙ ---
   const handlePlayerClick = (playerId) => {
     if (playerId) {
       navigate(`/profile/${playerId}`);
     }
   };
-  // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
   useEffect(() => {
     if (location.state?.defaultTab) {
@@ -64,23 +64,23 @@ export default function RatingPage() {
     }
   }, [location.state]);
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const gamesStartIndex = (gamesCurrentPage - 1) * gamesPerPage;
-  const detailedStatsStartIndex =
-    (detailedStatsCurrentPage - 1) * detailedStatsItemsPerPage;
+  // Эффект для получения подсказок с сервера
+  useEffect(() => {
+    if (debouncedSearchTerm.length > 1) {
+        fetch(`/api/get_player_suggestions?query=${debouncedSearchTerm}`)
+            .then(res => res.json())
+            .then(data => setSuggestions(data))
+            .catch(err => console.error("Failed to fetch suggestions:", err));
+    } else {
+        setSuggestions([]);
+    }
+  }, [debouncedSearchTerm]);
 
-  const totalPages =
-    totalPlayersCount && itemsPerPage
-      ? Math.ceil(totalPlayersCount / itemsPerPage)
-      : 0;
-  const gamesTotalPages =
-    totalGamesCount && gamesPerPage
-      ? Math.ceil(totalGamesCount / gamesPerPage)
-      : 0;
-  const detailedStatsTotalPages =
-    detailedStatsTotalCount && detailedStatsItemsPerPage
-      ? Math.ceil(detailedStatsTotalCount / detailedStatsItemsPerPage)
-      : 0;
+  const handleSuggestionClick = (name) => {
+    setSearchTerm(name);
+    setSuggestions([]);
+    setIsSuggestionsVisible(false);
+  };
 
   const showMessage = (message, isError = false) => {
     if (isError) {
@@ -108,9 +108,7 @@ export default function RatingPage() {
     setPlayersLoading(true);
     setPlayersError(null);
     try {
-      const res = await fetch(
-        baseURL+`/api/getRating?limit=${itemsPerPage}&offset=${startIndex}`
-      );
+      const res = await fetch(baseURL+`/api/getRating?limit=1000&offset=0`);
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
       if (data && Array.isArray(data.players)) {
@@ -132,9 +130,7 @@ export default function RatingPage() {
     setGamesLoading(true);
     setGamesError(null);
     try {
-      const res = await fetch(
-        `/api/getGames?limit=${gamesPerPage}&offset=${gamesStartIndex}`
-      );
+      const res = await fetch(`/api/getGames?limit=1000&offset=0`);
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
       if (data && Array.isArray(data.games)) {
@@ -156,9 +152,7 @@ export default function RatingPage() {
     setDetailedStatsLoading(true);
     setDetailedStatsError(null);
     try {
-      const res = await fetch(
-        `/api/getDetailedStats?limit=${detailedStatsItemsPerPage}&offset=${detailedStatsStartIndex}`
-      );
+      const res = await fetch(`/api/getDetailedStats?limit=1000&offset=0`);
       if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
       const data = await res.json();
       if (data && Array.isArray(data.players)) {
@@ -188,25 +182,23 @@ export default function RatingPage() {
     else if (activeTab === 'Игры') fetchGames();
     else if (activeTab === 'Статистика') fetchDetailedStats();
 
-  }, [
-    activeTab,
-    currentPage,
-    gamesCurrentPage,
-    detailedStatsCurrentPage,
-    isAuthenticated,
-    authLoading,
-    navigate
-  ]);
+  }, [activeTab, isAuthenticated, authLoading, navigate]);
 
-  const handlePageChange = (p) => {
-    if (p >= 1 && p <= totalPages) setCurrentPage(p);
-  };
-  const handleGamesPageChange = (p) => {
-    if (p >= 1 && p <= gamesTotalPages) setGamesCurrentPage(p);
-  };
-  const handleDetailedStatsPageChange = (p) => {
-    if (p >= 1 && p <= detailedStatsTotalPages) setDetailedStatsCurrentPage(p);
-  };
+  const filteredPlayers = playersData.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const paginatedPlayers = filteredPlayers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
+
+  const filteredGames = gamesData.filter(g => g.players.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())));
+  const paginatedGames = filteredGames.slice((gamesCurrentPage - 1) * gamesPerPage, gamesCurrentPage * gamesPerPage);
+  const gamesTotalPages = Math.ceil(filteredGames.length / gamesPerPage);
+
+  const filteredStats = detailedStatsData.filter(p => p.nickname.toLowerCase().includes(searchTerm.toLowerCase()));
+  const paginatedStats = filteredStats.slice((detailedStatsCurrentPage - 1) * detailedStatsItemsPerPage, detailedStatsCurrentPage * detailedStatsItemsPerPage);
+  const detailedStatsTotalPages = Math.ceil(filteredStats.length / detailedStatsItemsPerPage);
+
+  const handlePageChange = (p) => { if (p >= 1 && p <= totalPages) setCurrentPage(p); };
+  const handleGamesPageChange = (p) => { if (p >= 1 && p <= gamesTotalPages) setGamesCurrentPage(p); };
+  const handleDetailedStatsPageChange = (p) => { if (p >= 1 && p <= detailedStatsTotalPages) setDetailedStatsCurrentPage(p); };
 
   const handleCreateGame = async () => {
     setIsCreatingGame(true);
@@ -267,7 +259,7 @@ export default function RatingPage() {
       setIsDeleting(false);
     }
   };
-  console.log(playersData)
+
   return (
     <div className={styles.pageWrapper}>
       {successMessage && (
@@ -315,12 +307,37 @@ export default function RatingPage() {
           ))}
         </div>
         
+        <div className={styles.searchContainer}>
+            <input
+                type="text"
+                placeholder="Поиск игрока"
+                className={styles.searchInput}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setIsSuggestionsVisible(true)}
+                onBlur={() => setTimeout(() => setIsSuggestionsVisible(false), 200)}
+            />
+            {isSuggestionsVisible && suggestions.length > 0 && (
+                <div className={styles.suggestionsList}>
+                    {suggestions.map((name, index) => (
+                        <div
+                            key={index}
+                            className={styles.suggestionItem}
+                            onMouseDown={() => handleSuggestionClick(name)}
+                        >
+                            {name}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+
         {activeTab === 'Общая сводка' && (
           <>
             {playersLoading && <p>Загрузка игроков...</p>}
             {playersError && <p>Ошибка: {playersError}</p>}
 
-            {!playersLoading && !playersError && Array.isArray(playersData) && (
+            {!playersLoading && !playersError && (
               <>
                 <section
                   className={styles.cardsWrapper}
@@ -332,7 +349,7 @@ export default function RatingPage() {
                     <div className={styles.cardPointsHeader}>Рейтинг</div>
                   </div>
 
-                  {playersData.map((player, index) => {
+                  {paginatedPlayers.map((player, index) => {
                     const rank = (currentPage - 1) * itemsPerPage + index + 1;
                     return (
                       <article key={`${rank}-${index}`} className={styles.card}>
@@ -436,21 +453,31 @@ export default function RatingPage() {
             {gamesLoading && <p>Загрузка игр...</p>}
             {gamesError && <p>Ошибка: {gamesError}</p>}
 
-            {!gamesLoading && !gamesError && Array.isArray(gamesData) && (
+            {!gamesLoading && !gamesError && (
               <>
                 <section
                   className={styles.gamesGridSheet}
                   role="tabpanel"
                   aria-label="Список игр"
                 >
-                  {gamesData.map((game, idx) => {
-                    const gameNumber = totalGamesCount - gamesStartIndex - idx;
+                  {paginatedGames.map((game, idx) => {
+                    const gameNumber = totalGamesCount - ((gamesCurrentPage - 1) * gamesPerPage) - idx;
                     const rows = Array.from(
                       { length: 10 },
                       (_, i) => game.players?.[i] || {}
                     );
+                    
+                    let backgroundColorClass = '';
+                    if (game.badgeColor === 'red') {
+                        backgroundColorClass = styles.bgRed;
+                    } else if (game.badgeColor === 'black') {
+                        backgroundColorClass = styles.bgBlack;
+                    } else {
+                        backgroundColorClass = styles.bgGray;
+                    }
+
                     return (
-                      <article key={game.id} className={styles.sheetCard}>
+                      <article key={game.id} className={`${styles.sheetCard} ${backgroundColorClass}`}>
                         <div className={styles.sheetJudge}>
                           Судья: {game.judge_nickname || 'Не указан'}
                         </div>
@@ -487,11 +514,9 @@ export default function RatingPage() {
                                 >
                                   <td>{i + 1}</td>
                                   <td className={styles.nameP}>
-                                    {/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */}
                                     <span className={styles.clickableName} onClick={() => handlePlayerClick(row.id)}>
                                       {row.name ?? row.nickname ?? ''}
                                     </span>
-                                    {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
                                   </td>
                                   <td><RoleIcon role={row.role ?? row.role_name ?? ''} /></td>
                                   <td>
@@ -518,10 +543,7 @@ export default function RatingPage() {
                             aria-hidden="true"
                           />
                           <span className={styles.sheetBottomRight}>
-                            {game.result ||
-                              (game.badgeColor === 'black'
-                                ? 'Победа мафии'
-                                : 'Победа мирных')}
+                            {game.badgeColor === 'red' ? 'Победа мирных' : game.badgeColor === 'black' ? 'Победа мафии' : 'Ничья'}
                           </span>
                         </div>
 
@@ -633,7 +655,7 @@ export default function RatingPage() {
             </div>
 
             <DetailedStatsTable
-              data={detailedStatsData}
+              data={paginatedStats}
               currentPage={detailedStatsCurrentPage}
               totalPages={detailedStatsTotalPages}
               onPageChange={handleDetailedStatsPageChange}
@@ -645,8 +667,6 @@ export default function RatingPage() {
     </div>
   );
 }
-
-/* ------------------ ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ------------------ */
 
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
   const navigate = useNavigate();

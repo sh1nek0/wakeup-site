@@ -121,6 +121,15 @@
 .userName {
   font-weight: 600;
   color: white;
+  transition: color 0.2s ease;
+}
+
+.userNameLink {
+  text-decoration: none;
+}
+
+.userNameLink:hover .userName {
+  color: #f28c3a;
 }
 
 .logoutBtn {
