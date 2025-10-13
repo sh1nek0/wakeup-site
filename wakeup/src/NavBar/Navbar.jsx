@@ -6,18 +6,21 @@ import defaultAvatar from "./avatar.png";
 import wh from "../images/WhiteHeart.png";
 
 const Navbar = () => {
-  const { user, isAuthenticated, token, isAdmin, logout } = useContext(AuthContext);
-  const [profileAvatar, setProfileData] = useState(null);
+  const { user, isAuthenticated, token, logout } = useContext(AuthContext);
+  const [currentUserData, setCurrentUserData] = useState(null);
 
   useEffect(() => {
-    if (!user || !user.id) return; // не делаем запрос, пока нет данных пользователя
+    // Если пользователь вышел, сбрасываем данные
+    if (!user || !user.id) {
+      setCurrentUserData(null);
+      return;
+    }
 
-    let cancelled = false;
+    let isCancelled = false;
 
-    const fetchUser = async () => {
+    const fetchCurrentUser = async () => {
       try {
         const res = await fetch(`/api/getUser/${encodeURIComponent(user.id)}`, {
-          method: "GET",
           headers: {
             Accept: "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -25,30 +28,34 @@ const Navbar = () => {
         });
 
         if (!res.ok) {
-          let msg = `Ошибка загрузки профиля (${res.status})`;
-          try {
-            const j = await res.json();
-            msg = j.detail || j.message || msg;
-          } catch {}
-          throw new Error(msg);
+          console.error("NavBar: Failed to fetch user data");
+          return;
         }
 
         const data = await res.json();
-        console.log(data)
-        if (!cancelled) setProfileData(data);
+        if (!isCancelled) {
+          setCurrentUserData(data.user);
+        }
       } catch (err) {
-        if (!cancelled) console.error("Ошибка при загрузке профиля:", err);
+        if (!isCancelled) {
+          console.error("NavBar: Error fetching user data:", err);
+        }
       }
     };
 
-    fetchUser();
+    fetchCurrentUser();
 
     return () => {
-      cancelled = true; // предотвращает setState после размонтирования
+      isCancelled = true;
     };
-  }, [user?.id, token]); 
+  }, [user, token]); // Перезапрашиваем данные при смене пользователя или токена
 
-  console.log(profileAvatar?.user?.photoUrl)
+  // ИЗМЕНЕНИЕ: Упрощенная и надежная логика получения URL аватара
+  // 1. Сначала смотрим свежие данные, полученные через fetch.
+  // 2. Если их нет, смотрим данные из AuthContext (могут быть чуть старше).
+  // 3. Если и там нет, ставим заглушку.
+  const avatarSrc = currentUserData?.photoUrl || user?.photoUrl || defaultAvatar;
+
   return (
     <nav className={styles.navbar}>
       <div className={styles.navbarContainer}>
@@ -87,7 +94,7 @@ const Navbar = () => {
                 Игроки
               </NavLink>
             </li>
-            {isAuthenticated && (
+            {isAuthenticated && user && (
               <li className={styles.navbarItem}>
                 <NavLink
                   to={`/profile/${user.id}`}
@@ -109,12 +116,14 @@ const Navbar = () => {
         </div>
 
         <div className={styles.navbarRight}>
-          {isAuthenticated ? (
+          {isAuthenticated && user ? (
             <div className={styles.userInfo}>
               <img
-                src={profileAvatar?.user?.photoUrl || user?.photoUrl || defaultAvatar}
+                src={avatarSrc}
                 alt="Аватар пользователя"
                 className={styles.userAvatar}
+                // Добавим ключ, чтобы React принудительно обновил img при смене src
+                key={avatarSrc}
               />
               <span className={styles.userName}>{user.nickname}</span>
               <button
