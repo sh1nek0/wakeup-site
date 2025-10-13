@@ -85,8 +85,8 @@ Base = declarative_base()
 # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ 1: Путь к папке с аватарами.
 # Скрипт запускается из /app, а папка data монтируется в /app/data.
 # Этот путь корректен для сохранения файла внутри backend-контейнера.
-# AVATAR_DIR = Path("data") / "avatars"
-AVATAR_DIR = Path("data") 
+# ИЗМЕНЕНИЕ: Указываем конкретную папку для аватаров.
+AVATAR_DIR = Path("data") / "avatars"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -1683,6 +1683,10 @@ class ProfileResponse(BaseModel):
     site2: Optional[str] = None
     photoUrl: Optional[str] = None
 
+# --- НОВАЯ МОДЕЛЬ ДЛЯ УДАЛЕНИЯ АВАТАРА ---
+class DeleteAvatarRequest(BaseModel):
+    userId: str
+
 # -----------------------------------------------------------------------------
 # Хелперы
 # -----------------------------------------------------------------------------
@@ -1720,6 +1724,9 @@ async def upload_avatar(
     user: Optional[User] = db.query(User).filter(User.id == userId).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    # ---- Запоминаем старый URL для удаления ----
+    old_avatar_url = user.avatar
 
     # ---- Проверка типа
     if avatar.content_type != "image/png":
@@ -1783,25 +1790,76 @@ async def upload_avatar(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка записи файла: {e}")
 
-    # ---- Удаляем старые версии (если нужно)
-    for old_file in AVATAR_DIR.glob(f"{userId}_v*.png"):
-        if old_file.name != filename:
-            try:
-                old_file.unlink()
-            except Exception:
-                pass
-
-
-    url = f"http://127.0.0.1:8000/data/{filename}"
+    # ИЗМЕНЕНИЕ: Генерируем относительный URL, который будет обслуживать Nginx.
+    # Это правильный подход для работы за reverse-proxy.
+    url = f"/data/avatars/{filename}"
     try:
         user.avatar = url
         db.commit()
     except Exception as e:
         db.rollback()
+        # Если не удалось обновить БД, удаляем только что загруженный файл
+        if filepath.is_file():
+            filepath.unlink()
         raise HTTPException(status_code=500, detail=f"Не удалось обновить профиль: {e}")
+    
+    # ---- Удаляем старый аватар ПОСЛЕ успешного сохранения нового ----
+    if old_avatar_url:
+        try:
+            # ИЗМЕНЕНИЕ: Убираем начальный слэш из пути, чтобы Path.name работал корректно
+            old_filename = Path(old_avatar_url.lstrip('/')).name
+            old_filepath = AVATAR_DIR / old_filename
+            if old_filepath.is_file() and old_filepath != filepath:
+                old_filepath.unlink()
+        except Exception as e:
+            # Логируем ошибку, но не прерываем запрос, т.к. основная операция удалась
+            print(f"Could not delete old avatar {old_avatar_url}: {e}")
+
 
     # ---- Возвращаем ссылку
     return AvatarUploadResponse(url=url)
+
+
+# --- НОВЫЙ ЭНДПОИНТ ДЛЯ УДАЛЕНИЯ АВАТАРА ---
+@app.delete("/profile/avatar")
+async def delete_avatar(
+    request: DeleteAvatarRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # ---- ACL: можно править свой профиль или если admin
+    if (str(current_user.id) != str(request.userId)) and (getattr(current_user, "role", "user") != "admin"):
+        raise HTTPException(status_code=403, detail="У вас нет прав для удаления этого аватара")
+
+    # ---- Найдём пользователя
+    user: Optional[User] = db.query(User).filter(User.id == request.userId).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    old_avatar_url = user.avatar
+    if not old_avatar_url:
+        return {"message": "Аватар уже был удален."}
+
+    # ---- Обновляем БД
+    try:
+        user.avatar = None
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Не удалось обновить профиль: {e}")
+
+    # ---- Удаляем файл с диска
+    try:
+        # ИЗМЕНЕНИЕ: Убираем начальный слэш из пути, чтобы Path.name работал корректно
+        old_filename = Path(old_avatar_url.lstrip('/')).name
+        old_filepath = AVATAR_DIR / old_filename
+        if old_filepath.is_file():
+            old_filepath.unlink()
+    except Exception as e:
+        # Логируем, но не возвращаем ошибку, так как запись в БД уже изменена
+        print(f"Could not delete avatar file {old_avatar_url}: {e}")
+
+    return {"message": "Аватар успешно удален"}
 
 
 if __name__ == "__main__":

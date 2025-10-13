@@ -128,6 +128,7 @@ const ProfilePage = () => {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [isDeletingAvatar, setIsDeletingAvatar] = useState(false);
   const MAX_BYTES = 2 * 1024 * 1024;
 
   const [playerGames, setPlayerGames] = useState([]);
@@ -136,12 +137,10 @@ const ProfilePage = () => {
 
   const [userMap, setUserMap] = useState(new Map());
 
-  // --- НАЧАЛО ИЗМЕНЕНИЙ ---
   // Этот эффект сбрасывает вкладку на "Профиль" при смене ID пользователя в URL
   useEffect(() => {
     setActiveTab("profile");
   }, [targetUserId]);
-  // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
   useEffect(() => {
     const fetchAllUsers = async () => {
@@ -158,11 +157,6 @@ const ProfilePage = () => {
     };
     fetchAllUsers();
   }, []);
-
-  const normalizeAvatarPath = (url) =>
-    typeof url === "string" && url.startsWith("/uploads/avatars/")
-      ? url.replace("/uploads/avatars/", "/data/avatars/")
-      : url;
 
   const resetProfileData = (data) => {
     const src = data?.user || data || {};
@@ -439,10 +433,42 @@ const ProfilePage = () => {
     }
   };
 
-  const photoSrc =
-    avatarPreview ||
-    normalizeAvatarPath(profileData.photoUrl) ||
-    placeholderAvatar;
+  const handleDeleteAvatar = async () => {
+    if (!canEdit || !profileData.photoUrl) return;
+    if (!window.confirm("Вы уверены, что хотите удалить аватар?")) return;
+
+    setIsDeletingAvatar(true);
+    setUploadError(null);
+    try {
+      const res = await fetch("/api/profile/avatar", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId: String(targetUserId) }),
+      });
+
+      if (!res.ok) {
+        let msg = "Ошибка удаления аватара.";
+        try {
+          const j = await res.json();
+          msg = j.detail || j.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+      
+      setProfileData((prev) => ({ ...prev, photoUrl: null }));
+      setAvatarPreview(null);
+    } catch (e) {
+      setUploadError(e.message);
+    } finally {
+      setIsDeletingAvatar(false);
+    }
+  };
+
+  // ИЗМЕНЕНИЕ: Убираем normalizeAvatarPath. Просто используем URL как есть.
+  const photoSrc = avatarPreview || profileData.photoUrl || placeholderAvatar;
 
   if (loading) return <div className={styles.pageWrapper}>Загрузка…</div>;
   if (loadError)
@@ -706,6 +732,13 @@ const ProfilePage = () => {
               {avatarPreview && <button onClick={uploadAvatar} disabled={uploading || !avatarFile} className={styles.loadbutton}>
                 {uploading ? "Загрузка…" : "Загрузить аватар"}
               </button>}
+              
+              {profileData.photoUrl && !avatarPreview && (
+                <button onClick={handleDeleteAvatar} disabled={isDeletingAvatar} className={styles.deleteButton}>
+                  {isDeletingAvatar ? "Удаление..." : "Удалить аватар"}
+                </button>
+              )}
+
               {uploadError && <div className={styles.errorText}>{uploadError}</div>}
             </div>
           )}

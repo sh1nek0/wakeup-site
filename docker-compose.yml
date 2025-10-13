@@ -9,8 +9,8 @@ services:
     volumes:
       - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
       - "/etc/letsencrypt:/etc/letsencrypt:ro"
-      # <--- ИЗМЕНЕНИЕ: Пробрасываем папку с аватарами в Nginx для раздачи
-      - "./data/avatars:/usr/share/nginx/html/static/avatars:ro"
+      # Пробрасываем папку с аватарами в Nginx для прямой раздачи.
+      - "./data/avatars:/app/static/avatars:ro"
     restart: always
     depends_on:
       - backend
