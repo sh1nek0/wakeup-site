@@ -27,3 +27,5 @@ data
 .DS_Store
 Thumbs.db
 /.trunk
+__init__.py
+__pycache__
