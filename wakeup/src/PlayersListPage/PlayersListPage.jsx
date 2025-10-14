@@ -13,6 +13,11 @@ const PlayersListPage = () => {
     const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+    // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ ПАГИНАЦИИ ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+    // --- КОНЕЦ НОВЫХ СОСТОЯНИЙ ---
+
     useEffect(() => {
         const fetchPlayers = async () => {
             setLoading(true);
@@ -55,6 +60,18 @@ const PlayersListPage = () => {
         player.nickname.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // --- ЛОГИКА ПАГИНАЦИИ ---
+    const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedPlayers = filteredPlayers.slice(startIndex, startIndex + itemsPerPage);
+
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+    // --- КОНЕЦ ЛОГИКИ ПАГИНАЦИИ ---
+
     if (loading) {
         return <div className={styles.pageWrapper}><p>Загрузка игроков...</p></div>;
     }
@@ -74,7 +91,10 @@ const PlayersListPage = () => {
                         placeholder="Поиск по никнейму..."
                         className={styles.searchInput}
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1); // Сбрасываем на первую страницу при поиске
+                        }}
                         onFocus={() => setIsSuggestionsVisible(true)}
                         onBlur={() => setTimeout(() => setIsSuggestionsVisible(false), 200)}
                     />
@@ -100,8 +120,8 @@ const PlayersListPage = () => {
                         <div className={styles.headerGames}>Сыграно игр</div>
                     </div>
 
-                    {filteredPlayers.slice(0, 10).map((player, index) => {
-                        // --- ИЗМЕНЕНИЕ: Логика для выбора класса цвета полоски ---
+                    {paginatedPlayers.map((player, index) => {
+                        const rank = startIndex + index + 1; // Правильный ранг с учетом страницы
                         let clubStripeClass = '';
                         if (player.club === 'WakeUp | MIET') {
                             clubStripeClass = styles.clubMIET;
@@ -114,7 +134,7 @@ const PlayersListPage = () => {
                                 <div className={`${styles.orangeStripe} ${clubStripeClass}`} />
                                 
                                 <div className={styles.playerInfo}>
-                                    <div className={styles.rank}>{index + 1}</div>
+                                    <div className={styles.rank}>{rank}</div>
                                     <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
                                     <div>
                                         <div className={styles.playerName}>{player.nickname}</div>
@@ -128,6 +148,39 @@ const PlayersListPage = () => {
                         );
                     })}
                 </section>
+
+                {/* --- КОМПОНЕНТ ПАГИНАЦИИ --- */}
+                {totalPages > 1 && (
+                    <nav className={styles.pagination}>
+                        <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className={`${styles.pageBtn} ${styles.pageArrow}`}
+                        >
+                            ‹
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => {
+                            const pageNumber = i + 1;
+                            return (
+                                <button
+                                    key={pageNumber}
+                                    onClick={() => handlePageChange(pageNumber)}
+                                    className={`${styles.pageBtn} ${currentPage === pageNumber ? styles.pageActive : ''}`}
+                                >
+                                    {pageNumber}
+                                </button>
+                            );
+                        })}
+                        <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className={`${styles.pageBtn} ${styles.pageArrow}`}
+                        >
+                            ›
+                        </button>
+                    </nav>
+                )}
+                {/* --- КОНЕЦ КОМПОНЕНТА ПАГИНАЦИИ --- */}
             </main>
         </div>
     );
