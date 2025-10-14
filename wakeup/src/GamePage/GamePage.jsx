@@ -485,6 +485,7 @@ setShowConfirmModal(false);
 
     try {
       localStorage.setItem(getLocalStorageKey(), JSON.stringify(dataToSave));
+
     } catch (error) {
       console.error("Ошибка сохранения данных в localStorage:", error);
     }
@@ -501,6 +502,8 @@ setShowConfirmModal(false);
     location,
     loading,
   ]);
+
+  
   const showMessage = (message, isError = false) => {
     if (isError) {
       setErrorMessage(message);
@@ -986,6 +989,13 @@ else saveResult(candidates.map((c) => c.playerId));
           >
             {!visibleRole ? "Показать роли" : "Скрыть роль"}
           </button>
+          <button
+            type='button'
+            className={styles.clearBtn}
+            onClick={() => navigate(`/Event/${eventId}/Game/${gameId}/gameWidget`)}
+            >
+              Виджет
+            </button>
         </div>
         {isAdmin && (
           <div className={styles.judgeAndLocationContainer}>

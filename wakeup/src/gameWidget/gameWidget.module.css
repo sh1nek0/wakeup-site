@@ -1,0 +1,188 @@
+body {
+  background: transparent;
+  background-color: #1f1f1f;
+}
+
+/* Общий контейнер */
+.fullScreenContainer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ===== Верхняя панель ===== */
+.topPanel {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 15px 60px;
+}
+
+.iconColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.icon {
+  font-size: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.squares {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.square {
+  background: orange;
+  width: 30px;
+  height: 30px;
+}
+
+/* Центр */
+.centerInfo {
+  text-align: center;
+  margin-top: 10px;
+}
+.tableTitle {
+  font-size: 22px;
+  font-weight: bold;
+}
+.gameRound {
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+/* ===== Секция с карточками и логотипом ===== */
+.cardsSection {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 25px;
+  padding-bottom: 30px;
+}
+
+/* Логотип */
+.logo {
+  height: 90px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  background: #111;
+}
+
+/* ===== Карточки ===== */
+.cardsContainer {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end; /* все карточки прижаты к низу */
+  gap: 20px;
+}
+
+/* Стиль карточки игрока */
+.playerCard {
+  position: relative;
+  width: 130px;
+  height: 160px;
+  background: #222;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: pointer; /* курсор при наведении */
+  transition: transform 0.3s, box-shadow 0.3s; /* анимация эффектов */
+}
+
+/* Эффект при наведении — подсветка */
+.playerCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Активная карточка (если есть такой класс) */
+.playerCard.active {
+  box-shadow: 0 0 15px 3px #ff9800; /* оранжевая свечения */
+}
+
+/* Изображение внутри карточки */
+.image {
+  width: 100%;
+  height: 75%;
+  object-fit: cover;
+}
+
+/* Нижняя часть карточки */
+.bottomSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.bottomBar {
+  background: orange;
+  color: white;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 15px;
+  font-weight: bold;
+  width: 100%;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Капсулы под карточками */
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  width: 70%;
+}
+
+.dots span {
+  flex: 1;
+  height: 8px;
+  background: white;
+  border-radius: 10px;
+  opacity: 0.4;
+  transition: 0.3s ease;
+}
+
+/* hover эффект для капсул */
+.dots span:hover {
+  opacity: 0.8;
+  background: orange;
+}
+
+/* ===== Сложенные карточки ===== */
+.folded {
+  height: 70px; /* ниже обычной */
+  background: #111; /* чуть темнее */
+  justify-content: center; /* контент по центру */
+}
+
+/* Верхняя часть у folded */
+.folded .bottomBar {
+  background: transparent;
+  border-top: 1px solid orange;
+  padding-top: 4px;
+}
+.iconImage {
+  width: 30px; /* или нужный размер */
+  height: 30px;
+  object-fit: contain;
+}
