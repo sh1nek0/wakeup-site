@@ -1,17 +1,21 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./NavBar.module.css";
-import { NavLink, Link } from "react-router-dom"; // Импортируем Link
+import { NavLink, Link, useLocation } from "react-router-dom"; // <-- Импортируем useLocation
 import { AuthContext } from "../AuthContext";
 import defaultAvatar from "./avatar.png";
 import wh from "../images/WhiteHeart.png";
+import bellIcon from "../images/bell.png";
 
 const Navbar = () => {
   const { user, isAuthenticated, token, logout } = useContext(AuthContext);
+  const location = useLocation(); // <-- Получаем текущий путь
   const [currentUserData, setCurrentUserData] = useState(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   useEffect(() => {
     if (!user || !user.id) {
       setCurrentUserData(null);
+      setUnreadNotificationsCount(0);
       return;
     }
 
@@ -25,29 +29,41 @@ const Navbar = () => {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         });
-
-        if (!res.ok) {
-          console.error("NavBar: Failed to fetch user data");
-          return;
-        }
-
+        if (!res.ok) return;
         const data = await res.json();
-        if (!isCancelled) {
-          setCurrentUserData(data.user);
-        }
+        if (!isCancelled) setCurrentUserData(data.user);
       } catch (err) {
-        if (!isCancelled) {
-          console.error("NavBar: Error fetching user data:", err);
-        }
+        console.error("NavBar: Error fetching user data:", err);
+      }
+    };
+
+    const fetchUnreadCount = async () => {
+      // Не запрашиваем, если мы уже на странице уведомлений
+      if (location.pathname === '/notifications') {
+        setUnreadNotificationsCount(0);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/notifications/count_unread`, {
+          headers: { "Authorization": `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const count = await res.json();
+        if (!isCancelled) setUnreadNotificationsCount(count);
+      } catch (err) {
+        console.error("Error fetching unread notifications count:", err);
       }
     };
 
     fetchCurrentUser();
+    if (isAuthenticated && token) {
+      fetchUnreadCount();
+    }
 
     return () => {
       isCancelled = true;
     };
-  }, [user, token]);
+  }, [user, token, isAuthenticated, location.pathname]); // <-- Добавляем location.pathname в зависимости
 
   const avatarSrc = currentUserData?.photoUrl || user?.photoUrl || defaultAvatar;
 
@@ -66,44 +82,29 @@ const Navbar = () => {
         <div className={styles.navbarCenter}>
           <ul className={styles.navbarMenu}>
             <li className={styles.navbarItem}>
-              <NavLink
-                to="/events"
-                className={({ isActive }) => (isActive ? styles.active : undefined)}
-              >
+              <NavLink to="/events" className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 Мероприятия
               </NavLink>
             </li>
             <li className={styles.navbarItem}>
-              <NavLink
-                to="/rating"
-                className={({ isActive }) => (isActive ? styles.active : undefined)}
-              >
+              <NavLink to="/rating" className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 Рейтинг
               </NavLink>
             </li>
             <li className={styles.navbarItem}>
-              <NavLink
-                to="/players"
-                className={({ isActive }) => (isActive ? styles.active : undefined)}
-              >
+              <NavLink to="/players" className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 Игроки
               </NavLink>
             </li>
             {isAuthenticated && user && (
               <li className={styles.navbarItem}>
-                <NavLink
-                  to={`/profile/${user.id}`}
-                  className={({ isActive }) => (isActive ? styles.active : undefined)}
-                >
+                <NavLink to={`/profile/${user.id}`} className={({ isActive }) => (isActive ? styles.active : undefined)}>
                   Профиль
                 </NavLink>
               </li>
             )}
             <li className={styles.navbarItem}>
-              <NavLink
-                to="/BTS"
-                className={({ isActive }) => (isActive ? styles.active : undefined)}
-              >
+              <NavLink to="/BTS" className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 BTS
               </NavLink>
             </li>
@@ -113,6 +114,12 @@ const Navbar = () => {
         <div className={styles.navbarRight}>
           {isAuthenticated && user ? (
             <div className={styles.userInfo}>
+              <Link to="/notifications" className={styles.notificationsIcon}>
+                <img src={bellIcon} alt="Уведомления" />
+                {unreadNotificationsCount > 0 && (
+                  <span className={styles.notificationsBadge}>{unreadNotificationsCount}</span>
+                )}
+              </Link>
               <img
                 src={avatarSrc}
                 alt="Аватар пользователя"

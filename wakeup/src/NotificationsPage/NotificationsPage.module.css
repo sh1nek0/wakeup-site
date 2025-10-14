@@ -1,0 +1,114 @@
+.pageWrapper {
+    min-height: 100vh;
+    background: #1f1f1f;
+    color: #fff;
+    font-family: 'Arial', sans-serif;
+    padding: 24px;
+}
+
+.main {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.title {
+    font-size: 48px;
+    font-weight: 800;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.notificationsList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.notificationItem {
+    background-color: #2e2e2e;
+    border: 1px solid #444;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    transition: background-color 0.2s ease;
+    border-left: 5px solid #555; /* Просто серая полоска для стиля */
+}
+
+.notificationItem:hover {
+    background-color: #3a3a3a;
+}
+
+.notificationContent {
+    flex-grow: 1;
+}
+
+.notificationMessage {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+.notificationDate {
+    font-size: 0.8rem;
+    color: #bbb;
+    margin-top: 5px;
+    display: block;
+}
+
+.notificationActions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.actionBtn {
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: bold;
+    transition: opacity 0.2s ease;
+}
+
+.actionBtn:hover {
+    opacity: 0.8;
+}
+
+.approve_registration, .accept_team_invite {
+    background-color: #5cb85c;
+    color: white;
+}
+
+.reject_registration, .decline_team_invite {
+    background-color: #d9534f;
+    color: white;
+}
+
+.emptyMessage {
+    text-align: center;
+    color: #bbb;
+    font-style: italic;
+    padding: 30px;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .title {
+        font-size: 36px;
+    }
+    .notificationItem {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .notificationActions {
+        width: 100%;
+        margin-top: 10px;
+    }
+    .actionBtn {
+        flex-grow: 1;
+    }
+}

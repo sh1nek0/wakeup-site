@@ -1,11 +1,10 @@
-from sqlalchemy import Column, String, Text, DateTime, Integer, Float, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, Integer, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from .base import Base
 from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
-
     id = Column(String, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     nickname = Column(String, unique=True, index=True)
@@ -23,7 +22,6 @@ class User(Base):
 
 class Game(Base):
     __tablename__ = "games"
-
     gameId = Column(String, primary_key=True, index=True)
     data = Column(Text)
     event_id = Column(String, index=True)
@@ -31,7 +29,6 @@ class Game(Base):
 
 class Event(Base):
     __tablename__ = "events"
-    
     id = Column(String, primary_key=True, index=True)
     title = Column(String, nullable=False)
     dates = Column(String, nullable=False)
@@ -51,17 +48,19 @@ class Event(Base):
 
 class Team(Base):
     __tablename__ = "teams"
-
     id = Column(String, primary_key=True, index=True)
     event_id = Column(String, ForeignKey("events.id"), nullable=False)
     name = Column(String, nullable=False)
-    members = Column(Text, nullable=False)
+    members = Column(Text, nullable=False) # JSON: [{"user_id": "...", "status": "pending/approved"}]
+    status = Column(String, default="pending", nullable=False) # pending, approved
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     event = relationship("Event", backref="teams")
+    creator = relationship("User")
+
 
 class Registration(Base):
     __tablename__ = "registrations"
-
     id = Column(String, primary_key=True, index=True)
     event_id = Column(String, ForeignKey("events.id"), nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
@@ -69,3 +68,17 @@ class Registration(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     user = relationship("User")
     event = relationship("Event")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(String, primary_key=True, index=True)
+    recipient_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    sender_id = Column(String, ForeignKey("users.id"), nullable=True)
+    type = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    related_id = Column(String, nullable=True)
+    is_read = Column(Boolean, default=False)
+    actions = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    recipient = relationship("User", foreign_keys=[recipient_id], backref="notifications")
+    sender = relationship("User", foreign_keys=[sender_id])

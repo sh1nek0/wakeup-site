@@ -351,6 +351,15 @@
   padding: 8px 12px;
   border-radius: 999px;
 }
+
+.teamMember.pending {
+  border-color: #ffc107; /* Желтый для ожидания */
+  opacity: 0.8;
+}
+.teamMember.approved {
+  border-color: #4CAF50; /* Зеленый для подтвержденных */
+}
+
 .teamMember .memberAvatar { width: 20px; height: 20px; }
 
 /* =============== вкладки результатов (если используются) =============== */

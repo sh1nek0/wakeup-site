@@ -8,8 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
 import uvicorn
 
-# --- ИЗМЕНЕНИЕ: Импортируем все наши роутеры ---
-from api import auth, games, users, events
+from api import auth, games, users, events, notifications
 from db.base import DATABASE_URL
 
 app = FastAPI()
@@ -28,6 +27,7 @@ app.include_router(auth.router)
 app.include_router(games.router)
 app.include_router(users.router)
 app.include_router(events.router)
+app.include_router(notifications.router)
 
 # Раздача статики (аватары)
 app.mount("/data", StaticFiles(directory="data"), name="data")

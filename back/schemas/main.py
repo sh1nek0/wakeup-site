@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
+from datetime import datetime
 
 class SaveGameData(BaseModel):
     gameId: str = Field(..., description="Идентификатор игры (теперь первичный ключ)")
@@ -32,7 +33,7 @@ class PromoteAdminRequest(BaseModel):
 class CreateTeamRequest(BaseModel):
     event_id: str = Field(..., description="ID события")
     name: str = Field(..., description="Название команды/пары")
-    members: List[str] = Field(..., description="Список ID участников")
+    members: List[str] = Field(..., description="Список ID участников (включая создателя)")
 
 class UpdateProfileRequest(BaseModel):
     userId: str = Field(..., description="ID пользователя для обновления")
@@ -52,3 +53,32 @@ class AvatarUploadResponse(BaseModel):
 
 class DeleteAvatarRequest(BaseModel):
     userId: str
+
+class NotificationBase(BaseModel):
+    type: str
+    message: str
+    related_id: Optional[str] = None
+    is_read: bool = False
+    actions: Optional[List[str]] = None
+
+class NotificationCreate(NotificationBase):
+    recipient_id: str
+    sender_id: Optional[str] = None
+
+class NotificationResponse(NotificationBase):
+    id: str
+    created_at: datetime
+    recipient_id: str
+    sender_id: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class NotificationActionRequest(BaseModel):
+    action: str
+
+# --- НОВЫЕ МОДЕЛИ ---
+class MarkNotificationsReadRequest(BaseModel):
+    notification_ids: List[str]
+
+class TeamActionRequest(BaseModel):
+    action: str # "accept" or "decline"

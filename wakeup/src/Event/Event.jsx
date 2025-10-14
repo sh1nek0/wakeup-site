@@ -1,4 +1,3 @@
-// wakeup-site/wakeup/src/Event/Event.jsx
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
 import { AuthContext } from "../AuthContext";
@@ -15,12 +14,11 @@ const stubAvatar =
   );
 
 export default function Game() {
-  const { isAdmin, user, token, isAuthenticated } = useContext(AuthContext) ?? { isAdmin: false, user: null, token: null, isAuthenticated: false };
+  const { isAdmin, user, token, isAuthenticated } = useContext(AuthContext) ?? {};
   const { evenId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- НОВАЯ ЛОГИКА УВЕДОМЛЕНИЙ ---
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -37,7 +35,6 @@ export default function Game() {
       setErrorMessage('');
     }, 4000);
   };
-  // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -132,37 +129,30 @@ export default function Game() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
 
-  const canCreateTeam = isAdmin && teamName.trim().length > 0 && selectedIds.length > 0;
+  const canCreateTeam = teamName.trim().length > 0 && selectedIds.length > 0;
 
   const createTeam = async () => {
-    if (!canCreateTeam) return;
+    if (!canCreateTeam || !user) return;
     if (!token) {
       showMessage("Токен авторизации отсутствует", true);
       return;
     }
-    const requestBody = { event_id: evenId, name: teamName.trim(), members: selectedIds };
+    const membersWithCreator = [...new Set([...selectedIds, user.id])];
+    const requestBody = { event_id: evenId, name: teamName.trim(), members: membersWithCreator };
     try {
       const response = await fetch("/api/createTeam", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify(requestBody),
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Ошибка создания команды");
-      }
       const data = await response.json();
-      setTeams((prev) => [
-        ...prev,
-        {
-          id: data.team_id,
-          name: teamName.trim(),
-          members: selectedIds.map(id => ({ id, nick: participants.find(p => p.id === id)?.nick || "Неизвестный" })),
-        },
-      ]);
+      if (!response.ok) {
+        throw new Error(data.detail || "Ошибка создания команды");
+      }
       setTeamName("");
       setSelectedIds([]);
       showMessage(data.message);
+      fetchEventData();
     } catch (error) {
       console.error("Ошибка создания команды:", error);
       showMessage(`Ошибка: ${error.message}`, true);
@@ -170,15 +160,18 @@ export default function Game() {
   };
 
   const deleteTeam = async (id) => {
-    if (!isAdmin) return;
+    if (!window.confirm("Вы уверены, что хотите покинуть/расформировать эту команду?")) return;
     try {
       const response = await fetch(`/api/deleteTeam/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("Ошибка удаления");
-      setTeams((prev) => prev.filter((t) => t.id !== id));
-      showMessage("Команда удалена");
+      const data = await response.json();
+      if (!response.ok) {
+          throw new Error(data.detail || "Ошибка удаления");
+      }
+      showMessage(data.message);
+      fetchEventData();
     } catch (error) {
       showMessage(`Ошибка: ${error.message}`, true);
     }
@@ -258,19 +251,23 @@ export default function Game() {
     isRegButtonDisabled = true;
   }
 
+  // --- ИЗМЕНЕНИЕ: Упрощенная логика для отображения кнопки ---
+  const canManageTeam = (team) => {
+    if (!user) return false;
+    if (isAdmin) return true;
+    return team.members.some(m => m.id === user.id);
+  };
+
   return (
     <section className={styles.pageWrap}>
-      {/* --- БЛОК УВЕДОМЛЕНИЙ --- */}
       {successMessage && <div className={styles.notificationSuccess}>{successMessage}</div>}
       {errorMessage && <div className={styles.notificationError}>{errorMessage}</div>}
       
       <header className={styles.header}>
         <h1 className={styles.title}>{tournament.title}</h1>
       </header>
-      {/* ... остальной JSX без изменений ... */}
       <div className={styles.topGrid}>
         <div className={styles.infoGrid}>
-          {/* ... info cards ... */}
           <div className={styles.infoCard}>
             <div className={styles.caption}>Даты проведения</div>
             <div className={styles.value}>{tournament.dates}</div>
@@ -282,11 +279,7 @@ export default function Game() {
           <div className={styles.infoCard}>
             <div className={styles.caption}>Тип турнира</div>
             <div className={styles.value}>
-              {tournament.type === "solo"
-                ? "Личный"
-                : tournament.type === "pair"
-                ? "Парный"
-                : "Командный"}
+              {tournament.type === "solo" ? "Личный" : tournament.type === "pair" ? "Парный" : "Командный"}
             </div>
           </div>
           <div className={styles.infoCard}>
@@ -305,25 +298,15 @@ export default function Game() {
         </div>
 
         <aside className={styles.rightCol}>
-          {/* ... person cards ... */}
           <div className={styles.personCard}>
-            <img
-              src={tournament.gs?.avatar || stubAvatar}
-              alt={tournament.gs?.name}
-              className={styles.avatar}
-            />
+            <img src={tournament.gs?.avatar || stubAvatar} alt={tournament.gs?.name} className={styles.avatar} />
             <div className={styles.personMeta}>
               <div className={styles.personName}>{tournament.gs?.name}</div>
               <div className={styles.personRole}>{tournament.gs?.role}</div>
             </div>
           </div>
-
           <div className={styles.personCard}>
-            <img
-              src={tournament.org?.avatar || stubAvatar}
-              alt={tournament.org?.name}
-              className={styles.avatar}
-            />
+            <img src={tournament.org?.avatar || stubAvatar} alt={tournament.org?.name} className={styles.avatar} />
             <div className={styles.personMeta}>
               <div className={styles.personName}>{tournament.org?.name}</div>
               <div className={styles.personRole}>{tournament.org?.role}</div>
@@ -346,7 +329,6 @@ export default function Game() {
         </aside>
       </div>
 
-      {/* --- НОВЫЙ БЛОК ДЛЯ АДМИНА: ЗАЯВКИ НА УЧАСТИЕ --- */}
       {isAdmin && pendingRegistrations.length > 0 && (
         <section className={styles.adminSection}>
           <h2 className={styles.h2}>Заявки на участие ({pendingRegistrations.length})</h2>
@@ -375,11 +357,7 @@ export default function Game() {
           <div className={styles.qualifiedGrid}>
             {participants.map((p) => (
               <div className={styles.qualifiedCard} key={p.id}>
-                <img
-                  src={p.avatar || stubAvatar}
-                  className={styles.qualifiedAvatar}
-                  alt={p.nick}
-                />
+                <img src={p.avatar || stubAvatar} className={styles.qualifiedAvatar} alt={p.nick} />
                 <div className={styles.qualifiedNick}>{p.nick}</div>
                 <div className={styles.qualifiedFrom}>{p.club || "—"}</div>
               </div>
@@ -388,14 +366,12 @@ export default function Game() {
         )}
       </section>
 
-      {/* --- ФОРМА СОЗДАНИЯ КОМАНД ТЕПЕРЬ ТОЛЬКО ДЛЯ АДМИНА --- */}
-      {isAdmin && (tournament.type === "pair" || tournament.type === "team") && (
+      {(tournament.type === "pair" || tournament.type === "team") && userRegistrationStatus === 'approved' && (
         <section className={styles.teamsWrap}>
           <h2 className={styles.h2}>
             {tournament.type === "pair" ? "Пары" : "Команды"}
           </h2>
           <div className={styles.teamForm}>
-            {/* ... form content ... */}
             <div className={styles.formRow}>
               <label className={styles.formLabel}>
                 Название {tournament.type === "pair" ? "пары" : "команды"}
@@ -407,48 +383,33 @@ export default function Game() {
                 placeholder="Например: FrostBite"
               />
             </div>
-
             <div className={styles.formRow}>
               <div className={styles.formLabel}>
-                Участники ({selectedIds.length}
-                {tournament.type === "pair"
-                  ? "/2"
-                  : `/${teamSize} (минимум ${Math.ceil(teamSize / 2)})`}
-                )
+                Пригласить участников ({selectedIds.length}
+                {tournament.type === "pair" ? "/1" : `/${teamSize - 1}`})
               </div>
               <div className={styles.membersPool}>
-                {freeParticipants.length === 0 && (
+                {user && freeParticipants.filter(p => p.id !== user.id).length === 0 && (
                   <div className={styles.emptyHintSmall}>
-                    Все участники уже распределены.
+                    Нет свободных участников для приглашения.
                   </div>
                 )}
-                {freeParticipants.map((p) => (
+                {user && freeParticipants.filter(p => p.id !== user.id).map((p) => (
                   <button
                     key={p.id}
                     type="button"
-                    className={
-                      selectedIds.includes(p.id)
-                        ? styles.memberBtnSelected
-                        : styles.memberBtn
-                    }
+                    className={selectedIds.includes(p.id) ? styles.memberBtnSelected : styles.memberBtn}
                     onClick={() => toggleMember(p.id)}
                   >
-                    <img
-                      alt={p.nick}
-                      src={p.avatar || stubAvatar}
-                      className={styles.memberAvatar}
-                    />
+                    <img alt={p.nick} src={p.avatar || stubAvatar} className={styles.memberAvatar} />
                     <span>{p.nick}</span>
                   </button>
                 ))}
               </div>
             </div>
-
             <button
               type="button"
-              className={
-                canCreateTeam ? styles.primaryBtn : styles.primaryBtnDisabled
-              }
+              className={canCreateTeam ? styles.primaryBtn : styles.primaryBtnDisabled}
               disabled={!canCreateTeam}
               onClick={createTeam}
             >
@@ -458,33 +419,23 @@ export default function Game() {
           <div className={styles.teamsList}>
             {teams.length === 0 ? (
               <div className={styles.emptyHint}>
-                {tournament.type === "pair"
-                  ? "Пока нет созданных пар."
-                  : "Пока нет созданных команд."}
+                {tournament.type === "pair" ? "Пока нет созданных пар." : "Пока нет созданных команд."}
               </div>
             ) : (
               teams.map((t) => (
                 <div className={styles.teamCard} key={t.id}>
                   <div className={styles.teamHeader}>
-                    <div className={styles.teamName}>{t.name}</div>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        className={styles.deleteBtn}
-                        onClick={() => deleteTeam(t.id)}
-                      >
-                        Удалить
+                    <div className={styles.teamName}>{t.name} ({t.status})</div>
+                    {canManageTeam(t) && (
+                      <button type="button" className={styles.deleteBtn} onClick={() => deleteTeam(t.id)}>
+                        {isAdmin ? "Удалить" : "Покинуть/Расформировать"}
                       </button>
                     )}
                   </div>
                   <div className={styles.teamMembers}>
                     {t.members.map((m) => (
-                      <div className={styles.teamMember} key={m.id}>
-                        <img
-                          src={participants.find(p => p.id === m.id)?.avatar || stubAvatar}
-                          alt={m.nick}
-                          className={styles.memberAvatar}
-                        />
+                      <div className={`${styles.teamMember} ${styles[m.status]}`} key={m.id}>
+                        <img src={participants.find(p => p.id === m.id)?.avatar || stubAvatar} alt={m.nick} className={styles.memberAvatar} />
                         <span>{m.nick}</span>
                       </div>
                     ))}
@@ -497,7 +448,6 @@ export default function Game() {
       )}
 
       <section className={styles.resultsWrap}>
-        {/* ... tabs and results ... */}
         <div className={styles.tabs}>
           {tabs.map((t, i) => (
             <button
@@ -510,16 +460,10 @@ export default function Game() {
             </button>
           ))}
         </div>
-
         <div className={styles.tabPanel}>
-          {/* Игры — плейсхолдер */}
           {activeTab === 0 && (
-            <div className={styles.placeholder}>
-              Таблица «Игры» появится здесь
-            </div>
+            <div className={styles.placeholder}>Таблица «Игры» появится здесь</div>
           )}
-
-          {/* Личный зачёт — только таблица */}
           {activeTab === 1 && (
             <div className={styles.tableOnly}>
               {detailedStatsLoading && <div>Загрузка статистики...</div>}
@@ -535,14 +479,9 @@ export default function Game() {
               )}
             </div>
           )}
-
-          {/* Командный зачёт — простой пример */}
           {activeTab === 2 && tournament.type !== "solo" && (
             <div className={styles.tableWrapper}>
-              <table
-                className={styles.detailedStatsTable}
-                aria-label="Командный зачёт"
-              >
+              <table className={styles.detailedStatsTable} aria-label="Командный зачёт">
                 <thead>
                   <tr>
                     <th>Место</th>
@@ -551,19 +490,11 @@ export default function Game() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teams.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: "center", color: "#bbb" }}>
-                        Нет данных
-                      </td>
-                    </tr>
+                  {teams.filter(t => t.status === 'approved').length === 0 ? (
+                    <tr><td colSpan={3} style={{ textAlign: "center", color: "#bbb" }}>Нет подтвержденных команд</td></tr>
                   ) : (
-                    teams.map((t, idx) => (
-                      <tr key={t.id}>
-                        <td>{idx + 1}</td>
-                        <td>{t.name}</td>
-                        <td>0</td>
-                      </tr>
+                    teams.filter(t => t.status === 'approved').map((t, idx) => (
+                      <tr key={t.id}><td>{idx + 1}</td><td>{t.name}</td><td>0</td></tr>
                     ))
                   )}
                 </tbody>
@@ -575,7 +506,7 @@ export default function Game() {
     </section>
   );
 }
-// ... DetailedStatsTable component ...
+
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
   const roleCell = (wins = 0, games = 0, plusArr = []) => {
     const g = games || 0;
@@ -622,8 +553,8 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
               <th className={styles.center}>СК</th>
               <th className={styles.center}>ЖК</th>
               <th className={styles.center}>ЛХ</th>
-              <th className={styles.center}>Допы</th>
               <th className={styles.center}>Ci</th>
+              <th className={styles.center}>Допы</th>
               <th className={styles.center}>−</th>
               <th className={styles.center}>Общая</th>
               <th className={styles.center}>Шериф</th>
@@ -636,44 +567,21 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
             {Array.isArray(data) &&
               data.map((p, i) => {
                 const rank = (currentPage - 1) * 10 + i + 1;
-
-                const totalGames =
-                  (p.gamesPlayed?.peaceful || 0) +
-                  (p.gamesPlayed?.mafia || 0) +
-                  (p.gamesPlayed?.red || 0) +
-                  (p.gamesPlayed?.don || 0) +
-                  (p.gamesPlayed?.sk || 0) +
-                  (p.gamesPlayed?.jk || 0);
-
-                const totalWins =
-                  (p.wins?.red || 0) +
-                  (p.wins?.peaceful || 0) +
-                  (p.wins?.mafia || 0) +
-                  (p.wins?.don || 0) +
-                  (p.wins?.sk || 0) +
-                  (p.wins?.jk || 0);
-
+                const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
+                const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
                 const allPlus = Object.values(p.role_plus || {}).flat();
-
                 return (
-                  <tr
-                    key={p.nickname}
-                    className={p.nickname === user?.nickname ? styles.currentUserRow : ""}
-                  >
+                  <tr key={p.nickname} className={user && p.nickname === user.nickname ? styles.currentUserRow : ""}>
                     <td className={`${styles.stickyCol1} ${styles.center}`}>{rank}</td>
-                    <td className={styles.stickyCol2}>
-                      <span className={styles.link}>{p.nickname}</span>
-                    </td>
-
+                    <td className={styles.stickyCol2}><span className={styles.link}>{p.nickname}</span></td>
                     <td className={`${styles.num} ${styles.center}`}>{(p.totalPoints ?? 0).toFixed(2)}</td>
                     <td className={`${styles.num} ${styles.center}`}>{totalWins}</td>
                     <td className={styles.center}>{cardsCell(p.role_plus?.sk || [])}</td>
                     <td className={styles.center}>{cardsCell(p.role_plus?.jk || [])}</td>
                     <td className={styles.center}>{cardsCell(p.role_plus?.red || [])}</td>
-                    <td className={`${styles.num} ${styles.center}`}>{(p.bonuses ?? 0).toFixed(2)}</td>
                     <td className={`${styles.num} ${styles.center}`}>0</td>
+                    <td className={`${styles.num} ${styles.center}`}>{(p.bonuses ?? 0).toFixed(2)}</td>
                     <td className={`${styles.num} ${styles.center}`}>{(p.penalties ?? 0).toFixed(2)}</td>
-
                     <td className={styles.center}>{roleCell(totalWins, totalGames, allPlus)}</td>
                     <td className={styles.center}>{roleCell(p.wins?.red, p.gamesPlayed?.red, p.role_plus?.red)}</td>
                     <td className={styles.center}>{roleCell(p.wins?.peaceful, p.gamesPlayed?.peaceful, p.role_plus?.peaceful)}</td>
@@ -685,46 +593,17 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
           </tbody>
         </table>
       </div>
-
       {totalPages > 0 && (
-        <nav
-          className={`${styles.pagination} ${styles.detailedPagination}`}
-          aria-label="Пейджинг детальной статистики"
-        >
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`${styles.pageBtn} ${styles.pageArrow}`}
-            aria-label="Предыдущая страница"
-            type="button"
-          >
-            ‹
-          </button>
+        <nav className={`${styles.pagination} ${styles.detailedPagination}`} aria-label="Пейджинг детальной статистики">
+          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className={`${styles.pageBtn} ${styles.pageArrow}`} aria-label="Предыдущая страница" type="button">‹</button>
           {[...Array(totalPages)].map((_, i) => {
             const p = i + 1;
             const isActive = p === currentPage;
             return (
-              <button
-                key={p}
-                onClick={() => onPageChange(p)}
-                className={`${styles.pageBtn} ${isActive ? styles.pageActive : ""}`}
-                aria-current={isActive ? "page" : undefined}
-                aria-label={`Страница ${p}`}
-                type="button"
-              >
-                {p}
-              </button>
+              <button key={p} onClick={() => onPageChange(p)} className={`${styles.pageBtn} ${isActive ? styles.pageActive : ""}`} aria-current={isActive ? "page" : undefined} aria-label={`Страница ${p}`} type="button">{p}</button>
             );
           })}
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`${styles.pageBtn} ${styles.pageArrow}`}
-            aria-label="Следующая страница"
-            type="button"
-          >
-            ›
-          </button>
+          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={`${styles.pageBtn} ${styles.pageArrow}`} aria-label="Следующая страница" type="button">›</button>
         </nav>
       )}
     </>
