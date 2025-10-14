@@ -162,16 +162,19 @@
 }
 .card:hover{ background:#2A2A2A; transform:translateY(-2px); }
 
-.card::after{
+.cardStripe{
   content:"";
   position:absolute;
   top:0; right:150px;
   width:12px; height:100%;
-  background:#FF7A1A;
+  background: #757575; /* Серый по умолчанию */
   transform:skewX(-30deg);
   z-index:1;
   opacity:.95;
 }
+.clubMIET { background: #ff6f00 !important; }
+.clubMIPT { background: #5844d4 !important; }
+
 
 .cardPlayer{
   flex:1 1 auto; min-width:0;
@@ -278,19 +281,38 @@
   position:relative;
 }
 
-/* --- ИЗМЕНЕНИЯ: Цвет фона для шапки и подвала --- */
-.bgRed { background-color: #5f2323; }
-.bgBlack { background-color: #171717; } /* Возвращаем черный */
-.bgGray { background-color: #3f3f3f; }
-/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
-
-.sheetJudge {
-  text-align: right;
+.sheetMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px 4px;
   font-size: 12px;
   color: #aaa;
-  padding: 0 4px 4px;
+}
+
+.sheetLocation {
+  font-weight: bold;
+}
+
+.locMIET { color: #ff6f00; }
+.locMIPT { color: #5844d4; }
+
+
+.sheetJudge {
   font-style: italic;
 }
+
+.sheetJudge .clickableName {
+  color: #ccc;
+  text-decoration: none;
+  font-style: normal;
+  font-weight: bold;
+}
+
+.sheetJudge .clickableName:hover {
+  color: #FF7A1A;
+}
+
 
 /* верхняя панель */
 .sheetTop{
@@ -313,10 +335,13 @@
   top:0;
   width:18px;
   height:100%;
-  background:#FF7A1A;
+  background: #757575; /* Серый по умолчанию */
   transform:skewX(-30deg);
   pointer-events:none;
 }
+.sheetSlashTop.locMIET { background-color: #ff6f00; }
+.sheetSlashTop.locMIPT { background-color: #5844d4; }
+
 
 /* разделительная полоса под шапкой */
 .sheetTop::after{
@@ -337,6 +362,7 @@
   width:100%;
   border-collapse:collapse !important;
   table-layout:fixed;
+  background-color: #fff3ea; /* Белый фон таблицы */
 }
 
 .sheetTable thead th {
@@ -353,11 +379,11 @@
 .sheetTable thead th:last-child{ width:96px; text-align:left; }
 
 .sheetTable tbody td {
-  background: #ffffff; /* Возвращаем стандартный темный фон */
-  color: #E0E0E0;
+  background: transparent; /* Фон ячейки прозрачный, чтобы был виден фон таблицы */
+  color: #111; /* Черный текст */
   font-size:14px;
   padding:12px 12px;
-  border:1px solid #444 !important;
+  border:1px solid #ccc !important; /* Светло-серая сетка */
   height:44px;
   vertical-align:middle;
   overflow:hidden;
@@ -367,13 +393,13 @@
 .sheetTable tbody td:last-child { text-align:left; }
 
 .eliminatedRow td {
-  background-color: #8a8a8a !important;
+  background-color: #e0e0e0 !important;
   color: #111 !important;
 }
 
 .bestMoveText {
   font-size: 0.8em;
-  color: #222222;
+  color: #555;
   margin-left: 4px;
   font-style: italic;
 }
@@ -404,10 +430,13 @@
   bottom:0;
   width:18px;
   height:100%;
-  background:var(--FF7A1A);
   transform:skewX(-30deg);
   pointer-events:none;
 }
+.sheetSlashBottom.resRed { background-color: #d32f2f; }
+.sheetSlashBottom.resBlack { background-color: #212121; }
+.sheetSlashBottom.resGray { background-color: #757575; }
+
 
 /* Кнопки админа на карточке */
 .sheetActions {
@@ -440,11 +469,11 @@
 }
 
 .sheetDeleteBtn {
-  background: #773636;
+  background: #5a2a2a;
   color: #e5caca;
 }
 .sheetDeleteBtn:hover {
-  background: #bd4c4c;
+  background: #6b3a3a;
 }
 
 .sheetDeleteBtn:disabled {
@@ -538,18 +567,17 @@
 }
 @keyframes slideIn{ from{ transform:translateX(100%); opacity:0; } to{ transform:translateX(0); opacity:1; } }
 
-.link{ color:#FF7A1A; text-decoration:underline; cursor:pointer; }
-.link:hover{ filter:brightness(1.1); }
+.link{ color:#FF7A1A; text-decoration: none; cursor:pointer; }
+.link:hover{ filter:brightness(1.1); text-decoration: underline; }
 
-/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */
-.clickableName {
+.clickableNameInTable {
   cursor: pointer;
   transition: color 0.2s ease;
   font-weight: 600;
   color: #111;
 }
 
-.clickableName:hover {
+.clickableNameInTable:hover {
   color: #FF7A1A;
 }
 
@@ -558,12 +586,14 @@
    ========================= */
 @media (max-width:980px){
   .card::after{ right:130px; }
+  .cardStripe{ right:130px; }
   .cardPointsHeader, .pointsBlock{ flex-basis:140px; }
 }
 @media (max-width:768px){
   .tabs{ flex-direction:column; }
   .card{ padding:12px; }
   .card::after{ display:none; }
+  .cardStripe{ display:none; }
   .avatarWrap{ width:48px; height:48px; flex-basis:48px; }
   .avatar{ width:48px; height:48px; }
   .playerName{ font-size:18px; }
@@ -615,7 +645,6 @@
 .sheetTable thead th:last-child{ width:92px; text-align:left; }
 
 .sheetTable tbody td{
-  color:var(--txt-dark); /* Убрано !important */
   font-size:12px;
   padding:3px 6px;
   height:20px;           /* было ~44px */

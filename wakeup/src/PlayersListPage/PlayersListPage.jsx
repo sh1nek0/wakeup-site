@@ -71,7 +71,7 @@ const PlayersListPage = () => {
                 <div className={styles.searchContainer}>
                     <input
                         type="text"
-                        placeholder="Поиск игрока"
+                        placeholder="Поиск по никнейму..."
                         className={styles.searchInput}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -100,23 +100,26 @@ const PlayersListPage = () => {
                         <div className={styles.headerGames}>Сыграно игр</div>
                     </div>
 
-                    {filteredPlayers.slice(0, 10).map((player, index) => (
-                        <NavLink to={`/profile/${player.id}`} key={player.id} className={styles.playerRow}>
-                            <div className={styles.orangeStripe} />
-                            
-                            <div className={styles.playerInfo}>
-                                <div className={styles.rank}>{index + 1}</div>
-                                <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
-                                <div>
-                                    <div className={styles.playerName}>{player.nickname}</div>
-                                    <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>
+                    {filteredPlayers.slice(0, 10).map((player, index) => {
+                        const clubColor = player.club === 'WakeUp | MIET' ? '#FF7A1A' : player.club === 'WakeUp | MIPT' ? '#2962FF' : '#616161';
+                        return (
+                            <NavLink to={`/profile/${player.id}`} key={player.id} className={styles.playerRow}>
+                                <div className={styles.orangeStripe} style={{'--stripe-color': clubColor}} />
+                                
+                                <div className={styles.playerInfo}>
+                                    <div className={styles.rank}>{index + 1}</div>
+                                    <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
+                                    <div>
+                                        <div className={styles.playerName}>{player.nickname}</div>
+                                        <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className={styles.gameCount}>
-                                {player.game_count}
-                            </div>
-                        </NavLink>
-                    ))}
+                                <div className={styles.gameCount}>
+                                    {player.game_count}
+                                </div>
+                            </NavLink>
+                        );
+                    })}
                 </section>
             </main>
         </div>

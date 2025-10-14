@@ -10,7 +10,7 @@ body{
   line-height:1.6;
 }
 
-/* --- НАЧАЛО ИЗМЕНЕНИЙ: Стили для верхних контролов и судьи --- */
+/* --- ИЗМЕНЕНИЯ: Стили для верхних контролов, судьи и локации --- */
 .topControlsContainer {
   max-width: 1200px;
   margin: 20px auto 0;
@@ -27,12 +27,21 @@ body{
   align-items: center;
 }
 
-.judgeInputContainer {
-  position: relative;
-  width: 200px; /* Фиксированная ширина для инпута судьи */
+.judgeAndLocationContainer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-/* Переопределяем стили для инпута судьи, чтобы он был похож на другие */
+.judgeInputContainer {
+  position: relative;
+  width: 200px;
+}
+
+.locationContainer .roleDropdown {
+  width: 120px;
+}
+
 .judgeInput {
   width: 100%;
   padding: 8px 12px !important;
@@ -55,7 +64,7 @@ body{
    ========================= */
 .gameWrapper{
   max-width:1200px;
-  margin:20px auto 50px; /* Уменьшен верхний отступ */
+  margin:20px auto 50px;
   padding:20px;
   background:#1f1f1f;
   border-radius:12px;
@@ -613,6 +622,8 @@ body{
   .modalActions{ flex-direction:column; }
   .btnWrap{ flex-direction: column; align-items: stretch; }
   .judgeInputContainer { width: 100%; }
+  .judgeAndLocationContainer { flex-direction: column; align-items: stretch; width: 100%; }
+  .locationContainer .roleDropdown { width: 100%; }
 }
 
 /* --- СТИЛИ ДЛЯ ПОДСКАЗОК --- */

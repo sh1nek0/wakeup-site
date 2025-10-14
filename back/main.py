@@ -271,6 +271,7 @@ class SaveGameData(BaseModel):
     gameInfo: dict = Field(..., description="Информация по игре")
     badgeColor: str = Field(..., description="Цвет бейджа")
     eventId: str = Field(..., description="ID события для привязки (как строка)")
+    location: Optional[str] = Field(None, description="Локация игры (МИЭТ, МФТИ и т.д.)")
 
 # Новая Pydantic модель для удаления игры (с проверкой админа)
 class DeleteGameRequest(BaseModel):
@@ -922,11 +923,9 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             existing_data = json.loads(existing_game.data)
             existing_judge = existing_data.get("gameInfo", {}).get("judgeNickname")
             
-            # Если в запросе не пришел ник судьи (пустая строка), используем старый
             if not game_info.get("judgeNickname") and existing_judge:
                 game_info["judgeNickname"] = existing_judge
         else:
-            # Если игра новая и судья не указан, назначаем текущего пользователя
             if "judgeNickname" not in game_info or not game_info["judgeNickname"]:
                 game_info["judgeNickname"] = current_user.nickname
 
@@ -934,7 +933,8 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             "players": data.players,
             "fouls": data.fouls,
             "gameInfo": game_info,
-            "badgeColor": data.badgeColor
+            "badgeColor": data.badgeColor,
+            "location": data.location # <-- СОХРАНЯЕМ ЛОКАЦИЮ В JSON
         }, ensure_ascii=False)
 
         if existing_game:
@@ -968,6 +968,7 @@ async def get_game_data(gameId: str):
             raise HTTPException(status_code=404, detail="Игра не найдена")
 
         game_data = json.loads(game.data)
+        # Локация уже внутри game_data, так что ничего добавлять не нужно
         return game_data
 
     except HTTPException:
@@ -1019,11 +1020,8 @@ async def delete_game(gameId: str, current_user: User = Depends(get_current_user
 async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None, description="ID события для фильтрации")):
     db = SessionLocal()
     try:
-        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
-        # 1. Получаем всех пользователей один раз для создания карты "никнейм -> id"
         all_users = db.query(User).all()
         user_id_map = {user.nickname: user.id for user in all_users}
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         base_query = db.query(Game)
         if event_id and event_id != 'all':
@@ -1054,15 +1052,15 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
 
                 processed_players.append({
-                    # --- НАЧАЛО ИЗМЕНЕНИЙ ---
-                    # 2. Добавляем ID игрока в ответ
                     "id": user_id_map.get(name), 
-                    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
                     "name": name,
                     "role": p.get("role", ""),
                     "points": final_points,
                     "best_move": p.get("best_move", "")
                 })
+            
+            judge_nickname = data.get("gameInfo", {}).get("judgeNickname")
+            judge_id = user_id_map.get(judge_nickname)
 
             games_list.append({
                 "id": game.gameId,
@@ -1070,7 +1068,9 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 "badgeColor": data.get("badgeColor", ""),
                 "event_id": game.event_id,
                 "players": processed_players,
-                "judge_nickname": data.get("gameInfo", {}).get("judgeNickname")
+                "judge_nickname": judge_nickname,
+                "judge_id": judge_id,
+                "location": data.get("location")
             })
 
         return {"games": games_list, "total_count": total_count}
@@ -1085,28 +1085,62 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
 async def get_player_games(nickname: str):
     db = SessionLocal()
     try:
-        all_games = db.query(Game).order_by(Game.created_at.desc()).all()
-        player_games = []
+        all_users = db.query(User).all()
+        user_id_map = {user.nickname: user.id for user in all_users}
 
-        for game in all_games:
+        all_games_query = db.query(Game).order_by(Game.created_at.asc())
+        all_games_for_calc = all_games_query.all()
+        ci_bonuses = calculate_ci_bonuses(all_games_for_calc)
+        dynamic_penalties = calculate_dynamic_penalties(all_games_for_calc)
+
+        player_games_list = []
+        
+        sorted_games = sorted(all_games_for_calc, key=lambda g: g.created_at, reverse=True)
+
+        for game in sorted_games:
             try:
                 data = json.loads(game.data)
                 players = data.get("players", [])
                 
-                # Проверяем, участвовал ли игрок в этой игре
-                if any(p.get("name") == nickname for p in players):
-                    player_games.append({
+                player_in_game = next((p for p in players if p.get("name") == nickname), None)
+
+                if player_in_game:
+                    processed_players = []
+                    for p in players:
+                        name = p.get("name")
+                        base_sum = p.get("sum", 0)
+                        
+                        ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
+                        penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
+                        jk_penalty = penalties.get('jk_penalty', 0)
+                        sk_penalty = penalties.get('sk_penalty', 0)
+                        
+                        final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
+
+                        processed_players.append({
+                            "id": user_id_map.get(name),
+                            "name": name,
+                            "role": p.get("role", ""),
+                            "sum": final_points,
+                            "best_move": p.get("best_move", "")
+                        })
+
+                    judge_nickname = data.get("gameInfo", {}).get("judgeNickname")
+                    judge_id = user_id_map.get(judge_nickname)
+
+                    player_games_list.append({
                         "id": game.gameId,
                         "date": game.created_at.strftime("%d.%m.%Y %H:%M"),
                         "badgeColor": data.get("badgeColor", ""),
                         "event_id": game.event_id,
-                        "players": data.get("players", []),
-                        "judge_nickname": data.get("gameInfo", {}).get("judgeNickname")
+                        "players": processed_players,
+                        "judge_nickname": judge_nickname,
+                        "judge_id": judge_id
                     })
             except (json.JSONDecodeError, TypeError):
                 continue
 
-        return {"games": player_games}
+        return {"games": player_games_list}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения игр игрока: {str(e)}")

@@ -1,5 +1,3 @@
-// wakeup-site/wakeup/src/ProfilePage/ProfilePage.jsx
-
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ProfilePage.module.css";
@@ -7,14 +5,12 @@ import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
 import RoleIcon from "../RoleIcon/RoleIcon";
 
-/* ===================== PlayerGames: список игр игрока ===================== */
 const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
   const navigate = useNavigate();
 
-  const handlePlayerClick = (playerName) => {
-    const userId = userMap.get(playerName);
-    if (userId) {
-      navigate(`/profile/${userId}`);
+  const handlePlayerClick = (playerId) => {
+    if (playerId) {
+      navigate(`/profile/${playerId}`);
     }
   };
 
@@ -27,55 +23,70 @@ const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
 
   return (
     <div className={styles.gamesGrid}>
-      {games.map((game, index) => (
-        <article key={game.id ?? `${nickname}-${index}`} className={styles.gameCard}>
-          <div className={styles.gameHeader}>
-            <span>Игра #{totalGames - index}</span>
-            <time>{game.date}</time>
-          </div>
+      {games.map((game, index) => {
+        let headerFooterClass = '';
+        if (game.badgeColor === 'red') {
+            headerFooterClass = styles.bgRed;
+        } else if (game.badgeColor === 'black') {
+            headerFooterClass = styles.bgBlack;
+        } else {
+            headerFooterClass = styles.bgGray;
+        }
 
-          <div className={styles.gameJudge}>
-            Судья: {game.judge_nickname || "Не указан"}
-          </div>
+        return (
+          <article key={game.id ?? `${nickname}-${index}`} className={styles.gameCard}>
+            <div className={`${styles.gameHeader} ${headerFooterClass}`}>
+              <span>Игра #{totalGames - index}</span>
+              <time>{game.date}</time>
+            </div>
 
-          <table className={styles.gameTable}>
-            <tbody>
-              {(game.players || []).map((player, i) => (
-                <tr
-                  key={i}
-                  className={player.name === nickname ? styles.highlightedRow : ""}
-                >
-                  <td className={styles.playerNumber}>{i + 1}</td>
-                  <td className={styles.playerName}>
-                    <span className={styles.clickableName} onClick={() => handlePlayerClick(player.name)}>
-                      {player.name}
-                    </span>
-                  </td>
-                  <td className={styles.playerPoints}>
-                    <RoleIcon role={player.role} />
-                    <span>
-                      {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <div className={`${styles.gameJudge} ${headerFooterClass}`}>
+              {game.location && <span className={styles.gameLocation}>{game.location}</span>}
+              {game.judge_id ? (
+                <span className={styles.clickableName} onClick={() => handlePlayerClick(game.judge_id)}>
+                  {game.judge_nickname || "Не указан"}
+                </span>
+              ) : (
+                game.judge_nickname || "Не указан"
+              )}
+            </div>
 
-          <div className={styles.gameFooter}>
-            <span>
-              {game.badgeColor === "black" ? "Победа мафии" : "Победа мирных"}
-            </span>
-          </div>
-        </article>
-      ))}
+            <table className={styles.gameTable}>
+              <tbody>
+                {(game.players || []).map((player, i) => (
+                  <tr
+                    key={i}
+                    className={player.name === nickname ? styles.highlightedRow : ""}
+                  >
+                    <td className={styles.playerNumber}>{i + 1}</td>
+                    <td className={styles.playerName}>
+                      <span className={styles.clickableName} onClick={() => handlePlayerClick(player.id)}>
+                        {player.name}
+                      </span>
+                    </td>
+                    <td className={styles.playerPoints}>
+                      <RoleIcon role={player.role} />
+                      <span>
+                        {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className={`${styles.gameFooter} ${headerFooterClass}`}>
+              <span>
+                {game.badgeColor === 'black' ? "Победа мафии" : "Победа мирных"}
+              </span>
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 };
-/* ===================== /PlayerGames ===================== */
 
-
-/* ===== Утилита: человекочитаемый размер файла ===== */
 const humanFileSize = (bytes) => {
   const thresh = 1024;
   if (Math.abs(bytes) < thresh) return bytes + " B";
@@ -137,7 +148,6 @@ const ProfilePage = () => {
 
   const [userMap, setUserMap] = useState(new Map());
 
-  // Этот эффект сбрасывает вкладку на "Профиль" при смене ID пользователя в URL
   useEffect(() => {
     setActiveTab("profile");
   }, [targetUserId]);
@@ -204,7 +214,6 @@ const ProfilePage = () => {
 
   useEffect(() => {
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUserId]);
 
   useEffect(() => {
@@ -467,7 +476,6 @@ const ProfilePage = () => {
     }
   };
 
-  // ИЗМЕНЕНИЕ: Убираем normalizeAvatarPath. Просто используем URL как есть.
   const photoSrc = avatarPreview || profileData.photoUrl || placeholderAvatar;
 
   if (loading) return <div className={styles.pageWrapper}>Загрузка…</div>;

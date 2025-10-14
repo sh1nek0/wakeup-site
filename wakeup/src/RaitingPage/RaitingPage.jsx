@@ -4,18 +4,19 @@ import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
 import RoleIcon from '../RoleIcon/RoleIcon';
-import { useDebounce } from '../useDebounce'; // Импортируем новый хук
+import { useDebounce } from '../useDebounce';
 
 const tabs = ['Общая сводка', 'Игры', 'Статистика'];
 
 const baseURL = ""
 
+
 export default function RatingPage() {
   const [activeTab, setActiveTab] = useState('Общая сводка');
-  const [searchTerm, setSearchTerm] = useState(''); // Общее состояние для поиска
-  const [suggestions, setSuggestions] = useState([]); // Состояние для подсказок
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Отложенное значение
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -64,7 +65,6 @@ export default function RatingPage() {
     }
   }, [location.state]);
 
-  // Эффект для получения подсказок с сервера
   useEffect(() => {
     if (debouncedSearchTerm.length > 1) {
         fetch(`/api/get_player_suggestions?query=${debouncedSearchTerm}`)
@@ -188,7 +188,10 @@ export default function RatingPage() {
   const paginatedPlayers = filteredPlayers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
 
-  const filteredGames = gamesData.filter(g => g.players.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())));
+  const filteredGames = gamesData.filter(g => 
+    g.players.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (g.judge_nickname && g.judge_nickname.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
   const paginatedGames = filteredGames.slice((gamesCurrentPage - 1) * gamesPerPage, gamesCurrentPage * gamesPerPage);
   const gamesTotalPages = Math.ceil(filteredGames.length / gamesPerPage);
 
@@ -310,7 +313,7 @@ export default function RatingPage() {
         <div className={styles.searchContainer}>
             <input
                 type="text"
-                placeholder="Поиск игрока"
+                placeholder="Поиск по никнейму..."
                 className={styles.searchInput}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -351,8 +354,17 @@ export default function RatingPage() {
 
                   {paginatedPlayers.map((player, index) => {
                     const rank = (currentPage - 1) * itemsPerPage + index + 1;
+                    
+                    let clubStripeClass = '';
+                    if (player.club === 'WakeUp | MIET') {
+                      clubStripeClass = styles.clubMIET;
+                    } else if (player.club === 'WakeUp | MIPT') {
+                      clubStripeClass = styles.clubMIPT;
+                    }
+
                     return (
                       <article key={`${rank}-${index}`} className={styles.card}>
+                        <div className={`${styles.cardStripe} ${clubStripeClass}`} />
                         <div className={styles.cardPlayer}>
                           <div className={styles.avatarWrap}>
                             <img
@@ -467,26 +479,44 @@ export default function RatingPage() {
                       (_, i) => game.players?.[i] || {}
                     );
                     
-                    let backgroundColorClass = '';
+                    let locationColorClass = '';
+                    if (game.location === 'МФТИ') {
+                        locationColorClass = styles.locMIPT;
+                    } else if (game.location === 'МИЭТ') {
+                        locationColorClass = styles.locMIET;
+                    }
+
+                    let resultColorClass = '';
                     if (game.badgeColor === 'red') {
-                        backgroundColorClass = styles.bgRed;
+                        resultColorClass = styles.resRed;
                     } else if (game.badgeColor === 'black') {
-                        backgroundColorClass = styles.bgBlack;
+                        resultColorClass = styles.resBlack;
                     } else {
-                        backgroundColorClass = styles.bgGray;
+                        resultColorClass = styles.resGray;
                     }
 
                     return (
-                      <article key={game.id} className={`${styles.sheetCard} ${backgroundColorClass}`}>
-                        <div className={styles.sheetJudge}>
-                          Судья: {game.judge_nickname || 'Не указан'}
+                      <article key={game.id} className={styles.sheetCard}>
+                        <div className={styles.sheetMeta}>
+                            <div className={`${styles.sheetLocation} ${locationColorClass}`}>
+                                {game.location || ''}
+                            </div>
+                            <div className={styles.sheetJudge}>
+                                {game.judge_id ? (
+                                    <span className={styles.clickableName} onClick={() => handlePlayerClick(game.judge_id)}>
+                                        {game.judge_nickname || 'Не указан'}
+                                    </span>
+                                ) : (
+                                    game.judge_nickname || 'Не указан'
+                                )}
+                            </div>
                         </div>
                         <div className={styles.sheetTop}>
                           <span className={styles.sheetTitle}>
                             Игра #{gameNumber}
                           </span>
                           <div
-                            className={styles.sheetSlashTop}
+                            className={`${styles.sheetSlashTop} ${locationColorClass}`}
                             aria-hidden="true"
                           />
                           <time className={styles.sheetDate}>
@@ -514,7 +544,7 @@ export default function RatingPage() {
                                 >
                                   <td>{i + 1}</td>
                                   <td className={styles.nameP}>
-                                    <span className={styles.clickableName} onClick={() => handlePlayerClick(row.id)}>
+                                    <span className={styles.clickableNameInTable} onClick={() => handlePlayerClick(row.id)}>
                                       {row.name ?? row.nickname ?? ''}
                                     </span>
                                   </td>
@@ -539,7 +569,7 @@ export default function RatingPage() {
                             Результат
                           </span>
                           <div
-                            className={styles.sheetSlashBottom}
+                            className={`${styles.sheetSlashBottom} ${resultColorClass}`}
                             aria-hidden="true"
                           />
                           <span className={styles.sheetBottomRight}>

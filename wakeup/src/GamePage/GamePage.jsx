@@ -321,7 +321,7 @@ const Game = () => {
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [maxTime, setMaxTime] = useState(null);
-  const [isPenaltyTime, setIsPenaltyTime] = useState(false); // Новое состояние для штрафного времени
+  const [isPenaltyTime, setIsPenaltyTime] = useState(false);
 
   const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
   const isAdmin = user && user.role === 'admin';
@@ -339,9 +339,10 @@ const Game = () => {
     }))
   );
   const roles = ['мирный', 'мафия', 'дон', 'шериф'];
+  const locations = ['МИЭТ', 'МФТИ'];
 
   // Голосование
-  const [votes, setVotes] = useState([]); // { playerId, votesCount }
+  const [votes, setVotes] = useState([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [isCounting, setIsCounting] = useState(false);
   const [round, setRound] = useState(1);
@@ -350,7 +351,7 @@ const Game = () => {
   // Итоги/фазы
   const [currentDay, setCurrentDay] = useState('Д.1');
   const [votingResults, setVotingResults] = useState({});
-  const [currentPhase, setCurrentPhase] = useState('nominating'); // 'nominating' | 'voting' | 'shooting' | 'don' | 'sheriff'
+  const [currentPhase, setCurrentPhase] = useState('nominating');
   const [shootingResults, setShootingResults] = useState({});
   const [donResults, setDonResults] = useState({});
   const [sheriffResults, setSheriffResults] = useState({});
@@ -358,6 +359,7 @@ const Game = () => {
   const [badgeColor, setBadgeColor] = useState('red');
   
   const [judgeNickname, setJudgeNickname] = useState('');
+  const [location, setLocation] = useState('');
 
   // показ ролей
   const [visibleRole, setVisibleRole] = useState(true)
@@ -382,8 +384,6 @@ const Game = () => {
   const handleNextPhase = () => {
   const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
   const currentIndex = days.indexOf(currentDay);
-
-  
 
   if (currentPhase === 'nominating') {
     setCurrentPhase('voting');
@@ -476,10 +476,11 @@ setShowConfirmModal(false);
 
     const dataToSave = {
       players,
-      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname }, // Добавляем судью в localStorage
+      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname },
       currentDay,
       currentPhase,
       badgeColor,
+      location,
     };
 
     try {
@@ -496,7 +497,8 @@ setShowConfirmModal(false);
     currentDay,
     currentPhase,
     badgeColor,
-    judgeNickname, // Добавляем судью в зависимости
+    judgeNickname,
+    location,
     loading,
   ]);
   const showMessage = (message, isError = false) => {
@@ -560,7 +562,7 @@ setShowConfirmModal(false);
     setTime(time);
     setMaxTime(maxTime + seconds);
     setIsRunning(true);
-    setIsPenaltyTime(true); // Активируем штрафное время
+    setIsPenaltyTime(true);
   };
 
   const handlePreviousPhase = () => {
@@ -596,7 +598,7 @@ setShowConfirmModal(false);
     setPlayers((prev) =>
       prev.map((p) => (p.id === id && p.fouls < 3 ? { ...p, fouls: Math.min(p.fouls + 2, 3) } : p))
     );
-    setIsPenaltyTime(false); // Снимаем дизейбл
+    setIsPenaltyTime(false);
   };
 
   const decrementFouls = (id) => {
@@ -611,7 +613,6 @@ setShowConfirmModal(false);
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, best_move: value } : p)));
   const handlePlusChange = (id, value) => {
     const numValue = parseFloat(value);
-    // Ограничиваем значение в диапазоне от -2.5 до 5.0
     const clampedValue = Math.max(-2.5, Math.min(numValue, 5.0));
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, plus: isNaN(clampedValue) ? 0 : clampedValue } : p)));
   };
@@ -642,7 +643,6 @@ setShowConfirmModal(false);
     const handleVoteButtonClick = (increment) => {
   if (selectedPlayerId === null) return;
 
-  // сохраняем первое значение
   if (firstVoteValue === null) {
     setFirstVoteValue(increment);
   }
@@ -662,7 +662,7 @@ const handleBackspace = () => {
   setVotes((prev) => prev.filter((v) => v.playerId !== selectedPlayerId));
   const remaining = votes.filter((v) => v.playerId !== selectedPlayerId);
   setSelectedPlayerId(remaining[0]?.playerId ?? null);
-  setFirstVoteValue(null); // сброс
+  setFirstVoteValue(null);
 };
 
 
@@ -692,7 +692,6 @@ setFirstRoundCandidates(candidates.map((c) => c.playerId));
 setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
 setRound(2);
 setIsCounting(false);
-// ✅ Устанавливаем первого игрока
 setSelectedPlayerId(candidates[0].playerId);
 setTimeout(() => {
 firstVoteBtnRef.current?.focus();
@@ -709,7 +708,6 @@ else saveResult(currentIds);
 setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
 setRound(3);
 setIsCounting(false);
-// ✅ Устанавливаем первого игрока
 setSelectedPlayerId(candidates[0].playerId);
 setTimeout(() => {
 firstVoteBtnRef.current?.focus();
@@ -774,6 +772,13 @@ else saveResult(candidates.map((c) => c.playerId));
     setCurrentPhase('nominating');
     setBadgeColor('red');
     setJudgeNickname(user?.nickname || '');
+    if (user?.club === 'WakeUp | MIET') {
+        setLocation('МИЭТ');
+    } else if (user?.club === 'WakeUp | MIPT') {
+        setLocation('МФТИ');
+    } else {
+        setLocation('');
+    }
   };
 
   const fetchGameData = async () => {
@@ -793,6 +798,7 @@ else saveResult(candidates.map((c) => c.playerId));
         setCurrentPhase(data.currentPhase || 'nominating');
         setBadgeColor(data.badgeColor || 'red');
         setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
+        setLocation(data.location || '');
         setLoading(false);
         console.log("Данные игры загружены из localStorage.");
         return;
@@ -823,6 +829,7 @@ else saveResult(candidates.map((c) => c.playerId));
       if (data.currentDay) setCurrentDay(data.currentDay);
       if (data.currentPhase) setCurrentPhase(data.currentPhase);
       if (data.badgeColor) setBadgeColor(data.badgeColor);
+      if (data.location) setLocation(data.location);
     } catch (err) {
       console.error('Ошибка загрузки данных игры:', err);
       bootstrapEmptyGame();
@@ -835,8 +842,7 @@ else saveResult(candidates.map((c) => c.playerId));
 
   useEffect(() => {
     fetchGameData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, user]); // Добавляем user в зависимости, чтобы установить судью по умолчанию
+  }, [gameId, user]);
 
   const clearSavedData = () => {
     localStorage.removeItem(getLocalStorageKey());
@@ -890,6 +896,7 @@ else saveResult(candidates.map((c) => c.playerId));
       currentDay,
       currentPhase,
       badgeColor,
+      location,
     };
 
     try {
@@ -981,21 +988,31 @@ else saveResult(candidates.map((c) => c.playerId));
           </button>
         </div>
         {isAdmin && (
-          <div className={styles.judgeInputContainer}>
-            <SuggestionInput
-              value={judgeNickname}
-              onChange={setJudgeNickname}
-              placeholder="Судья"
-              disabled={isPenaltyTime}
-              className={styles.judgeInput}
-            />
+          <div className={styles.judgeAndLocationContainer}>
+            <div className={styles.judgeInputContainer}>
+              <SuggestionInput
+                value={judgeNickname}
+                onChange={setJudgeNickname}
+                placeholder="Судья"
+                disabled={isPenaltyTime}
+                className={styles.judgeInput}
+              />
+            </div>
+            <div className={styles.locationContainer}>
+                <RoleDropdown
+                    value={location || "Локация"}
+                    onChange={setLocation}
+                    roles={locations}
+                    disabled={isPenaltyTime}
+                />
+            </div>
           </div>
         )}
       </div>
 
       <div
         className={styles.gameWrapper}
-        style={isPenaltyTime ? { border: '3px solid #030303', padding: '10px' } : undefined} // Визуальная индикация штрафного времени
+        style={isPenaltyTime ? { border: '3px solid #030303', padding: '10px' } : undefined}
       >
         <table className={styles.playersTable} aria-label="Таблица игроков">
           <thead>
@@ -1014,7 +1031,7 @@ else saveResult(candidates.map((c) => c.playerId));
               <tr key={player.id}>
                 <td
                   className={styles.numberCell}
-                  onClick={() => !isPenaltyTime && handlePlayerNumberClick(player.id)} // Дизейбл если штрафное время
+                  onClick={() => !isPenaltyTime && handlePlayerNumberClick(player.id)}
                   style={{
                     cursor: isPenaltyTime ? 'not-allowed' : 'pointer',
                     userSelect: 'none',
@@ -1048,7 +1065,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={player.role}
                     onChange={(role) => handleRoleChange(player.id, role)}
                     roles={roles}
-                    disabled={isPenaltyTime} // Дизейбл
+                    disabled={isPenaltyTime}
                   />}
                 </td>
 
@@ -1057,7 +1074,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     type="text"
                     className={styles.lxInput}
                     value={player.best_move}
-                    onChange={(e) => !isPenaltyTime && handleBestMoveChange(player.id, e.target.value)} // Дизейбл
+                    onChange={(e) => !isPenaltyTime && handleBestMoveChange(player.id, e.target.value)}
                     disabled={isPenaltyTime}
                     aria-label={`Лучший ход игрока ${player.id}`}
                   />
@@ -1071,7 +1088,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     max="5.0"
                     className={styles.dopsInput}
                     value={player.plus}
-                    onChange={(e) => !isPenaltyTime && handlePlusChange(player.id, e.target.value)} // Дизейбл
+                    onChange={(e) => !isPenaltyTime && handlePlusChange(player.id, e.target.value)}
                     disabled={isPenaltyTime}
                     aria-label={`Допы игрока ${player.id}`}
                   />
@@ -1084,7 +1101,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     step="1"
                     className={styles.numberInput}
                     value={player.sk}
-                    onChange={(e) => !isPenaltyTime && handleSkChange(player.id, e.target.value)} // Дизейбл
+                    onChange={(e) => !isPenaltyTime && handleSkChange(player.id, e.target.value)}
                     disabled={isPenaltyTime}
                     aria-label={`СК игрока ${player.id}`}
                   />
@@ -1097,7 +1114,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     step="1"
                     className={styles.numberInput}
                     value={player.jk}
-                    onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)} // Дизейбл
+                    onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)}
                     disabled={isPenaltyTime}
                     aria-label={`ЖК игрока ${player.id}`}
                   />
@@ -1114,7 +1131,7 @@ else saveResult(candidates.map((c) => c.playerId));
 
                 <div
                   className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
-                  onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
+                  onClick={() => !isPenaltyTime && toggleTimer()}
                   style={{ cursor: isPenaltyTime ? 'not-allowed' : 'pointer', opacity: isPenaltyTime ? 0.5 : 1 }}
                   aria-label="Таймер, нажмите для запуска/паузы"
                   role="timer"
@@ -1126,7 +1143,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 <div className={styles.resetBynWrap}>
                   <button
                     className={styles.resetBtn}
-                    onClick={() => !isPenaltyTime && startTimer(60 * 10)} // Дизейбл
+                    onClick={() => !isPenaltyTime && startTimer(60 * 10)}
                     type="button"
                     disabled={isPenaltyTime}
                   >
@@ -1134,7 +1151,7 @@ else saveResult(candidates.map((c) => c.playerId));
                   </button>
                   <button
                     className={styles.resetBtn}
-                    onClick={() => !isPenaltyTime && toggleTimer()} // Дизейбл
+                    onClick={() => !isPenaltyTime && toggleTimer()}
                     type="button"
                     disabled={isPenaltyTime}
                   >
@@ -1142,7 +1159,7 @@ else saveResult(candidates.map((c) => c.playerId));
                   </button>
                   <button
                     className={styles.resetBtn}
-                    onClick={() => !isPenaltyTime && resetTimer()} // Дизейбл
+                    onClick={() => !isPenaltyTime && resetTimer()}
                     type="button"
                     disabled={isPenaltyTime}
                   >
@@ -1153,7 +1170,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 <div className={styles.timerButtons}>
                   <button
                     className={styles.timerBtn}
-                    onClick={() => !isPenaltyTime && startTimerLimited(20)} // Дизейбл
+                    onClick={() => !isPenaltyTime && startTimerLimited(20)}
                     type="button"
                     disabled={isPenaltyTime}
                   >
@@ -1161,7 +1178,7 @@ else saveResult(candidates.map((c) => c.playerId));
                   </button>
                   <button
                     className={styles.timerBtn}
-                    onClick={() => !isPenaltyTime && startTimerLimited(30)} // Дизейбл
+                    onClick={() => !isPenaltyTime && startTimerLimited(30)}
                     type="button"
                     disabled={isPenaltyTime}
                   >
@@ -1169,7 +1186,7 @@ else saveResult(candidates.map((c) => c.playerId));
                   </button>
                   <button
                     className={styles.timerBtn}
-                    onClick={() => !isPenaltyTime && startTimerLimited(60)} // Дизейбл
+                    onClick={() => !isPenaltyTime && startTimerLimited(60)}
                     type="button"
                     disabled={isPenaltyTime}
                   >
@@ -1201,7 +1218,6 @@ else saveResult(candidates.map((c) => c.playerId));
       </div>
       )}
 
-            {/* Дизейбл фаз, если штрафное время */}
             {currentPhase === 'nominating' && !isPenaltyTime && (
               <div className={styles.phaseContainer}>
                 <div className={styles.votingContainer}>
@@ -1234,7 +1250,7 @@ else saveResult(candidates.map((c) => c.playerId));
                         type="button"
                         onClick={() => handlePlayerNumberClick(num)}
                         className={styles.keyboardBtn}
-                        disabled={!isAlive} // 🔴 дизейбл для мертвых
+                        disabled={!isAlive}
                         aria-label={`Добавить ${num} игрока на выставление`}
                       >
                         {num}
@@ -1245,16 +1261,6 @@ else saveResult(candidates.map((c) => c.playerId));
                     ⮾
                   </button>
                 </div>
-
-                {/* <button
-                  type="button"
-                  onClick={handleStartVoting}
-                  className={styles.saveVotingBtn}
-                  aria-label="Перейти к голосованию"
-                  disabled={votes.length === 0}
-                >
-                  Голосование
-                </button> */}
                 
                <div className={styles.phaseNavContainer}>
                   <button
@@ -1284,7 +1290,6 @@ else saveResult(candidates.map((c) => c.playerId));
               <div className={styles.votingContainer}>
                 <h3>Голосование</h3>
 
-                {/* Список выставленных игроков */}
                 <div className={styles.votingNavContainer}>
                   <nav className={styles.votingNav} aria-label="Выбор игрока для голосования">
                     {votes.map(({ playerId, votesCount }, index) => {
@@ -1309,7 +1314,6 @@ else saveResult(candidates.map((c) => c.playerId));
                 </div>
               </div>
 
-              {/* Цифровая клавиатура голосования */}
 <div role="grid" aria-label="Цифровая клавиатура для голосования" className={styles.keyboardGrid}>
   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => {
     const totalVotesCast = votes.reduce((sum, v) => sum + v.votesCount, 0);
@@ -1343,7 +1347,6 @@ else saveResult(candidates.map((c) => c.playerId));
 </div>
 
 
-              {/* Кнопки подсчета */}
               {!isCounting ? (
                 <button
                   type="button"
@@ -1364,7 +1367,6 @@ else saveResult(candidates.map((c) => c.playerId));
                 </div>
               )}
 
-              {/* Навигация по фазам */}
               <div className={styles.phaseNavContainer}>
                 <button className={styles.phaseNavBtn} onClick={handlePreviousPhase}>
                   ⬅ Назад
@@ -1479,7 +1481,7 @@ else saveResult(candidates.map((c) => c.playerId));
             <div className={styles.tabs}>
               <button
                 type="button"
-                onClick={() => !isPenaltyTime && setActiveTab('gameInfo')} // Дизейбл вкладки "Ход игры"
+                onClick={() => !isPenaltyTime && setActiveTab('gameInfo')}
                 className={activeTab === 'gameInfo' ? styles.activeTab : styles.tab}
                 aria-selected={activeTab === 'gameInfo'}
                 disabled={isPenaltyTime}
@@ -1489,7 +1491,7 @@ else saveResult(candidates.map((c) => c.playerId));
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('fouls')} // Вкладка "Фолы" всегда активна
+                onClick={() => setActiveTab('fouls')}
                 className={activeTab === 'fouls' ? styles.activeTab : styles.tab}
                 aria-selected={activeTab === 'fouls'}
               >
@@ -1505,7 +1507,7 @@ else saveResult(candidates.map((c) => c.playerId));
               <div
                 ref={gameInfoPanelRef}
                 className={`${styles.panel} ${activeTab === 'gameInfo' ? styles.visiblePanel : styles.hiddenPanel}`}
-                style={isPenaltyTime ? { pointerEvents: 'none', opacity: 0.5 } : undefined} // Дизейбл панели
+                style={isPenaltyTime ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
               >
                 <GameInfo
                   votingResults={votingResults}
@@ -1534,7 +1536,7 @@ else saveResult(candidates.map((c) => c.playerId));
       <div className={styles.saveButtonContainer}>
         <button
           type="button"
-          onClick={() => !isPenaltyTime && handleSave()} // Дизейбл
+          onClick={() => !isPenaltyTime && handleSave()}
           className={styles.saveBtn}
           aria-label="Сохранить данные игры"
           disabled={!isAdmin || isSaving || isPenaltyTime}
