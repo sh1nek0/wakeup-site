@@ -101,10 +101,17 @@ const PlayersListPage = () => {
                     </div>
 
                     {filteredPlayers.slice(0, 10).map((player, index) => {
-                        const clubColor = player.club === 'WakeUp | MIET' ? '#FF7A1A' : player.club === 'WakeUp | MIPT' ? '#2962FF' : '#616161';
+                        // --- ИЗМЕНЕНИЕ: Логика для выбора класса цвета полоски ---
+                        let clubStripeClass = '';
+                        if (player.club === 'WakeUp | MIET') {
+                            clubStripeClass = styles.clubMIET;
+                        } else if (player.club === 'WakeUp | MIPT') {
+                            clubStripeClass = styles.clubMIPT;
+                        }
+
                         return (
                             <NavLink to={`/profile/${player.id}`} key={player.id} className={styles.playerRow}>
-                                <div className={styles.orangeStripe} style={{'--stripe-color': clubColor}} />
+                                <div className={`${styles.orangeStripe} ${clubStripeClass}`} />
                                 
                                 <div className={styles.playerInfo}>
                                     <div className={styles.rank}>{index + 1}</div>

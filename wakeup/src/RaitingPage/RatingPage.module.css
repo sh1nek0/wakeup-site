@@ -172,6 +172,7 @@
   z-index:1;
   opacity:.95;
 }
+
 .clubMIET { background: #ff6f00 !important; }
 .clubMIPT { background: #5844d4 !important; }
 
@@ -281,6 +282,11 @@
   position:relative;
 }
 
+/* --- ИЗМЕНЕНИЯ: Цвет фона для шапки и подвала --- */
+.bgRed .sheetTop, .bgRed .sheetBottom, .bgRed .sheetActions { background-color: #4a2e2e; }
+.bgBlack .sheetTop, .bgBlack .sheetBottom, .bgBlack .sheetActions { background-color: #171717; }
+.bgGray .sheetTop, .bgGray .sheetBottom, .bgGray .sheetActions { background-color: #3f3f3f; }
+
 .sheetMeta {
   display: flex;
   justify-content: space-between;
@@ -362,7 +368,7 @@
   width:100%;
   border-collapse:collapse !important;
   table-layout:fixed;
-  background-color: #fff3ea; /* Белый фон таблицы */
+  background-color: rgb(250, 235, 224); /* Белый фон таблицы */
 }
 
 .sheetTable thead th {
@@ -433,9 +439,9 @@
   transform:skewX(-30deg);
   pointer-events:none;
 }
-.sheetSlashBottom.resRed { background-color: #d32f2f; }
-.sheetSlashBottom.resBlack { background-color: #212121; }
-.sheetSlashBottom.resGray { background-color: #757575; }
+.sheetSlashBottom.resRed { background-color: #c51a1a; }
+.sheetSlashBottom.resBlack { background-color: #6d6d6d; }
+.sheetSlashBottom.resGray { background-color: #ffffff; }
 
 
 /* Кнопки админа на карточке */
