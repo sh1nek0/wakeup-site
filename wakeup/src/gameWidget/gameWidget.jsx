@@ -5,83 +5,47 @@ import sheriff from "../images/gameIcon/Sheriff.png";
 import Don from "../images/gameIcon/Don.png";
 import Golos from "../images/gameIcon/Golos.png";
 import Strelba from "../images/gameIcon/Strelba.png";
-import OBSWebSocket from "obs-websocket-js";
 import styles from "./gameWidget.module.css";
 
-const obs = new OBSWebSocket();
 
-async function connectOBS() {
-  try {
-    await obs.connect("ws://127.0.0.1:4455", "R19022004r");
-    console.log("✅ Подключено к OBS");
-  } catch (err) {
-    console.error("Ошибка подключения к OBS:", err);
-  }
-}
-connectOBS();
 
 const SLOTS = 5;
 const NEUTRAL_GRAY = "#6b7280";
 const MAX_FOULS = 4;
 
-/* ========= утилиты ========= */
+/* ========= Утилиты ========= */
 
-// ЧИСЛА из значений (не из произвольных ключей)
 function extractNumbersFromAny(val, addNumber) {
   if (val == null) return;
-  if (typeof val === "number" && Number.isFinite(val)) {
-    addNumber(val);
-    return;
-  }
+  if (typeof val === "number" && Number.isFinite(val)) return addNumber(val);
   if (typeof val === "string") {
     const matches = val.match(/\d+/g);
     if (matches) matches.forEach((d) => addNumber(Number(d)));
     return;
   }
-  if (Array.isArray(val)) {
-    val.forEach((v) => extractNumbersFromAny(v, addNumber));
-    return;
-  }
-  if (typeof val === "object") {
-    Object.values(val).forEach((v) => extractNumbersFromAny(v, addNumber));
-  }
+  if (Array.isArray(val)) return val.forEach((v) => extractNumbersFromAny(v, addNumber));
+  if (typeof val === "object") Object.values(val).forEach((v) => extractNumbersFromAny(v, addNumber));
 }
 
-// ДИСПЛЕЙ-ТОКЕНЫ (числа + «-»)
 function extractDisplayTokensFromAny(val, addToken) {
   if (val == null) return;
-  if (typeof val === "number" && Number.isFinite(val)) {
-    addToken(val);
-    return;
-  }
+  if (typeof val === "number" && Number.isFinite(val)) return addToken(val);
   if (typeof val === "string") {
     const digits = val.match(/\d+/g);
-    if (digits && digits.length) {
-      digits.forEach((d) => addToken(Number(d)));
-    } else {
-      const t = val.trim();
-      if (t === "-" || t === "—") addToken("-");
-    }
+    if (digits && digits.length) digits.forEach((d) => addToken(Number(d)));
+    else if (val.trim() === "-" || val.trim() === "—") addToken("-");
     return;
   }
-  if (Array.isArray(val)) {
-    val.forEach((v) => extractDisplayTokensFromAny(v, addToken));
-    return;
-  }
-  if (typeof val === "object") {
-    Object.values(val).forEach((v) => extractDisplayTokensFromAny(v, addToken));
-  }
+  if (Array.isArray(val)) return val.forEach((v) => extractDisplayTokensFromAny(v, addToken));
+  if (typeof val === "object") Object.values(val).forEach((v) => extractDisplayTokensFromAny(v, addToken));
 }
 
 function getDayNode(results, dayKey) {
   if (!results || typeof results !== "object") return null;
-  if (dayKey && Object.prototype.hasOwnProperty.call(results, dayKey)) {
-    return results[dayKey];
-  }
+  if (dayKey && Object.prototype.hasOwnProperty.call(results, dayKey)) return results[dayKey];
   return results;
 }
 
-// число дня из строки ключа (например "Д.2" -> 2)
 function dayIndex(k) {
   const m = String(k).match(/\d+/);
   return m ? Number(m[0]) : Infinity;
@@ -92,43 +56,35 @@ function hasDayPartitions(obj) {
   return Object.keys(obj).some((k) => /\d+/.test(k));
 }
 
-// собрать ЧИСЛА из узла только по заданным ключам
 function extractNumbersAtKeys(node, keys, addNumber) {
   if (!node || typeof node !== "object") return;
   keys.forEach((k) => {
-    if (Object.prototype.hasOwnProperty.call(node, k)) {
-      extractNumbersFromAny(node[k], addNumber);
-    }
+    if (Object.prototype.hasOwnProperty.call(node, k)) extractNumbersFromAny(node[k], addNumber);
   });
 }
 
-// ЛОГИКА: собрать номера из всех дней <= текущего (или из всего узла, если дней нет)
 function getNumbersUpToDayByKeys(results, currentDayKey, keys, minId = 1, maxId = 100) {
   const out = new Set();
   const addNumber = (n) => {
     if (Number.isFinite(n) && n >= minId && n <= maxId) out.add(n);
   };
-
   if (!results || typeof results !== "object") return [];
-
   const curIdx = dayIndex(currentDayKey || "");
   if (hasDayPartitions(results)) {
     for (const k of Object.keys(results)) {
       if (dayIndex(k) <= curIdx) {
         const node = results[k];
-        if (!keys || !keys.length) extractNumbersFromAny(node, addNumber);
+        if (!keys?.length) extractNumbersFromAny(node, addNumber);
         else extractNumbersAtKeys(node, keys, addNumber);
       }
     }
   } else {
-    if (!keys || !keys.length) extractNumbersFromAny(results, addNumber);
+    if (!keys?.length) extractNumbersFromAny(results, addNumber);
     else extractNumbersAtKeys(results, keys, addNumber);
   }
-
   return Array.from(out).sort((a, b) => a - b);
 }
 
-// ВИЗУАЛ: токены только за текущий день
 function getDisplayTokensForDay(results, dayKey) {
   const tokens = [];
   const node = getDayNode(results, dayKey);
@@ -144,23 +100,19 @@ function tokensToSlots(tokens, slots = SLOTS) {
 
 function getRoleColor(role) {
   switch ((role || "").toLowerCase()) {
-    case "мирный":
-      return { background: "red", color: "white" };
-    case "мафия":
-      return { background: "black", color: "white" };
-    case "дон":
-      return { background: "gray", color: "white" };
-    case "шериф":
-      return { background: "#ffb700", color: "black" };
-    default:
-      return { background: "#444", color: "white" };
+    case "мирный": return { background: "red", color: "white" };
+    case "мафия": return { background: "black", color: "white" };
+    case "дон": return { background: "gray", color: "white" };
+    case "шериф": return { background: "#ffb700", color: "black" };
+    default: return { background: "#444", color: "white" };
   }
 }
 
-/* ========= компонент ========= */
+/* ========= Компонент ========= */
 
 const GameWidget = () => {
   const [gameData, setGameData] = useState(null);
+  const [photos, setPhotos] = useState({}); // Добавлено для хранения фото по nickname
   const storageKeyRef = useRef(null);
 
   useEffect(() => {
@@ -168,7 +120,6 @@ const GameWidget = () => {
     const event = pathParts.find((p) => /^\d+$/.test(p));
     const game = pathParts.find((p) => p.startsWith("game_"));
     if (!event || !game) return;
-
     const storageKey = `gameData-${event}-${game}`;
     storageKeyRef.current = storageKey;
 
@@ -194,6 +145,31 @@ const GameWidget = () => {
     };
   }, []);
 
+  // Добавлено: загрузка фото по nickname
+  useEffect(() => {
+    if (gameData && gameData.players) {
+      const nicknames = new Set(
+        gameData.players
+          .map((p) => p.name)
+          .filter((n) => n && n.trim())
+          .map((n) => n.trim())
+      );
+      nicknames.forEach(async (nickname) => {
+        try {
+          const res = await fetch(`/api/getUserPhoto/${encodeURIComponent(nickname)}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const photoUrl = data.photoUrl;
+          if (photoUrl) {
+            setPhotos((prev) => ({ ...prev, [nickname]: photoUrl }));
+          }
+        } catch (err) {
+          console.error(`Ошибка загрузки фото для ${nickname}:`, err);
+        }
+      });
+    }
+  }, [gameData]);
+
   if (!gameData)
     return <div className={styles.loading}>Загрузка данных игры...</div>;
 
@@ -202,34 +178,28 @@ const GameWidget = () => {
     name: p.name && p.name.trim() ? p.name : `Игрок ${i + 1}`,
     fouls: p.fouls ?? 0,
     role: p.role?.trim()?.toLowerCase() || "неизвестно",
+    sk: p.sk ?? 0,
+    jk: p.jk ?? 0,
+    best_move: p.best_move ?? "",
+    plus: p.plus ?? 0,
   }));
 
-  const maxId = players.length
-    ? Math.max(...players.map((p) => Number(p.id) || 0))
-    : 10;
-
+  const maxId = players.length ? Math.max(...players.map((p) => Number(p.id) || 0)) : 10;
   const playerIndex = Object.fromEntries(players.map((p) => [Number(p.id), p]));
-
   const gi = gameData.gameInfo || {};
   const dayKey = gameData.currentDay || null;
 
-  // ВИЗУАЛ (только текущий день)
   const votingDisplay = tokensToSlots(getDisplayTokensForDay(gi.votingResults || {}, dayKey));
   const shootingDisplay = tokensToSlots(getDisplayTokensForDay(gi.shootingResults || {}, dayKey));
   const sheriffDisplay = tokensToSlots(getDisplayTokensForDay(gi.sheriffResults || {}, dayKey));
   const donDisplay = tokensToSlots(getDisplayTokensForDay(gi.donResults || {}, dayKey));
 
-  // ЛОГИКА сворачивания (все дни <= текущего)
   const VOTE_OUT_KEYS = ["votes", "result", "out", "lynch", "lynched", "votedOut", "eliminated"];
   const NIGHT_KILL_KEYS = ["result", "killed", "shot", "dead"];
+  const votedOutSet = new Set(getNumbersUpToDayByKeys(gi.votingResults || {}, dayKey, VOTE_OUT_KEYS, 1, maxId));
+  const shotSet = new Set(getNumbersUpToDayByKeys(gi.shootingResults || {}, dayKey, NIGHT_KILL_KEYS, 1, maxId));
 
-  const votedOutSet = new Set(
-    getNumbersUpToDayByKeys(gi.votingResults || {}, dayKey, VOTE_OUT_KEYS, 1, maxId)
-  );
-  const shotSet = new Set(
-    getNumbersUpToDayByKeys(gi.shootingResults || {}, dayKey, NIGHT_KILL_KEYS, 1, maxId)
-  );
-
+  // === Цвета квадратов по роли ===
   const getSquareColorsByContent = (content) => {
     const str = content == null ? "" : String(content).trim();
     if (str === "" || str === "-" || str === "—" || str.startsWith("+")) {
@@ -244,58 +214,33 @@ const GameWidget = () => {
     return { background: NEUTRAL_GRAY, color: "#fff" };
   };
 
-  const renderIconRow = (iconSrc, displayTokens, side) => {
-    const Square = ({ content, idx }) => {
-      const roleStyle = getSquareColorsByContent(content);
-      return (
-        <div
-          key={idx}
-          className={styles.square}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 700,
-            background: roleStyle.background,
-            color: roleStyle.color,
-            border: "none",
-          }}
-        >
-          {content}
-        </div>
-      );
-    };
-
+  // === Фолы ===
+  const renderFouls = (count) => {
+    const n = Math.max(0, Math.min(MAX_FOULS, Number(count) || 0));
     return (
-      <div className={styles.row}>
-        {side === "left" && (
-          <div className={styles.icon}>
-            <img src={iconSrc} alt="" className={styles.iconImage} />
-          </div>
-        )}
-        <div className={styles.squares}>
-          {displayTokens.map((val, i) => (
-            <Square key={i} content={val} idx={i} />
-          ))}
-        </div>
-        {side === "right" && (
-          <div className={styles.icon}>
-            <img src={iconSrc} alt="" className={styles.iconImage} />
-          </div>
-        )}
+      <div className={styles.foulsRow}>
+        {Array.from({ length: MAX_FOULS }).map((_, i) => (
+          <div
+            key={i}
+            className={`${styles.foulCapsule} ${i < n ? styles.foulCapsuleFilled : ""}`}
+          />
+        ))}
       </div>
     );
   };
 
-  const renderFouls = (count) => {
-    const n = Math.max(0, Math.min(MAX_FOULS, Number(count) || 0));
+  // === JK / SK карточки ===
+  const renderPenaltyCards = (sk, jk) => {
+    const cards = [];
+    for (let i = 0; i < sk; i++) cards.push("gray");
+    for (let i = 0; i < jk; i++) cards.push("yellow");
     return (
-      <div className={styles.foulsRow} aria-label={`Фолы: ${n}/${MAX_FOULS}`}>
-        {Array.from({ length: MAX_FOULS }).map((_, i) => (
+      <div className={styles.penaltyCardsRow}>
+        {cards.map((t, i) => (
           <div
             key={i}
-            className={`${styles.foulCapsule} ${
-              i < n ? styles.foulCapsuleFilled : ""
+            className={`${styles.penaltyCard} ${
+              t === "yellow" ? styles.penaltyCardYellow : styles.penaltyCardGray
             }`}
           />
         ))}
@@ -303,9 +248,43 @@ const GameWidget = () => {
     );
   };
 
+  // === Рендер строки с иконкой и квадратами ===
+  const renderIconRow = (iconSrc, tokens, side) => (
+    <div className={styles.row}>
+      {side === "left" && (
+        <div className={styles.icon}>
+          <img src={iconSrc} alt="" className={styles.iconImage} />
+        </div>
+      )}
+      <div className={styles.squares}>
+        {tokens.map((val, i) => {
+          const style = getSquareColorsByContent(val);
+          return (
+            <div
+              key={i}
+              className={styles.square}
+              style={{
+                background: style.background,
+                color: style.color,
+                fontWeight: 700,
+              }}
+            >
+              {val}
+            </div>
+          );
+        })}
+      </div>
+      {side === "right" && (
+        <div className={styles.icon}>
+          <img src={iconSrc} alt="" className={styles.iconImage} />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.fullScreenContainer}>
-      {/* === Верхняя панель === */}
+      {/* Верхняя панель */}
       <div className={styles.topPanel}>
         <div className={styles.iconColumn}>
           {renderIconRow(sheriff, sheriffDisplay, "left")}
@@ -317,9 +296,7 @@ const GameWidget = () => {
           <div className={styles.gameRound}>
             {gameData.currentDay || "День ?"} · {gameData.currentPhase || "фаза ?"}
           </div>
-          {gi.judgeNickname ? (
-            <div className={styles.judge}>Судья: {gi.judgeNickname}</div>
-          ) : null}
+          {gi.judgeNickname && <div className={styles.judge}>Судья: {gi.judgeNickname}</div>}
         </div>
 
         <div className={styles.iconColumn}>
@@ -328,7 +305,7 @@ const GameWidget = () => {
         </div>
       </div>
 
-      {/* === Игроки === */}
+      {/* Игроки */}
       <div className={styles.cardsSection}>
         <img src={logo} alt="Logo" className={styles.logo} />
         <div className={styles.cardsContainer}>
@@ -336,6 +313,8 @@ const GameWidget = () => {
             const roleStyle = getRoleColor(player.role);
             const idNum = Number(player.id);
             const isFolded = votedOutSet.has(idNum) || shotSet.has(idNum);
+            const hasBestMove = player.best_move && String(player.best_move).trim() !== "";
+            const photoUrl = photos[player.name] || CCC_prew; // Используем загруженное фото или заглушку
 
             return (
               <div
@@ -343,11 +322,24 @@ const GameWidget = () => {
                 className={`${styles.playerCard} ${isFolded ? styles.folded : ""} ${
                   player.fouls > 0 ? styles.hasFouls : ""
                 }`}
-                aria-label={isFolded ? "Выбыл" : "В игре"}
               >
-                {!isFolded && (
-                  <img src={CCC_prew} alt="Player" className={styles.image} />
+                {/* === Прямоугольник над карточкой с best_move === */}
+                {hasBestMove && (
+                  <div className={styles.bestMoveBox}>
+                    {String(player.best_move)
+                      .split(/[,\s]+/) // поддержка "3 4 5" или "3,4,5"
+                      .filter(Boolean)
+                      .map((token, i) => (
+                        <div key={i} className={styles.bestMoveItem}>
+                          {token}
+                        </div>
+                      ))}
+                  </div>
                 )}
+
+                {renderPenaltyCards(player.sk, player.jk)}
+
+                {!isFolded && <img src={photoUrl} alt="Player" className={styles.image} />}
 
                 <div className={styles.bottomSection}>
                   <div
@@ -361,7 +353,6 @@ const GameWidget = () => {
                     <div className={styles.dividerLine}></div>
                     <div className={styles.playerName}>{player.name}</div>
                   </div>
-
                   {renderFouls(player.fouls)}
                 </div>
               </div>

@@ -77,9 +77,15 @@ body {
 }
 
 .square {
-  background: orange; /* перекрашивается инлайном под роль */
+  display: flex;              /* ✅ чтобы можно было центрировать содержимое */
+  align-items: center;        /* по вертикали */
+  justify-content: center;    /* по горизонтали */
+  background: orange;         /* цвет заменяется inline */
   width: 26px;
   height: 26px;
+  font-weight: 700;
+  text-align: center;         /* если вдруг символ длинный */
+  border-radius: 4px;         /* чуть скруглим, можно убрать */
 }
 
 /* === Центр === */
@@ -118,14 +124,14 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  gap: 20px;
+  gap: 25px;
 }
 
 /* === Карточка игрока === */
 .playerCard {
   position: relative;
-  width: 150px;
-  height: 180px;
+  width: 140px;
+  height: 150px;
   background: #222;
   border: 1px solid #333;
   border-radius: 6px;
@@ -135,6 +141,8 @@ body {
   justify-content: flex-end;
   transition: transform 0.3s, box-shadow 0.3s;
   cursor: pointer;
+  position: relative; /* обязательно, чтобы bestMoveBox позиционировался над ней */
+  overflow: visible;  /* иначе прямоугольник будет обрезан */
 }
 
 .playerCard:hover {
@@ -247,3 +255,87 @@ body {
 }
 
 .folded .image { display: none; }
+
+.penaltyCardsRow {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 5;
+}
+
+.penaltyCard {
+  width: 16px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0.9;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.penaltyCardGray {
+  background-color: #9ca3af; /* серый */
+}
+
+.penaltyCardYellow {
+  background-color: #ffd60a; /* жёлтый */
+}
+
+/* === Прямоугольник с best_move === */
+/* === Прямоугольник с best_move над карточкой === */
+.bestMoveBox {
+  position: absolute;
+  bottom: 100%;              /* прямо над карточкой */
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 10px;
+  border-radius: 6px;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+
+.bestMoveCard {
+  background: #ffb700;       /* можно заменить на цвет роли */
+  color: #000;
+  font-weight: bold;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.bestMoveBox {
+  position: absolute;
+  bottom: 100%;               /* расположить над карточкой */
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 10px;
+  border-radius: 6px;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+/* Отдельные карточки с цифрами best_move */
+.bestMoveItem {
+  background: #ffb700;
+  color: #000;
+  font-weight: bold;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}

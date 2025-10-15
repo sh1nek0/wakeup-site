@@ -80,6 +80,15 @@ async def get_user(user_id: str, db: Session = Depends(get_db)):
         "site2": user_obj.site2, 'photoUrl': user_obj.avatar
     }}
 
+
+@router.get("/getUserPhoto/{nickname}")
+async def get_user_photo(nickname: str, db: Session = Depends(get_db)):
+    user_obj = db.query(User).filter(User.nickname == nickname).first()
+    if not user_obj:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    return {"photoUrl": user_obj.avatar}
+
+
 @router.post("/updateProfile")
 async def update_profile(request: UpdateProfileRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.id != request.userId and current_user.role != "admin":

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
 import { AuthContext } from '../AuthContext';
+import OBSWebSocket from "obs-websocket-js";
 
 // --- КОМПОНЕНТ ДЛЯ ИНПУТА С ПОДСКАЗКАМИ ---
 const SuggestionInput = ({ value, onChange, placeholder, disabled, className }) => {
@@ -73,6 +74,7 @@ const SuggestionInput = ({ value, onChange, placeholder, disabled, className }) 
         </div>
     );
 };
+
 
 
 /* ==========================
@@ -340,6 +342,117 @@ const Game = () => {
   );
   const roles = ['мирный', 'мафия', 'дон', 'шериф'];
   const locations = ['МИЭТ', 'МФТИ'];
+  // OBS
+  const[obsAddress,setObsAddress ]=useState()
+  const[obsPassword,setObsPassword ]=useState()
+
+  // OBS WebSocket instance
+  const obsRef = useRef(null);
+
+  // Функция для подключения к OBS (с debounce для избежания частых вызовов)
+  const connectToOBS = useRef(null);
+
+ const attemptConnectOBS = async (address, password) => {
+  if (!address || !password) {
+    // Если поля пустые, отключаемся
+    if (obsRef.current) {
+      try {
+        await obsRef.current.disconnect();
+        console.log("🔌 Отключено от OBS");
+      } catch (err) {
+        console.error("Ошибка отключения от OBS:", err);
+      }
+      obsRef.current = null;
+    }
+    return;
+  }
+
+  // Отключаемся от предыдущего соединения, если оно существует
+  if (obsRef.current) {
+    try {
+      await obsRef.current.disconnect();
+    } catch (err) {
+      // Игнорируем ошибки отключения
+    }
+  }
+
+  // Убеждаемся, что адрес — полный WebSocket URL
+  let fullAddress = address.trim();
+  if (!fullAddress.startsWith('ws://') && !fullAddress.startsWith('wss://')) {
+    fullAddress = 'ws://' + fullAddress;
+  }
+
+  const obs = new OBSWebSocket();
+  obsRef.current = obs;
+
+  try {
+    await obs.connect(fullAddress, password);
+    console.log("✅ Подключено к OBS:", fullAddress);
+  } catch (err) {
+    console.error("Ошибка подключения к OBS:", err);
+    obsRef.current = null; // Сбрасываем ref при ошибке
+  }
+};
+
+  const switchScene = async (sceneName) => {
+  if (!obsRef.current) {
+    console.warn('OBS не инициализирован, невозможно переключить сцену');
+    return;
+  }
+
+  try {
+    // Если не подключено, пытаемся подключиться на основе введенных данных
+    if (!obsRef.current.identified) {
+      const address = obsAddress;
+      const password = obsPassword;
+      if (!address || !password) {
+        console.warn('Адрес или пароль OBS не указаны, невозможно подключиться');
+        return;
+      }
+
+      let fullAddress = address.trim();
+      if (!fullAddress.startsWith('ws://') && !fullAddress.startsWith('wss://')) {
+        fullAddress = 'ws://' + fullAddress;
+      }
+
+      await obsRef.current.connect(fullAddress, password);
+      console.log("✅ Подключено к OBS для переключения сцены:", fullAddress);
+    }
+
+    // Используем правильный метод и параметр для OBS Studio 31 (WebSocket 5.x)
+    // Параметр должен быть 'sceneName', а не 'scene-name'
+    await obsRef.current.call('SetCurrentProgramScene', { sceneName });
+    console.log(`✅ Сцена переключена на "${sceneName}"`);
+  } catch (err) {
+    console.error(`❌ Ошибка переключения сцены на "${sceneName}":`, err);
+  }
+};
+
+  // Debounced подключение (чтобы не подключаться при каждом нажатии клавиши)
+  useEffect(() => {
+    if (connectToOBS.current) {
+      clearTimeout(connectToOBS.current);
+    }
+
+    connectToOBS.current = setTimeout(() => {
+      attemptConnectOBS(obsAddress, obsPassword);
+    }, 500); // Debounce на 500ms
+
+    return () => {
+      if (connectToOBS.current) {
+        clearTimeout(connectToOBS.current);
+      }
+    };
+  }, [obsAddress, obsPassword]);
+
+  // Cleanup при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      if (obsRef.current) {
+        obsRef.current.disconnect().catch(console.error);
+      }
+    };
+  }, []);
 
   // Голосование
   const [votes, setVotes] = useState([]);
@@ -385,10 +498,13 @@ const Game = () => {
   const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
   const currentIndex = days.indexOf(currentDay);
 
+  // Теперь подключение к OBS происходит автоматически при изменении полей, так что здесь не нужно
+
   if (currentPhase === 'nominating') {
     setCurrentPhase('voting');
   } else if (currentPhase === 'voting') {
     setCurrentPhase('shooting');
+    switchScene('Ночь');
   } else if (currentPhase === 'shooting') {
     setCurrentPhase('don');
   } else if (currentPhase === 'don') {
@@ -397,6 +513,7 @@ const Game = () => {
     if (currentIndex < days.length - 1) {
       setCurrentDay(days[currentIndex + 1]);
       setCurrentPhase('nominating');
+      switchScene('День');
     }
   }
 };
@@ -581,8 +698,10 @@ setShowConfirmModal(false);
       setCurrentPhase('sheriff');
     } else if (currentPhase === 'shooting') {
       setCurrentPhase('voting');
+      switchScene('День');
     } else if (currentPhase === 'voting') {
       setCurrentPhase('nominating');
+      switchScene('Ночь');
     }
   };
 
@@ -1015,6 +1134,24 @@ else saveResult(candidates.map((c) => c.playerId));
                     roles={locations}
                     disabled={isPenaltyTime}
                 />
+            </div>
+            <div className={styles.obsInputsContainer}>
+              <input
+                type="text"
+                value={obsAddress}
+                onChange={(e) => setObsAddress(e.target.value)}
+                placeholder="Адрес OBS (например, ws://127.0.0.1:4455)"
+                disabled={isPenaltyTime}
+                className={styles.obsInput}
+              />
+              <input
+                type="password"
+                value={obsPassword}
+                onChange={(e) => setObsPassword(e.target.value)}
+                placeholder="Пароль OBS"
+                disabled={isPenaltyTime}
+                className={styles.obsInput}
+              />
             </div>
           </div>
         )}

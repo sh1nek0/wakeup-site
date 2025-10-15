@@ -56,6 +56,31 @@ body{
   background: #555 !important;
   box-shadow: 0 0 0 2px rgba(255, 111, 0, .35) !important;
 }
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ OBS --- */
+.obsInputsContainer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.obsInput {
+  width: 200px;
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  background: #444 !important;
+  border: 1px solid #555 !important;
+  border-radius: 10px !important;
+  color: #fff !important;
+  outline: none;
+  transition: box-shadow 0.2s, background-color 0.2s;
+}
+
+.obsInput:focus {
+  background: #555 !important;
+  box-shadow: 0 0 0 2px rgba(255, 111, 0, .35) !important;
+}
 /* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
 
 
@@ -624,6 +649,9 @@ body{
   .judgeInputContainer { width: 100%; }
   .judgeAndLocationContainer { flex-direction: column; align-items: stretch; width: 100%; }
   .locationContainer .roleDropdown { width: 100%; }
+  /* --- НОВЫЕ АДАПТИВНЫЕ СТИЛИ ДЛЯ OBS --- */
+  .obsInputsContainer { flex-direction: column; align-items: stretch; width: 100%; }
+  .obsInput { width: 100%; }
 }
 
 /* --- СТИЛИ ДЛЯ ПОДСКАЗОК --- */
