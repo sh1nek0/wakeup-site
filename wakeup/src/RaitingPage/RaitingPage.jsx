@@ -663,11 +663,11 @@ export default function RatingPage() {
           >
             <div className={styles.statsGrid}>
               <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Общее количество игр</h3>
+                <h3 className={styles.statTitle}>Количество игр</h3>
                 <p className={styles.statValue}>{totalGamesCount}</p>
               </div>
               <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Общее количество игроков</h3>
+                <h3 className={styles.statTitle}>Количество игроков</h3>
                 <p className={styles.statValue}>{detailedStatsTotalCount}</p>
               </div>
               <div className={styles.statItem}>
