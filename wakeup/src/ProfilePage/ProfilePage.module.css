@@ -52,27 +52,8 @@
   user-select:none;
   text-transform:uppercase;
 }
-.nickname::after{
-  content:"";
-  position:absolute;
-  left:0;bottom:-8px;
-  width:92px;height:3px;
-  background:#ef741c;
-  border-radius:2px;
-  opacity:.9;
-}
-/* если в нике инпут — делаем его «заголовком» */
-.nickname input{
-  background:transparent;
-  border:none;
-  border-bottom:2px solid transparent;
-  color:#fff;
-  font-size:44px;
-  font-weight:900;
-  padding:0;
-  width:100%;
-}
-.nickname input:focus{border-bottom-color:#ef741c;outline:0}
+
+
 
 /* ТАБЫ */
 .tabsWrapper{
@@ -90,10 +71,7 @@
   color:#ef741c;border-color:#ef741c;background:#2a2a2a;
   position:relative;
 }
-.tabButton.active::after{
-  content:"";position:absolute;left:8px;right:8px;bottom:-8px;
-  height:3px;background:#ef741c;border-radius:2px;
-}
+
 
 /* ФОРМ-БЛОК (ПРОФИЛЬ) */
 .infoBox{
