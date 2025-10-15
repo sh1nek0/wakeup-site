@@ -1,44 +1,49 @@
+/* Общий стиль страницы */
 .pageWrapper {
-    min-height: 100vh;
-    background: #1f1f1f;
-    color: #fff;
-    font-family: 'Arial', sans-serif;
-    padding: 24px;
+  min-height: 100vh;
+  background: #1f1f1f;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  padding: 24px;
 }
 
+/* Основная секция */
 .main {
-    max-width: 900px;
-    margin: 0 auto;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
+/* Заголовок */
 .title {
-    font-size: 48px;
-    font-weight: 800;
-    margin-bottom: 24px;
-    text-align: center;
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
+/* Контейнер поиска */
 .searchContainer {
-    margin-bottom: 24px;
-    position: relative; /* Для выпадающего списка */
+  margin-bottom: 24px;
+  position: relative;
 }
 
+/* Ввод поиска */
 .searchInput {
-    width: 100%;
-    padding: 12px 16px;
-    background-color: #2e2e2e;
-    border: 1px solid #444;
-    color: #fff;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.2s;
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #2e2e2e;
+  border: 1px solid #444;
+  color: #fff;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
 .searchInput:focus {
-    border-color: #ff6f00;
+  border-color: #ff6f00;
 }
 
-/* Стили для выпадающего списка */
+/* Список подсказок */
 .suggestionsList {
   position: absolute;
   top: 100%;
@@ -52,6 +57,7 @@
   z-index: 1000;
 }
 
+/* Элемент подсказки */
 .suggestionItem {
   padding: 10px 16px;
   color: #fff;
@@ -63,152 +69,254 @@
   color: #1f1f1f;
 }
 
-
+/* Обертка списка */
 .listWrapper {
-    margin-bottom: 18px;
+  margin-bottom: 18px;
 }
 
+/* Заголовок списка */
 .listHeader {
-    display: flex;
-    align-items: center;
-    background: #1A1A1A;
-    border: 1px solid #2A2A2A;
-    padding: 12px 16px;
-    font-weight: 700;
-    margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  padding: 12px 16px;
+  font-weight: 700;
+  margin-bottom: 10px;
 }
 
 .headerRank {
-    flex: 0 0 50px;
+  flex: 0 0 50px;
 }
 
 .headerPlayer {
-    flex: 1 1 auto;
+  flex: 1 1 auto;
 }
 
 .headerGames {
-    flex: 0 0 120px;
-    text-align: right;
+  flex: 0 0 120px;
+  text-align: right;
 }
 
+/* строки игроков */
 .playerRow {
-    position: relative; /* Для позиционирования полосы */
-    overflow: hidden;   /* Чтобы полоса не вылезала */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #2E2E2E;
-    border: 1px solid #1F1F1F;
-    margin-bottom: 12px;
-    padding: 14px 16px;
-    transition: background-color .2s, transform .15s;
-    text-decoration: none;
-    color: inherit;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #2e2e2e;
+  border: 1px solid #1f1f1f;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  transition: background-color 0.2s, transform 0.15s;
+  text-decoration: none;
+  color: inherit;
 }
 
 .playerRow:hover {
-    background: #2A2A2A;
-    transform: translateY(-2px);
+  background: #2a2a2a;
+  transform: translateY(-2px);
 }
 
 .playerRow:hover .playerName {
-    color: #ff6f00;
+  color: #ff6f00;
 }
 
+/* цветные полосы */
 .orangeStripe {
-    position: absolute;
-    top: 0;
-    right: 150px;
-    width: 12px;
-    height: 100%;
-    background: #757575; /* Серый по умолчанию */
-    transform: skewX(-30deg);
-    z-index: 1;
-    opacity: 0.95;
+  position: absolute;
+  top: 0;
+  right: 150px;
+  width: 12px;
+  height: 100%;
+  background: #757575;
+  transform: skewX(-30deg);
+  z-index: 1;
+  opacity: 0.95;
 }
 
+/* Цвета для клубов */
 .clubMIET {
-    background: #ff6f00 !important;
+  background: #ff6f00 !important;
 }
-
 .clubMIPT {
-    background: #5844d4 !important;
+  background: #5844d4 !important;
 }
 
-
+/* Информация о игроке */
 .playerInfo {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    z-index: 2; /* Чтобы контент был над полосой */
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 2;
 }
 
 .rank {
-    font-weight: 700;
-    color: #B0B0B0;
-    width: 30px;
+  font-weight: 700;
+  color: #b0b0b0;
+  width: 30px;
 }
 
 .avatar {
-    width: 48px;
-    height: 48px;
-    object-fit: cover;
-    border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .playerName {
-    font-size: 18px;
-    font-weight: 800;
-    transition: color 0.2s ease; /* Плавный переход цвета */
+  font-size: 18px;
+  font-weight: 800;
+  transition: color 0.2s ease;
 }
 
 .playerClub {
-    color: #B0B0B0;
-    font-size: 12px;
+  color: #b0b0b0;
+  font-size: 12px;
 }
 
 .gameCount {
-    font-size: 20px;
-    font-weight: 800;
-    width: 120px;
-    text-align: right;
-    z-index: 2; /* Чтобы контент был над полосой */
+  font-size: 20px;
+  font-weight: 800;
+  width: 120px;
+  text-align: right;
+  z-index: 2;
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ ПАГИНАЦИИ --- */
-.pagination{
-  display:flex; 
-  justify-content:center; 
-  align-items:center; 
-  gap:10px; 
-  margin-top:18px;
+/* Пагинация */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
 }
-.pageBtn{
-  background:#252525; 
-  color:#EDEDED; 
-  border:2px solid #3A3A3A;
-  padding:8px 12px; 
-  cursor:pointer; 
-  font-size:16px; 
-  user-select:none;
-  border-radius:0; 
-  transition:border-color .2s, transform .12s;
+
+.pageBtn {
+  background: #252525;
+  color: #ededed;
+  border: 2px solid #3a3a3a;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  user-select: none;
+  border-radius: 0;
+  transition: border-color 0.2s, transform 0.12s;
   min-width: 40px;
 }
-.pageBtn:hover, .pageActive{ 
-    border-color:#FF7A1A; 
-    transform:translateY(-1px); 
-}
+
+.pageBtn:hover,
 .pageActive {
-    background-color: #3a3a3a;
+  border-color: #ff7a1a;
+  transform: translateY(-1px);
 }
-.pageArrow{ 
-    font-weight:800; 
+
+.pageActive {
+  background-color: #3a3a3a;
 }
-.pageBtn:disabled{ 
-    opacity:.45; 
-    cursor:not-allowed; 
-    transform: none;
-    border-color: #3A3A3A;
+
+.pageArrow {
+  font-weight: 800;
 }
-/* --- КОНЕЦ СТИЛЕЙ ПАГИНАЦИИ --- */
+
+.pageBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  border-color: #3a3a3a;
+}
+
+/* Медиазапросы для адаптивности */
+
+@media (max-width: 1920px) {
+  .main { max-width: 1200px; }
+  .title { font-size: 56px; }
+  .listHeader { padding: 16px 20px; }
+  .playerRow { padding: 16px 20px; }
+  .avatar { width: 56px; height: 56px; }
+  .playerName { font-size: 20px; }
+  .gameCount { font-size: 22px; width: 140px; }
+  .headerGames { flex: 0 0 140px; }
+  .orangeStripe { right: 170px; }
+}
+
+@media (max-width: 1440px) {
+  .main { max-width: 1000px; }
+  .title { font-size: 48px; }
+  .pageWrapper { padding: 20px; }
+  .listHeader { padding: 14px 18px; }
+  .playerRow { padding: 14px 18px; }
+  .avatar { width: 50px; height: 50px; }
+  .playerName { font-size: 18px; }
+  .gameCount { font-size: 20px; width: 130px; }
+  .headerGames { flex: 0 0 130px; }
+  .orangeStripe { right: 160px; }
+}
+
+@media (max-width: 1024px) {
+  .main { max-width: 800px; }
+  .title { font-size: 42px; margin-bottom: 20px; }
+  .pageWrapper { padding: 18px; }
+  .searchInput { padding: 10px 14px; font-size: 0.95rem; }
+  .listHeader { padding: 12px 16px; }
+  .playerRow { padding: 12px 16px; margin-bottom: 10px; }
+  .avatar { width: 44px; height: 44px; }
+  .playerName { font-size: 16px; }
+  .playerClub { font-size: 11px; }
+  .gameCount { font-size: 18px; width: 110px; }
+  .headerGames { flex: 0 0 110px; }
+  .orangeStripe { right: 140px; width: 10px; }
+  .pagination { gap: 8px; }
+  .pageBtn { padding: 6px 10px; font-size: 14px; min-width: 36px; }
+}
+
+@media (max-width: 768px) {
+  .main { max-width: 700px; }
+  .title { font-size: 36px; margin-bottom: 18px; }
+  .pageWrapper { padding: 16px; }
+  .searchInput { padding: 10px 12px; font-size: 0.9rem; }
+  .listHeader { padding: 10px 14px; flex-wrap: wrap; }
+  .headerRank { flex: 0 0 40px; }
+  .headerGames { flex: 0 0 100px; }
+  .playerRow { padding: 10px 14px; margin-bottom: 8px; flex-wrap: wrap; }
+  .playerInfo { gap: 10px; }
+  .avatar { width: 40px; height: 40px; }
+  .rank { width: 25px; }
+  .playerName { font-size: 15px; }
+  .playerClub { font-size: 10px; }
+  .gameCount { font-size: 16px; width: 100px; }
+  .orangeStripe { right: 120px; width: 8px; }
+  .pagination { gap: 6px; }
+  .pageBtn { padding: 5px 8px; font-size: 13px; min-width: 32px; }
+}
+
+@media (max-width: 480px) {
+  .main { max-width: 100%; margin: 0 10px; }
+  .title { font-size: 28px; margin-bottom: 16px; }
+  .pageWrapper { padding: 12px; }
+  .searchInput { padding: 8px 10px; font-size: 0.85rem; }
+  .suggestionsList { max-height: 150px; }
+  .suggestionItem { padding: 8px 12px; }
+  .listHeader { padding: 8px 12px; font-size: 14px; }
+  .headerRank { flex: 0 0 35px; }
+  .headerGames { flex: 0 0 80px; }
+  .playerRow { padding: 8px 12px; margin-bottom: 6px;  align-items: flex-start; }
+  .playerInfo { gap: 8px; }
+  .rank { width: auto; margin-right: 10px; }
+  .avatar { width: 36px; height: 36px; }
+  .playerName { font-size: 14px; }
+  .playerClub { font-size: 9px; }
+  .gameCount { font-size: 14px; width: auto; text-align: left; margin-top: 4px; }
+  
+  .pagination { gap: 4px; flex-wrap: wrap; }
+  .pageBtn { padding: 4px 6px; font-size: 12px; min-width: 28px; }
+}
+
+@media (max-width: 320px) {
+  .pageWrapper {
+    min-height: 100vh; /* Минимальная высота — весь видимый экран */
+    display: flex;
+    flex-direction: column;
+  }
+}

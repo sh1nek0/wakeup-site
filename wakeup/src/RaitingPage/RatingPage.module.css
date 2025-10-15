@@ -242,7 +242,7 @@
 .statsGrid{
   display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px;
 }
-.statItem{ text-align:center; padding:15px; background:#232323; border:1px solid #2A2A2A; border-radius:0; }
+.statItem{ text-align:center; padding:10px; background:#232323; border:1px solid #2A2A2A; border-radius:0; }
 .statTitle{ font-size:1.1rem; margin-bottom:10px; color:#FF7A1A; }
 .statValue{ font-size:1.5rem; font-weight:800; }
 
@@ -675,4 +675,22 @@
   .sheetTable tbody td{ font-size:11px; padding:2px 4px; height:18px; }
   .sheetTop{ padding:5px 8px; min-height:26px; }
   .sheetBottom{ padding:5px 8px; min-height:24px; }
+}
+
+@media (max-width:400px) {
+  .heroText{
+    font-size: 10px;
+  }
+
+  .statItem{
+    height: 20px;
+  }
+
+  .statTitle{
+     font-size: 12px;
+  }
+
+  .statValue{
+    font-size: 10px;
+  }
 }

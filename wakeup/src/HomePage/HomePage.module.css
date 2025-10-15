@@ -857,8 +857,6 @@ body {
 }
 
 
-
-
 /* Адаптив второй карусели (расширенная версия уже существующей) */
 @media (max-width: 1100px) {
   .wrap { --card-w: 240px; --card-h: 350px; overflow: hidden;}
@@ -867,14 +865,12 @@ body {
 
 }
 
-
 @media (max-width: 920px) {
   .wrap .grid { grid-template-columns: 1fr; gap: 28px; }
   .wrap .dots { top: 28px; margin-top: 28px; }
   .wrap .h1 { font-size: 40px; }
   .wrap .title { font-size: 30px; }
 }
-
 
 
 @media (max-width: 520px) {
@@ -885,3 +881,68 @@ body {
   .wrap .info { padding: 24px 24px 20px; }
   .wrap .cta { font-size: 18px; padding: 14px 20px; }
 }
+
+
+@media (max-width: 400px) {
+  .text-block {
+    width: 100%;
+    max-width: 100%;
+    /* overflow: hidden; */ /* УБРАТЬ ЭТО! Оно скрывает выходящий текст */
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    padding: 0 10px;
+    text-align: left;
+   
+  }
+
+  /* Название турнира */
+  .text-block h2 {
+    font-size: clamp(16px, 6vw, 22px);
+    line-height: 1.1;
+    margin: 0 0 8px 0;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* Описание турнира */
+  .text-block p {
+    font-size: clamp(12px, 4vw, 14px);
+    line-height: 1.4;
+    margin: 0;
+    margin-top: 5px;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    width: 300px;
+  }
+
+  /* Кнопка под текстом */
+  .cta {
+    margin-top: 14px;
+    font-size: clamp(10px, 3.5vw, 13px);
+    padding: 10px 14px;
+    align-self: flex-start;
+  }
+
+  /* Контейнер карусели */
+  .carousel-box {
+    overflow-x: hidden; /* Это оставьте, если нужно скрывать горизонтальную прокрутку карусели */
+  }
+  .rules-description{
+    font-size: 13px;
+    color: #c6c5c5;
+  }
+
+
+  /* Размер карточек в карусели */
+  :root {
+    --card-w: 200px;
+    --card-h: 350px;
+    --gap: 10px;
+  }
+}
+

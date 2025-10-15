@@ -52,27 +52,8 @@
   user-select:none;
   text-transform:uppercase;
 }
-.nickname::after{
-  content:"";
-  position:absolute;
-  left:0;bottom:-8px;
-  width:92px;height:3px;
-  background:#ef741c;
-  border-radius:2px;
-  opacity:.9;
-}
-/* если в нике инпут — делаем его «заголовком» */
-.nickname input{
-  background:transparent;
-  border:none;
-  border-bottom:2px solid transparent;
-  color:#fff;
-  font-size:44px;
-  font-weight:900;
-  padding:0;
-  width:100%;
-}
-.nickname input:focus{border-bottom-color:#ef741c;outline:0}
+
+
 
 /* ТАБЫ */
 .tabsWrapper{
@@ -90,10 +71,7 @@
   color:#ef741c;border-color:#ef741c;background:#2a2a2a;
   position:relative;
 }
-.tabButton.active::after{
-  content:"";position:absolute;left:8px;right:8px;bottom:-8px;
-  height:3px;background:#ef741c;border-radius:2px;
-}
+
 
 /* ФОРМ-БЛОК (ПРОФИЛЬ) */
 .infoBox{
@@ -323,4 +301,106 @@ input:focus,select:focus{
 .deleteButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (max-width:400px) {
+  .mainContent{
+    overflow: hidden;
+    padding: 16px 18px;
+    gap: 20px;
+  }
+  
+  .nickname{
+    font-size: 28px;
+    letter-spacing: 0.5px;
+  }
+  .nickname input{
+    font-size: 28px;
+  }
+  
+  .tabsWrapper{
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 6px 0 16px;
+  }
+  .tabButton{
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .infoBox{
+    padding: 12px 14px;
+  }
+  
+  .field{
+    margin-bottom: 10px;
+  }
+  input, select{
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  
+  .photo{
+    width: 180px;
+    height: 180px;
+  }
+  .number{
+    font-size: 16px;
+    padding: 6px 8px;
+    right: -8px;
+    bottom: -8px;
+  }
+  
+  .editControls{
+    margin-top: 12px;
+  }
+  .editControls button{
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .statsContainer{
+    padding: 12px 14px;
+  }
+  .statsTable{
+    font-size: 13px;
+  }
+  .statsTable th, .statsTable td{
+    padding: 6px 8px;
+  }
+  
+  .gamesGrid{
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .gameCard{
+    margin: 0 auto;
+    max-width: 100%;
+  }
+  .gameTable td{
+    font-size: 0.85rem;
+    padding: 4px 6px;
+  }
+  
+  .gameFooter{
+    padding: 6px;
+    font-size: 13px;
+  }
+  
+  .uploadBox{
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .fileLabel{
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .hint, .errorText{
+    font-size: 11px;
+  }
+  .deleteButton{
+    padding: 6px 10px;
+    font-size: 13px;
+  }
 }
