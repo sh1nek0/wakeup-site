@@ -11,18 +11,21 @@ from api.notifications import create_notification
 router = APIRouter()
 
 async def manage_registration_logic(registration_id: str, action: str, current_user: User, db: Session):
-    # ... (код без изменений)
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
+
     registration = db.query(Registration).filter(Registration.id == registration_id).first()
     if not registration:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
+    
     event = registration.event
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено")
+    
     target_user = registration.user
     notification_message = ""
     notification_type = ""
+
     if action == "approve":
         if registration.status == "approved":
             return {"message": "Заявка уже была одобрена"}
@@ -32,23 +35,34 @@ async def manage_registration_logic(registration_id: str, action: str, current_u
         event.participants_count += 1
         notification_message = f"Ваша заявка на участие в событии '{event.title}' одобрена."
         notification_type = "registration_approved"
+        
     elif action == "reject":
         if registration.status == "approved":
             event.participants_count -= 1
-        db.delete(registration)
         notification_message = f"Ваша заявка на участие в событии '{event.title}' отклонена."
         notification_type = "registration_rejected"
+        # Если заявка отклонена, помечаем саму запись о регистрации для удаления
+        db.delete(registration)
     else:
         raise HTTPException(status_code=400, detail="Недопустимое действие")
+
+    # Помечаем для удаления уведомления у ВСЕХ админов, связанные с этим запросом
     db.query(Notification).filter(
         Notification.related_id == registration.id,
         Notification.type == "registration_request"
     ).delete(synchronize_session=False)
-    db.commit()
+
+    # Уведомление для пользователя будет создано, но не закоммичено
     create_notification(
-        db, recipient_id=target_user.id, type=notification_type,
-        message=notification_message, sender_id=current_user.id, related_id=event.id
+        db,
+        recipient_id=target_user.id,
+        type=notification_type,
+        message=notification_message,
+        sender_id=current_user.id,
+        related_id=event.id,
+        commit=False # <-- Важный флаг, чтобы не делать commit здесь
     )
+    
     return {"message": f"Заявка успешно обработана: {action}"}
 
 async def manage_team_invite_logic(team_id: str, action: str, current_user: User, db: Session):

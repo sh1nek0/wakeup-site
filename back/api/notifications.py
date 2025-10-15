@@ -76,10 +76,14 @@ async def perform_notification_action(
         registration_id = notification.related_id
         action = "approve" if request.action == "approve_registration" else "reject"
         
+        # 1. Выполняем основную логику (она готовит изменения, но не коммитит)
         result = await manage_registration_logic(registration_id, action, current_user, db)
         message = result.get("message", "Действие выполнено")
         
+        # 2. Помечаем текущее уведомление для удаления
         db.delete(notification)
+        
+        # 3. Теперь делаем ОДИН commit для ВСЕХ изменений
         db.commit()
 
     elif request.action in ["accept_team_invite", "decline_team_invite"]:
@@ -87,11 +91,15 @@ async def perform_notification_action(
         team_id = notification.related_id
         action = "accept" if request.action == "accept_team_invite" else "decline"
         
+        # 1. Выполняем логику (она сама делает commit, т.к. может удалить команду)
         result = await manage_team_invite_logic(team_id, action, current_user, db)
         message = result.get("message", "Действие выполнено")
 
-        db.delete(notification)
-        db.commit()
+        # 2. Удаляем текущее уведомление (если оно еще существует)
+        # Проверяем, что оно все еще в сессии, так как manage_team_invite_logic могла его удалить
+        if notification in db:
+            db.delete(notification)
+            db.commit()
 
     else:
         raise HTTPException(status_code=400, detail="Логика для этого действия еще не реализована")

@@ -114,18 +114,17 @@ const Navbar = () => {
         <div className={styles.navbarRight}>
           {isAuthenticated && user ? (
             <div className={styles.userInfo}>
-              <Link to="/notifications" className={styles.notificationsIcon}>
-                <img src={bellIcon} alt="Уведомления" />
+              <Link to="/notifications" className={styles.avatarLink}>
+                <img
+                  src={avatarSrc}
+                  alt="Аватар пользователя"
+                  className={styles.userAvatar}
+                  key={avatarSrc}
+                />
                 {unreadNotificationsCount > 0 && (
                   <span className={styles.notificationsBadge}>{unreadNotificationsCount}</span>
                 )}
               </Link>
-              <img
-                src={avatarSrc}
-                alt="Аватар пользователя"
-                className={styles.userAvatar}
-                key={avatarSrc}
-              />
               <Link to={`/profile/${user.id}`} className={styles.userNameLink}>
                 <span className={styles.userName}>{user.nickname}</span>
               </Link>
