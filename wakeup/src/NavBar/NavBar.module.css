@@ -116,6 +116,7 @@
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
+  display: block;
 }
 
 .userName {
@@ -143,40 +144,40 @@
 
 /* --- НОВЫЕ СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ --- */
 .notificationsIcon {
-  position: relative;
+  display: none;
+}
+
+/* Контейнер для аватара-ссылки */
+.avatarLink {
+  position: relative; /* Чтобы бейдж позиционировался относительно него */
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px; /* Размер иконки */
-  height: 32px;
-  margin-right: 10px; /* Отступ от аватара */
-  text-decoration: none;
+  border-radius: 50%;
+  transition: box-shadow 0.2s ease;
 }
 
-.notificationsIcon img {
-  width: 24px; /* Размер самой иконки колокольчика */
-  height: 24px;
-  filter: invert(100%); /* Белый колокольчик */
-  transition: filter 0.2s ease;
+.avatarLink:hover {
+  box-shadow: 0 0 0 2px #ff6f00; /* Рамка при наведении */
 }
 
-.notificationsIcon:hover img {
-  filter: invert(100%) brightness(150%); /* Ярче при наведении */
-}
-
+/* Бейдж с количеством уведомлений */
 .notificationsBadge {
   position: absolute;
-  top: 0px;
-  right: 0px;
-  background-color: #ff6f00; /* Оранжевый цвет */
+  top: -4px;   /* Сдвигаем вверх */
+  right: -4px; /* Сдвигаем вправо */
+  background-color: #ff6f00;
   color: white;
   font-size: 10px;
   font-weight: bold;
   border-radius: 50%;
-  padding: 2px 6px;
-  min-width: 18px; /* Минимальная ширина для одной цифры */
+  padding: 2px;
+  min-width: 18px;
+  height: 18px;
   text-align: center;
-  line-height: 1.2;
+  line-height: 14px; /* Подбираем для вертикального центрирования цифры */
+  box-sizing: border-box;
+  border: 2px solid #303030; /* Рамка в цвет фона навбара */
 }
 /* --- КОНЕЦ НОВЫХ СТИЛЕЙ --- */
 
