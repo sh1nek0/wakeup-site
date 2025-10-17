@@ -883,7 +883,7 @@ body {
 }
 
 
-@media (max-width: 400px) {
+@media (max-width: 450px) {
   .text-block {
     width: 100%;
     max-width: 100%;
