@@ -725,118 +725,202 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
     );
   };
 
-  return (
-    <>
-      <div className={styles.tableWrapper}>
-        <table className={styles.detailedStatsTable}>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Игрок</th>
-              <th>Σ</th>
-              <th>1🏆</th>
-              <th>СК</th>
-              <th>ЖК</th>
-              <th>ЛХ</th>
-              <th>Ci</th>
-              <th>Допы</th>
-              <th>−</th>
-              <th>Общая</th>
-              <th>Шериф</th>
-              <th>Мирн.</th>
-              <th>Мафия</th>
-              <th>Дон</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.isArray(data) &&
-              data.map((p, i) => {
-                const rank = (currentPage - 1) * 10 + i + 1;
+return (
+  <>
+    <div className={styles.tableWrapper}>
+      <table className={styles.detailedStatsTable}>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Игрок</th>
+            <th>Σ</th>
+            <th>1🏆</th>
+            <th>СК</th>
+            <th>ЖК</th>
+            <th>ЛХ</th>
+            <th>Ci</th>
+            <th>Допы</th>
+            <th>−</th>
 
-                const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
-                const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
-                const totalPenalties = (p.total_sk_penalty || 0) + (p.total_jk_penalty || 0);
+            {/* Заголовки ролей */}
+            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCommon}`}>Общая</th>
+            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleSheriff}`}>Шериф</th>
+            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCitizen}`}>Мирн.</th>
+            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleMafia}`}>Мафия</th>
+            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleDon}`}>Дон</th>
+          </tr>
+
+          <tr className={styles.subHeaderRow}>
+            <th colSpan="10"></th>
+            {/* Подзаголовки для каждой роли */}
+            <React.Fragment>
+              <th className={styles.roleCommon}>П/И</th>
+              <th className={styles.roleCommon}>Ср</th>
+              <th className={styles.roleCommon}>МАКС</th>
+
+              <th className={styles.roleSheriff}>П/И</th>
+              <th className={`${styles.subHeader} ${styles.roleSheriff}`}>Ср</th>
+              <th className={`${styles.subHeader} ${styles.roleSheriff}`}>МАКС</th>
+
+              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>П/И</th>
+              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>Ср</th>
+              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>МАКС</th>
+
+              <th className={`${styles.subHeader} ${styles.roleMafia}`}>П/И</th>
+              <th className={`${styles.subHeader} ${styles.roleMafia}`}>Ср</th>
+              <th className={`${styles.subHeader} ${styles.roleMafia}`}>МАКС</th>
+
+              <th className={`${styles.subHeader} ${styles.roleDon}`}>П/И</th>
+              <th className={`${styles.subHeader} ${styles.roleDon}`}>Ср</th>
+              <th className={`${styles.subHeader} ${styles.roleDon}`}>МАКС</th>
+            </React.Fragment>
+          </tr>
+        </thead>
+
+        <tbody>
+          {Array.isArray(data) &&
+            data.map((p, i) => {
+              const rank = (currentPage - 1) * 10 + i + 1;
+              const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
+              const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
+              const totalPenalties = (p.total_sk_penalty || 0) + (p.total_jk_penalty || 0);
+
+              // общий рендер
+              const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass) => {
+                const totalBonus =
+                  bonuses.length > 0
+                    ? bonuses.reduce((sum, val) => sum + val, 0).toFixed(1)
+                    : '0.0';
+                const maxBonus =
+                  bonuses.length > 0 ? Math.max(...bonuses).toFixed(1) : '0.0';
 
                 return (
-                  <tr
-                    key={p.nickname}
-                    className={p.nickname === user?.nickname ? styles.currentUserRow : ''}
-                  >
-                    <td>{rank}</td>
-                    <td>
-                      <span onClick={() => handlePlayerClick(p.id)}>
-                        {p.nickname && p.nickname.length >10
+                  <>
+                    <td className={`${styles.roleCell} ${colorClass}`}>
+                      {wins || 0}/{games || 0}
+                    </td>
+                    <td className={`${styles.roleCell} ${colorClass}`}>{totalBonus}</td>
+                    <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>
+                  </>
+                );
+              };
+
+              return (
+                <tr
+                  key={p.nickname}
+                  className={p.nickname === user?.nickname ? styles.currentUserRow : ''}
+                >
+                  <td>{rank}</td>
+                  <td>
+                    <span
+                      className={p.clickableName}
+                      onClick={() => handlePlayerClick(p.id)}
+                      title={p.nickname}
+                    >
+                      {p.nickname && p.nickname.length > 10
                         ? p.nickname.slice(0, 10) + '...'
                         : p.nickname}
-                      </span>
-                    </td>
-                    <td>{p.totalPoints?.toFixed(2) || 0}</td>
-                    <td>{totalWins}</td>
-                    <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>
-                    <td>{(p.total_jk_penalty || 0).toFixed(2)}</td>
-                    <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
-                    <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
-                    <td>{p.bonuses?.toFixed(2) || 0}</td>
-                    <td>{totalPenalties.toFixed(2)}</td>
-                    <td>
-                      {renderRoleStats(
-                        totalWins,
-                        totalGames,
-                        [].concat(...Object.values(p.role_plus || {}))
-                      )}
-                    </td>
-                    <td>{renderRoleStats(p.wins?.sheriff, p.gamesPlayed?.sheriff, p.role_plus?.sheriff || [])}</td>
-                    <td>{renderRoleStats(p.wins?.citizen, p.gamesPlayed?.citizen, p.role_plus?.citizen || [])}</td>
-                    <td>{renderRoleStats(p.wins?.mafia, p.gamesPlayed?.mafia, p.role_plus?.mafia || [])}</td>
-                    <td>{renderRoleStats(p.wins?.don, p.gamesPlayed?.don, p.role_plus?.don || [])}</td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
+                    </span>
+                  </td>
+                  <td>{p.totalPoints?.toFixed(2) || 0}</td>
+                  <td>{totalWins}</td>
+                  <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>
+                  <td>{(p.total_jk_penalty || 0).toFixed(2)}</td>
+                  <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
+                  <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
+                  <td>{p.bonuses?.toFixed(2) || 0}</td>
+                  <td>{totalPenalties.toFixed(2)}</td>
 
-      {totalPages > 0 && (
-        <nav
-          className={`${styles.pagination} ${styles.detailedPagination}`}
-          aria-label="Пейджинг детальной статистики"
+                  {/* Общая — белая */}
+                  {renderRoleStats(
+                    totalWins,
+                    totalGames,
+                    [].concat(...Object.values(p.role_plus || {})),
+                    styles.roleCommon
+                  )}
+
+                  {/* Шериф — жёлтая */}
+                  {renderRoleStats(
+                    p.wins?.sheriff,
+                    p.gamesPlayed?.sheriff,
+                    p.role_plus?.sheriff || [],
+                    styles.roleSheriff
+                  )}
+
+                  {/* Мирный — красная */}
+                  {renderRoleStats(
+                    p.wins?.citizen,
+                    p.gamesPlayed?.citizen,
+                    p.role_plus?.citizen || [],
+                    styles.roleCitizen
+                  )}
+
+                  {/* Мафия — бирюзовая */}
+                  {renderRoleStats(
+                    p.wins?.mafia,
+                    p.gamesPlayed?.mafia,
+                    p.role_plus?.mafia || [],
+                    styles.roleMafia
+                  )}
+
+                  {/* Дон — фиолетовая */}
+                  {renderRoleStats(
+                    p.wins?.don,
+                    p.gamesPlayed?.don,
+                    p.role_plus?.don || [],
+                    styles.roleDon
+                  )}
+                </tr>
+              );
+            })}
+        </tbody>
+      </table>
+    </div>
+
+    {totalPages > 0 && (
+      <nav
+        className={`${styles.pagination} ${styles.detailedPagination}`}
+        aria-label="Пейджинг детальной статистики"
+      >
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`${styles.pageBtn} ${styles.pageArrow}`}
+          aria-label="Предыдущая страница"
+          type="button"
         >
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`${styles.pageBtn} ${styles.pageArrow}`}
-            aria-label="Предыдущая страница"
-            type="button"
-          >
-            ‹
-          </button>
-          {[...Array(totalPages)].map((_, i) => {
-            const p = i + 1;
-            const isActive = p === currentPage;
-            return (
-              <button
-                key={p}
-                onClick={() => onPageChange(p)}
-                className={`${styles.pageBtn} ${isActive ? styles.pageActive : ''}`}
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={`Страница ${p}`}
-                type="button"
-              >
-                {p}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`${styles.pageBtn} ${styles.pageArrow}`}
-            aria-label="Следующая страница"
-            type="button"
-          >
-            ›
-          </button>
-        </nav>
-      )}
-    </>
-  );
+          ‹
+        </button>
+
+        {[...Array(totalPages)].map((_, i) => {
+          const p = i + 1;
+          const isActive = p === currentPage;
+          return (
+            <button
+              key={p}
+              onClick={() => onPageChange(p)}
+              className={`${styles.pageBtn} ${isActive ? styles.pageActive : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={`Страница ${p}`}
+              type="button"
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`${styles.pageBtn} ${styles.pageArrow}`}
+          aria-label="Следующая страница"
+          type="button"
+        >
+          ›
+        </button>
+      </nav>
+    )}
+  </>
+);
+
 }

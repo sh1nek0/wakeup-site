@@ -237,6 +237,107 @@
 }
 .cardPoints{ font-size:28px; font-weight:800; letter-spacing:.3px; }
 
+
+.roleHeader {
+  text-align: center;
+  font-weight: 600;
+}
+
+.subHeaderRow th {
+  font-size: 13px;
+  text-align: center;
+  
+  border-bottom: 1px solid #ccc;
+}
+
+/* =========================
+   ПЕРЕОПРЕДЕЛЕНИЕ ЦВЕТОВ РОЛЕЙ
+   ========================= */
+
+.detailedStatsTable td.roleCommon,
+.detailedStatsTable th.roleCommon {
+  color: #ffffff !important;
+}
+
+.detailedStatsTable td.roleSheriff,
+.detailedStatsTable th.roleSheriff {
+  color: #ffd700 !important;
+}
+
+.detailedStatsTable td.roleCitizen,
+.detailedStatsTable th.roleCitizen {
+  color: #ff4d4d !important;
+}
+
+.detailedStatsTable td.roleMafia,
+.detailedStatsTable th.roleMafia {
+  color: #00e5e5 !important;
+}
+
+.detailedStatsTable td.roleDon,
+.detailedStatsTable th.roleDon {
+  color: #b266ff !important;
+}
+
+.subHeader {
+  font-weight: 500;
+  font-size: 12px;
+  color: #999;
+}
+
+
+
+/* базовые стили */
+.roleCell {
+  text-align: center;
+  font-size: 15px;
+  padding: 2px 4px;
+  border-left: 1px solid #eee;
+  font-weight: 500;
+}
+
+/* Цвета по ролям */
+.roleCommon {
+  color: #ffffff; /* белый / базовый */
+}
+
+.roleSheriff {
+  color: #ffd700; /* золотисто-жёлтый */
+}
+
+.roleCitizen {
+  color: #ff4d4d; /* красный */
+}
+
+.roleMafia {
+  color: #00e5e5; /* бирюзовый */
+}
+
+.roleDon {
+  color: #b266ff; /* фиолетовый */
+}
+
+.roleHeader {
+  text-align: center;
+  font-weight: 600;
+}
+
+.subHeaderRow th {
+  font-size: 13px;
+  text-align: center;
+  border-bottom: 1px solid #ccc;
+}
+
+.subHeader {
+  font-weight: 500;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.9;
+}
+
+
+
+
 /* =========================
    ПАГИНАЦИЯ
    ========================= */
@@ -550,7 +651,7 @@
 }
 .detailedStatsTable th{ background:#2A2A2A; color:#fff; font-weight:800; }
 .detailedStatsTable tbody tr{ background:#202020; }
-.currentUserRow, .expandedRow{ background:#202020; }
+.currentUserRow, .expandedRow{ background:#202020; font-size: 15px; }
 .detailedPagination .pageBtn{ font-size:.8rem; padding:.3rem .6rem; }
 
 .redText{ color:#ff5a5a; }
@@ -600,6 +701,7 @@
   transition: color 0.2s ease;
   font-weight: 600;
   color: #111;
+  font-size: 15px;
 }
 
 .clickableNameInTable:hover {
@@ -740,8 +842,6 @@
   
 }
 
-
-
 @media (max-width:400px) {
 
   .statsGrid{
@@ -769,4 +869,10 @@
   }
 
 
+}
+
+@media (min-width:3000px) {
+  .statsWrapper{
+    width: 1500px;
+  }
 }
