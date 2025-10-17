@@ -138,7 +138,9 @@ const PlayersListPage = () => {
                                     <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
                                     <div>
                                         <div className={styles.playerName}>
-                                            {player.nickname}
+                                            {player.nickname.length > 10
+                                                ? player.nickname.length(0, 10) + '...'
+                                                : player.nickname}
                                         </div>
                                         <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>
                                     </div>
