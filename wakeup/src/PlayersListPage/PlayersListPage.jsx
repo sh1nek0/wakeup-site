@@ -137,7 +137,9 @@ const PlayersListPage = () => {
                                     <div className={styles.rank}>{rank}</div>
                                     <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
                                     <div>
-                                        <div className={styles.playerName}>{player.nickname}</div>
+                                        <div className={styles.playerName}>
+                                            {player.nickname}
+                                        </div>
                                         <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>
                                     </div>
                                 </div>

@@ -6,7 +6,7 @@ import defaultAvatar from '../NavBar/avatar.png';
 import RoleIcon from '../RoleIcon/RoleIcon';
 import { useDebounce } from '../useDebounce';
 
-const tabs = ['Общая сводка', 'Игры', 'Статистика'];
+const tabs = ['Сводка', 'Игры', 'Статистика'];
 
 const baseURL = ""
 
@@ -663,11 +663,11 @@ export default function RatingPage() {
           >
             <div className={styles.statsGrid}>
               <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Количество игр</h3>
+                <h3 className={styles.statTitle}>Кол-во игр</h3>
                 <p className={styles.statValue}>{totalGamesCount}</p>
               </div>
               <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Количество игроков</h3>
+                <h3 className={styles.statTitle}>Кол-во игроков</h3>
                 <p className={styles.statValue}>{detailedStatsTotalCount}</p>
               </div>
               <div className={styles.statItem}>
@@ -678,7 +678,9 @@ export default function RatingPage() {
                 <h3 className={styles.statTitle}>Лучший игрок</h3>
                 <p className={styles.statValue}>
                   {detailedStatsData.length > 0
-                    ? detailedStatsData[0].nickname
+                    ? (detailedStatsData[0].nickname.length > 10
+                        ? detailedStatsData[0].nickname.slice(0, 10) + '...'
+                        : detailedStatsData[0].nickname)
                     : '-'}
                 </p>
               </div>
@@ -718,7 +720,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
       <>
         {winsCount} / {gamesCount} ({winPercent}%)
         <br />
-        Доп: {bonusSum.toFixed(2)} макс: {bonusMax.toFixed(2)}
+        Доп: {bonusSum.toFixed(2)} Макс:&nbsp;{bonusMax.toFixed(2)}
       </>
     );
   };
@@ -762,8 +764,10 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                   >
                     <td>{rank}</td>
                     <td>
-                      <span className={styles.link} onClick={() => handlePlayerClick(p.id)}>
-                        {p.nickname}
+                      <span onClick={() => handlePlayerClick(p.id)}>
+                        {p.nickname && p.nickname.length >10
+                        ? p.nickname.slice(0, 10) + '...'
+                        : p.nickname}
                       </span>
                     </td>
                     <td>{p.totalPoints?.toFixed(2) || 0}</td>

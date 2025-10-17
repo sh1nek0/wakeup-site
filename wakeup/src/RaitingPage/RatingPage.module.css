@@ -60,18 +60,21 @@
    ТАБЫ
    ========================= */
 .tabs{
-  display:flex;
+ display: grid;
+ grid-template-columns:repeat(3,minmax(90px, 110px))  ;
   justify-content:center;
   gap:14px;
+
+  font-size: 15px;
   margin:10px 0 22px;
 }
 .tabBtn{
   background:#252525;
   color:#EDEDED;
   border:2px solid #3A3A3A;
-  padding:12px 22px;
+  padding:5px 10px;
   cursor:pointer;
-  font-size:18px;
+  font-size: 15px;
   user-select:none;
   transition:border-color .2s, transform .12s;
   border-radius:0;
@@ -197,15 +200,31 @@
   box-shadow:0 0 0 1px rgba(0,0,0,.35);
 }
 
-.playerName{ font-size:22px; font-weight:800; margin:0 0 2px; }
+.playerName{ 
+  font-size:22px; 
+  font-weight:800; 
+  margin:0 0 2px;  
+  width: 400px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;   
+ }
 
 .clickablePlayerName {
   cursor: pointer;
+  width: 400px;
   transition: color 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;  
 }
 
 .clickablePlayerName:hover {
   color: #FF7A1A;
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;  
 }
 
 .playerSubtitle{ color:#B0B0B0; font-size:12px; }
@@ -337,7 +356,7 @@
 /* наклонная полоса вверху */
 .sheetSlashTop{
   position:absolute;
-  left:66%;
+  left:60%;
   top:0;
   width:18px;
   height:100%;
@@ -432,7 +451,7 @@
 /* наклонная полоса внизу */
 .sheetSlashBottom{
   position:absolute;
-  left:66%;
+  left:60%;
   bottom:0;
   width:18px;
   height:100%;
@@ -520,7 +539,7 @@
 
 .tableWrapper{
   width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;
-  border:1px solid #2A2A2A; border-radius:0; margin-bottom:1rem;
+  border:1px solid #2A2A2A; border-radius:0; margin-bottom:1rem; margin-top: 10px;
 }
 .detailedStatsTable{
   width:100%; min-width:900px; border-collapse:collapse;
@@ -594,6 +613,19 @@
   .card::after{ right:130px; }
   .cardStripe{ right:130px; }
   .cardPointsHeader, .pointsBlock{ flex-basis:140px; }
+  .playerName{
+  width: 350px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;  
+  }
+  .clickablePlayerName{
+    width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+  }
+
 }
 @media (max-width:768px){
   .tabs{ flex-direction:column; }
@@ -602,7 +634,10 @@
   .cardStripe{ display:none; }
   .avatarWrap{ width:48px; height:48px; flex-basis:48px; }
   .avatar{ width:48px; height:48px; }
-  .playerName{ font-size:18px; }
+  .playerName{ font-size:18px;   width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;}
   .cardPoints{ font-size:24px; }
   .sheetTable tbody td{ height:38px; padding:10px; }
   .detailedStatsTable th, .detailedStatsTable td{ font-size:.7rem; padding:.3rem; }
@@ -677,20 +712,61 @@
   .sheetBottom{ padding:5px 8px; min-height:24px; }
 }
 
-@media (max-width:400px) {
-  .heroText{
-    font-size: 10px;
+
+@media (max-width:450px){
+  .statsGrid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 150px));
+    gap: 10px;
+  }
+  .statTitle{
+    font-size: 15px;
+  }
+  .statValue{
+    font-size: 12px;
   }
 
-  .statItem{
-    height: 20px;
+  .sheetTop{
+
+  }
+
+  .heroText{
+    font-size: 8px;
+  }
+
+  .heroTitle{
+    font-size: 15px;
+  }
+  
+}
+
+
+
+@media (max-width:400px) {
+
+  .statsGrid{
+    
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 110px));
+    gap: 5px;
+    align-items: center;
+
   }
 
   .statTitle{
-     font-size: 12px;
+    font-size: 9px;
   }
 
   .statValue{
+    font-size: 7px;
+  }
+
+  .heroText{
     font-size: 10px;
   }
+  .tabBtn{
+    font-size: 10px;
+  }
+
+
 }

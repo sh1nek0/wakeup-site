@@ -155,7 +155,7 @@ input:focus,select:focus{
 /* СТАТИСТИКА — ТАБЛИЦЫ, как на макете */
 .statsContainer{
   margin-top:18px;background:#1b1b1b;border:1px solid #2a2a2a;
-  border-radius:10px;padding:18px 20px;
+  border-radius:10px;
 }
 .statsTitle{color:#ef741c;font-weight:800;text-align:center;margin:0 0 14px}
 .statsTable{
@@ -303,6 +303,24 @@ input:focus,select:focus{
   cursor: not-allowed;
 }
 
+
+@media (max-width:450px) {
+
+
+  .statsTable{
+    margin-top: 5px;
+    width: 80%;
+    margin-left: 30px;
+   
+    margin-bottom: 5px;
+  }
+
+  .statsTable{
+    font-size: 10px;
+  }
+  
+}
+
 @media (max-width:400px) {
   .mainContent{
     overflow: hidden;
@@ -402,5 +420,33 @@ input:focus,select:focus{
   .deleteButton{
     padding: 6px 10px;
     font-size: 13px;
+  }
+}
+
+
+
+@media (max-width:390px) {
+
+   .tabButton{
+    padding: 4px 6px;
+    font-size: 15px;
+    
+  }
+
+  .mainContent{
+    overflow: hidden;
+    padding: 8px 9px;
+    gap: 5px;
+  }
+
+  .statsTable{
+    margin-top: 5px;
+    width: 80%;
+    margin-left: 0;
+    margin-bottom: 5px;
+  }
+
+  .statsTable{
+    font-size: 7px;
   }
 }

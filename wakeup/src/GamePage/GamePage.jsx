@@ -1089,21 +1089,22 @@ else saveResult(candidates.map((c) => c.playerId));
           {errorMessage}
         </div>
       )}
+      {isAdmin && (
       <div className={styles.topControlsContainer}>
         <div className={styles.btnWrap}>
-          <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime} />
+          <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime || !isAdmin} />
           <button
             type="button"
             onClick={() => !isPenaltyTime && handleClearFormClick()}
             className={styles.clearBtn}
-            disabled={isPenaltyTime}
+            disabled={isPenaltyTime || !isAdmin}
           >
             Очистить форму
           </button>
           <button
             type="button"
             onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
-            disabled={isPenaltyTime}
+            disabled={isPenaltyTime || !isAdmin}
             className={styles.clearBtn}
           >
             {!visibleRole ? "Показать роли" : "Скрыть роль"}
@@ -1123,7 +1124,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={judgeNickname}
                 onChange={setJudgeNickname}
                 placeholder="Судья"
-                disabled={isPenaltyTime}
+                disabled={isPenaltyTime || !isAdmin}
                 className={styles.judgeInput}
               />
             </div>
@@ -1132,7 +1133,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={location || "Локация"}
                     onChange={setLocation}
                     roles={locations}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
                 />
             </div>
             <div className={styles.obsInputsContainer}>
@@ -1141,7 +1142,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={obsAddress}
                 onChange={(e) => setObsAddress(e.target.value)}
                 placeholder="Адрес OBS (например, ws://127.0.0.1:4455)"
-                disabled={isPenaltyTime}
+                disabled={isPenaltyTime || !isAdmin}
                 className={styles.obsInput}
               />
               <input
@@ -1149,13 +1150,13 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={obsPassword}
                 onChange={(e) => setObsPassword(e.target.value)}
                 placeholder="Пароль OBS"
-                disabled={isPenaltyTime}
+                disabled={isPenaltyTime || !isAdmin}
                 className={styles.obsInput}
               />
             </div>
           </div>
         )}
-      </div>
+      </div>)}
 
       <div
         className={styles.gameWrapper}
@@ -1171,6 +1172,7 @@ else saveResult(candidates.map((c) => c.playerId));
               <th>Допы</th>
               <th>СК</th>
               <th>ЖК</th>
+              <th>Фолы</th>
             </tr>
           </thead>
           <tbody>
@@ -1193,7 +1195,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     }
                   }}
                   aria-label={`Выставить игрока ${player.id} на голосование`}
-                  aria-disabled={isPenaltyTime}
+                  aria-disabled={isPenaltyTime || !isAdmin}
                 >
                   {player.id}
                 </td>
@@ -1203,7 +1205,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={player.name}
                     onChange={(value) => handleNameChange(player.id, value)}
                     placeholder={`Игрок ${player.id}`}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
                   />
                 </td>
 
@@ -1212,7 +1214,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={player.role}
                     onChange={(role) => handleRoleChange(player.id, role)}
                     roles={roles}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
                   />}
                 </td>
 
@@ -1222,7 +1224,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.lxInput}
                     value={player.best_move}
                     onChange={(e) => !isPenaltyTime && handleBestMoveChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
                     aria-label={`Лучший ход игрока ${player.id}`}
                   />
                 </td>
@@ -1236,7 +1238,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.dopsInput}
                     value={player.plus}
                     onChange={(e) => !isPenaltyTime && handlePlusChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
                     aria-label={`Допы игрока ${player.id}`}
                   />
                 </td>
@@ -1249,7 +1251,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.numberInput}
                     value={player.sk}
                     onChange={(e) => !isPenaltyTime && handleSkChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
                     aria-label={`СК игрока ${player.id}`}
                   />
                 </td>
@@ -1262,7 +1264,20 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.numberInput}
                     value={player.jk}
                     onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime}
+                    disabled={isPenaltyTime || !isAdmin}
+                    aria-label={`ЖК игрока ${player.id}`}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    max="3"
+                    step="1"
+                    className={styles.numberInput}
+                    value={player.fouls}
+                    onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)}
+                    disabled={isPenaltyTime || !isAdmin}
                     aria-label={`ЖК игрока ${player.id}`}
                   />
                 </td>
@@ -1270,415 +1285,416 @@ else saveResult(candidates.map((c) => c.playerId));
             ))}
           </tbody>
         </table>
+        {isAdmin && (
+                <div className={styles.rightColumn}>
+                  <div className={styles.contentContainer}>
+                    <div className={styles.timerBlock}>
+                      <div className={styles.timerContainer}>
 
-        <div className={styles.rightColumn}>
-          <div className={styles.contentContainer}>
-            <div className={styles.timerBlock}>
-              <div className={styles.timerContainer}>
-
-                <div
-                  className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
-                  onClick={() => !isPenaltyTime && toggleTimer()}
-                  style={{ cursor: isPenaltyTime ? 'not-allowed' : 'pointer', opacity: isPenaltyTime ? 0.5 : 1 }}
-                  aria-label="Таймер, нажмите для запуска/паузы"
-                  role="timer"
-                  aria-disabled={isPenaltyTime}
-                >
-                  {formatTime(time)}
-                </div>
-
-                <div className={styles.resetBynWrap}>
-                  <button
-                    className={styles.resetBtn}
-                    onClick={() => !isPenaltyTime && startTimer(60 * 10)}
-                    type="button"
-                    disabled={isPenaltyTime}
-                  >
-                    Cтарт
-                  </button>
-                  <button
-                    className={styles.resetBtn}
-                    onClick={() => !isPenaltyTime && toggleTimer()}
-                    type="button"
-                    disabled={isPenaltyTime}
-                  >
-                    Стоп
-                  </button>
-                  <button
-                    className={styles.resetBtn}
-                    onClick={() => !isPenaltyTime && resetTimer()}
-                    type="button"
-                    disabled={isPenaltyTime}
-                  >
-                    Сброс
-                  </button>
-                </div>
-
-                <div className={styles.timerButtons}>
-                  <button
-                    className={styles.timerBtn}
-                    onClick={() => !isPenaltyTime && startTimerLimited(20)}
-                    type="button"
-                    disabled={isPenaltyTime}
-                  >
-                    20
-                  </button>
-                  <button
-                    className={styles.timerBtn}
-                    onClick={() => !isPenaltyTime && startTimerLimited(30)}
-                    type="button"
-                    disabled={isPenaltyTime}
-                  >
-                    30
-                  </button>
-                  <button
-                    className={styles.timerBtn}
-                    onClick={() => !isPenaltyTime && startTimerLimited(60)}
-                    type="button"
-                    disabled={isPenaltyTime}
-                  >
-                    60
-                  </button>
-                  <button
-                    className={styles.timerBtn}
-                    onClick={() => updateTimer(30)}
-                    type="button"
-                  >
-                    +30
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-
-                  {showConfirmModal && (
-      <div className={styles.modalOverlay}>
-      <div className={styles.modalContent} role="dialog" aria-modal="true" aria-labelledby="confirmClearTitle">
-      <h2 id="confirmClearTitle">Подтверждение</h2>
-      <p>Вы уверены, что хотите очистить форму?</p>
-      <div className={styles.modalButtons}>
-      <button onClick={handleConfirmClear} className={styles.confirmBtn}>Да</button>
-      <button onClick={handleCancelClear} className={styles.cancelBtn}>Нет</button>
-      </div>
-      </div>
-      </div>
-      )}
-
-            {currentPhase === 'nominating' && !isPenaltyTime && (
-              <div className={styles.phaseContainer}>
-                <div className={styles.votingContainer}>
-                  <h3>Выставление</h3>
-                <nav  className={styles.votingNav}>
-                  {votes.map(({ playerId, votesCount }) => (
-                    <div key={playerId} className={styles.playerVoteItem}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectPlayer(playerId)}
-                        className={playerId === selectedPlayerId ? styles.selectedPlayerBtn : styles.playerBtn}
-                        aria-current={playerId === selectedPlayerId ? 'true' : undefined}
-                        aria-label={`Выбрать игрока ${playerId} для выставления`}
-                      >
-                        {playerId}
-                      </button>
-                      <span className={styles.votesCount}>{votesCount}</span>
-                    </div>
-                  ))}
-                </nav>
-                
-                
-
-                <div role="grid" aria-label="Цифровая клавиатура для выставления" className={styles.keyboardGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-                    const isAlive = alivePlayers.find((p) => p.id === num)?.alive;
-                    return (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => handlePlayerNumberClick(num)}
-                        className={styles.keyboardBtn}
-                        disabled={!isAlive}
-                        aria-label={`Добавить ${num} игрока на выставление`}
-                      >
-                        {num}
-                      </button>
-                    );
-                  })}
-                  <button type="button" onClick={handleBackspace} className={styles.keyboardBtn}>
-                    ⮾
-                  </button>
-                </div>
-                
-               <div className={styles.phaseNavContainer}>
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handlePreviousPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    ⬅ Назад
-                  </button>
-
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handleNextPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    Вперёд ➡
-                  </button>
-              </div>
-                
-                
-                </div>
-              </div>
-            )}
-
-            {currentPhase === 'voting' && !isPenaltyTime && (
-            <div className={styles.phaseContainer}>
-              <div className={styles.votingContainer}>
-                <h3>Голосование</h3>
-
-                <div className={styles.votingNavContainer}>
-                  <nav className={styles.votingNav} aria-label="Выбор игрока для голосования">
-                    {votes.map(({ playerId, votesCount }, index) => {
-                      const isSelected = playerId === selectedPlayerId;
-                      return (
-                        <div key={playerId} className={styles.playerVoteItem}>
-                          <button
-                            type="button"
-                            ref={index === 0 ? firstVoteBtnRef : null}
-                            onClick={() => handleSelectPlayer(playerId)}
-                            className={isSelected ? styles.selectedPlayerBtn : styles.playerBtn}
-                            aria-current={isSelected ? 'true' : undefined}
-                            aria-label={`Выбрать игрока ${playerId} для голосования`}
-                          >
-                            {playerId}
-                          </button>
-                          <span className={styles.votesCount}>{votesCount}</span>
+                        <div
+                          className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
+                          onClick={() => !isPenaltyTime && toggleTimer()}
+                          style={{ cursor: isPenaltyTime ? 'not-allowed' : 'pointer', opacity: isPenaltyTime ? 0.5 : 1 }}
+                          aria-label="Таймер, нажмите для запуска/паузы"
+                          role="timer"
+                          aria-disabled={isPenaltyTime || !isAdmin}
+                        >
+                          {formatTime(time)}
                         </div>
-                      );
-                    })}
-                  </nav>
-                </div>
+
+                        <div className={styles.resetBynWrap}>
+                          <button
+                            className={styles.resetBtn}
+                            onClick={() => !isPenaltyTime && startTimer(60 * 10)}
+                            type="button"
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Cтарт
+                          </button>
+                          <button
+                            className={styles.resetBtn}
+                            onClick={() => !isPenaltyTime && toggleTimer()}
+                            type="button"
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Стоп
+                          </button>
+                          <button
+                            className={styles.resetBtn}
+                            onClick={() => !isPenaltyTime && resetTimer()}
+                            type="button"
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Сброс
+                          </button>
+                        </div>
+
+                        <div className={styles.timerButtons}>
+                          <button
+                            className={styles.timerBtn}
+                            onClick={() => !isPenaltyTime && startTimerLimited(20)}
+                            type="button"
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            20
+                          </button>
+                          <button
+                            className={styles.timerBtn}
+                            onClick={() => !isPenaltyTime && startTimerLimited(30)}
+                            type="button"
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            30
+                          </button>
+                          <button
+                            className={styles.timerBtn}
+                            onClick={() => !isPenaltyTime && startTimerLimited(60)}
+                            type="button"
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            60
+                          </button>
+                          <button
+                            className={styles.timerBtn}
+                            onClick={() => updateTimer(30)}
+                            type="button"
+                          >
+                            +30
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+
+
+                          {showConfirmModal && (
+              <div className={styles.modalOverlay}>
+              <div className={styles.modalContent} role="dialog" aria-modal="true" aria-labelledby="confirmClearTitle">
+              <h2 id="confirmClearTitle">Подтверждение</h2>
+              <p>Вы уверены, что хотите очистить форму?</p>
+              <div className={styles.modalButtons}>
+              <button onClick={handleConfirmClear} className={styles.confirmBtn}>Да</button>
+              <button onClick={handleCancelClear} className={styles.cancelBtn}>Нет</button>
               </div>
-
-<div role="grid" aria-label="Цифровая клавиатура для голосования" className={styles.keyboardGrid}>
-  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => {
-    const totalVotesCast = votes.reduce((sum, v) => sum + v.votesCount, 0);
-    const maxAllowed = aliveCount - totalVotesCast;
-
-    const isDisabled =
-      selectedPlayerId === null || (num !== 0 && num > maxAllowed);
-
-    return (
-      <button
-        key={num}
-        type="button"
-        onClick={() => handleVoteButtonClick(num)}
-        className={styles.keyboardBtn}
-        disabled={isDisabled}
-        aria-label={`Добавить ${num} голосов для игрока ${selectedPlayerId ?? 'не выбран'}`}
-      >
-        {num}
-      </button>
-    );
-  })}
-  <button
-    type="button"
-    onClick={handleBackspace}
-    disabled={selectedPlayerId === null}
-    className={styles.keyboardBtn}
-    aria-label="Удалить игрока из голосования"
-  >
-    ⮾
-  </button>
-</div>
-
-
-              {!isCounting ? (
-                <button
-                  type="button"
-                  onClick={handleCount}
-                  className={styles.saveVotingBtn}
-                  disabled={votes.length === 0}
-                >
-                  Посчитать
-                </button>
-              ) : (
-                <div className={styles.countButtons}>
-                  <button type="button" onClick={handleLeft} className={styles.countBtn}>
-                    Оставили
-                  </button>
-                  <button type="button" onClick={handleRaised} className={styles.countBtn}>
-                    Подняли
-                  </button>
-                </div>
+              </div>
+              </div>
               )}
 
-              <div className={styles.phaseNavContainer}>
-                <button className={styles.phaseNavBtn} onClick={handlePreviousPhase}>
-                  ⬅ Назад
-                </button>
-                <button className={styles.phaseNavBtn} onClick={handleNextPhase}>
-                  Вперёд ➡
-                </button>
-              </div>
-            </div>
-          )}
+                    {currentPhase === 'nominating' && !isPenaltyTime && (
+                      <div className={styles.phaseContainer}>
+                        <div className={styles.votingContainer}>
+                          <h3>Выставление</h3>
+                        <nav  className={styles.votingNav}>
+                          {votes.map(({ playerId, votesCount }) => (
+                            <div key={playerId} className={styles.playerVoteItem}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectPlayer(playerId)}
+                                className={playerId === selectedPlayerId ? styles.selectedPlayerBtn : styles.playerBtn}
+                                aria-current={playerId === selectedPlayerId ? 'true' : undefined}
+                                aria-label={`Выбрать игрока ${playerId} для выставления`}
+                              >
+                                {playerId}
+                              </button>
+                              <span className={styles.votesCount}>{votesCount}</span>
+                            </div>
+                          ))}
+                        </nav>
+                        
+                        
 
+                        <div role="grid" aria-label="Цифровая клавиатура для выставления" className={styles.keyboardGrid}>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                            const isAlive = alivePlayers.find((p) => p.id === num)?.alive;
+                            return (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => handlePlayerNumberClick(num)}
+                                className={styles.keyboardBtn}
+                                disabled={!isAlive}
+                                aria-label={`Добавить ${num} игрока на выставление`}
+                              >
+                                {num}
+                              </button>
+                            );
+                          })}
+                          <button type="button" onClick={handleBackspace} className={styles.keyboardBtn}>
+                            ⮾
+                          </button>
+                        </div>
+                        
+                      <div className={styles.phaseNavContainer}>
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handlePreviousPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            ⬅ Назад
+                          </button>
 
-            {currentPhase === 'shooting' && !isPenaltyTime && (
-              <div className={styles.phaseContainer}>
-                <h3>Стрельба</h3>
-                <div className={styles.keyboardGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'shooting')} className={styles.keyboardBtn}>
-                      {num}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => handlePhaseButtonClick('miss', 'shooting')} className={styles.keyboardBtn}>
-                    Промах
-                  </button>
-                </div>
-                         <div className={styles.phaseNavContainer}>
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handlePreviousPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    ⬅ Назад
-                  </button>
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handleNextPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Вперёд ➡
+                          </button>
+                      </div>
+                        
+                        
+                        </div>
+                      </div>
+                    )}
 
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handleNextPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    Вперёд ➡
-                  </button>
-              </div>
-              </div>
-            )}
+                    {currentPhase === 'voting' && !isPenaltyTime && (
+                    <div className={styles.phaseContainer}>
+                      <div className={styles.votingContainer}>
+                        <h3>Голосование</h3>
 
-            {currentPhase === 'don' && !isPenaltyTime && (
-              <div className={styles.phaseContainer}>
-                <h3>Дон</h3>
-                <div className={styles.keyboardGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'don')} className={styles.keyboardBtn}>
-                      {num}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn}>
-                    -
-                  </button>
-                </div>
-                               <div className={styles.phaseNavContainer}>
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handlePreviousPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    ⬅ Назад
-                  </button>
+                        <div className={styles.votingNavContainer}>
+                          <nav className={styles.votingNav} aria-label="Выбор игрока для голосования">
+                            {votes.map(({ playerId, votesCount }, index) => {
+                              const isSelected = playerId === selectedPlayerId;
+                              return (
+                                <div key={playerId} className={styles.playerVoteItem}>
+                                  <button
+                                    type="button"
+                                    ref={index === 0 ? firstVoteBtnRef : null}
+                                    onClick={() => handleSelectPlayer(playerId)}
+                                    className={isSelected ? styles.selectedPlayerBtn : styles.playerBtn}
+                                    aria-current={isSelected ? 'true' : undefined}
+                                    aria-label={`Выбрать игрока ${playerId} для голосования`}
+                                  >
+                                    {playerId}
+                                  </button>
+                                  <span className={styles.votesCount}>{votesCount}</span>
+                                </div>
+                              );
+                            })}
+                          </nav>
+                        </div>
+                      </div>
 
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handleNextPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    Вперёд ➡
-                  </button>
-              </div>
-              </div>
-            )}
+        <div role="grid" aria-label="Цифровая клавиатура для голосования" className={styles.keyboardGrid}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0].map((num) => {
+            const totalVotesCast = votes.reduce((sum, v) => sum + v.votesCount, 0);
+            const maxAllowed = aliveCount - totalVotesCast;
 
-            {currentPhase === 'sheriff' && !isPenaltyTime && (
-              <div className={styles.phaseContainer}>
-                <h3>Шериф</h3>
-                <div className={styles.keyboardGrid}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'sheriff')} className={styles.keyboardBtn}>
-                      {num}
-                    </button>
-                  ))}
-                  <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn}>
-                    -
-                  </button>
-                </div>
-                             <div className={styles.phaseNavContainer}>
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handlePreviousPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    ⬅ Назад
-                  </button>
+            const isDisabled =
+              selectedPlayerId === null || (num !== 0 && num > maxAllowed);
 
-                  <button
-                    className={styles.phaseNavBtn}
-                    onClick={handleNextPhase}
-                    disabled={isPenaltyTime}
-                  >
-                    Вперёд ➡
-                  </button>
-              </div>
-              </div>
-            )}
-
-            <div className={styles.tabs}>
+            return (
               <button
+                key={num}
                 type="button"
-                onClick={() => !isPenaltyTime && setActiveTab('gameInfo')}
-                className={activeTab === 'gameInfo' ? styles.activeTab : styles.tab}
-                aria-selected={activeTab === 'gameInfo'}
-                disabled={isPenaltyTime}
-                style={isPenaltyTime ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                onClick={() => handleVoteButtonClick(num)}
+                className={styles.keyboardBtn}
+                disabled={isDisabled}
+                aria-label={`Добавить ${num} голосов для игрока ${selectedPlayerId ?? 'не выбран'}`}
               >
-                Ход игры
+                {num}
               </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('fouls')}
-                className={activeTab === 'fouls' ? styles.activeTab : styles.tab}
-                aria-selected={activeTab === 'fouls'}
-              >
-                Фолы
-              </button>
-            </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleBackspace}
+            disabled={selectedPlayerId === null}
+            className={styles.keyboardBtn}
+            aria-label="Удалить игрока из голосования"
+          >
+            ⮾
+          </button>
+        </div>
 
-            <div
-              className={styles.tabPanels}
-              ref={tabPanelsRef}
-              style={{ height: tabHeight ? `${tabHeight}px` : 'auto' }}
-            >
-              <div
-                ref={gameInfoPanelRef}
-                className={`${styles.panel} ${activeTab === 'gameInfo' ? styles.visiblePanel : styles.hiddenPanel}`}
-                style={isPenaltyTime ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
-              >
-                <GameInfo
-                  votingResults={votingResults}
-                  shootingResults={shootingResults}
-                  donResults={donResults}
-                  sheriffResults={sheriffResults}
-                />
-              </div>
 
-              <div
-                ref={foulsPanelRef}
-                className={`${styles.panel} ${activeTab === 'fouls' ? styles.visiblePanel : styles.hiddenPanel}`}
-              >
-                <FoulsComponent
-                  players={getAlivePlayers()}
-                  onIncrementFoul={incrementFouls}
-                  onIncrementDFouls={incrementDFouls}
-                  onDecrementFoul={decrementFouls}
-                  isPenaltyTime={isPenaltyTime}
-                />
-              </div>
-            </div>
-          </div>
-          </div>
+                      {!isCounting ? (
+                        <button
+                          type="button"
+                          onClick={handleCount}
+                          className={styles.saveVotingBtn}
+                          disabled={votes.length === 0}
+                        >
+                          Посчитать
+                        </button>
+                      ) : (
+                        <div className={styles.countButtons}>
+                          <button type="button" onClick={handleLeft} className={styles.countBtn}>
+                            Оставили
+                          </button>
+                          <button type="button" onClick={handleRaised} className={styles.countBtn}>
+                            Подняли
+                          </button>
+                        </div>
+                      )}
+
+                      <div className={styles.phaseNavContainer}>
+                        <button className={styles.phaseNavBtn} onClick={handlePreviousPhase}>
+                          ⬅ Назад
+                        </button>
+                        <button className={styles.phaseNavBtn} onClick={handleNextPhase}>
+                          Вперёд ➡
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+
+                    {currentPhase === 'shooting' && !isPenaltyTime && (
+                      <div className={styles.phaseContainer}>
+                        <h3>Стрельба</h3>
+                        <div className={styles.keyboardGrid}>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'shooting')} className={styles.keyboardBtn}>
+                              {num}
+                            </button>
+                          ))}
+                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'shooting')} className={styles.keyboardBtn}>
+                            Промах
+                          </button>
+                        </div>
+                                <div className={styles.phaseNavContainer}>
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handlePreviousPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            ⬅ Назад
+                          </button>
+
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handleNextPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Вперёд ➡
+                          </button>
+                      </div>
+                      </div>
+                    )}
+
+                    {currentPhase === 'don' && !isPenaltyTime && (
+                      <div className={styles.phaseContainer}>
+                        <h3>Дон</h3>
+                        <div className={styles.keyboardGrid}>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'don')} className={styles.keyboardBtn}>
+                              {num}
+                            </button>
+                          ))}
+                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn}>
+                            -
+                          </button>
+                        </div>
+                                      <div className={styles.phaseNavContainer}>
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handlePreviousPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            ⬅ Назад
+                          </button>
+
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handleNextPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Вперёд ➡
+                          </button>
+                      </div>
+                      </div>
+                    )}
+
+                    {currentPhase === 'sheriff' && !isPenaltyTime && (
+                      <div className={styles.phaseContainer}>
+                        <h3>Шериф</h3>
+                        <div className={styles.keyboardGrid}>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'sheriff')} className={styles.keyboardBtn}>
+                              {num}
+                            </button>
+                          ))}
+                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn}>
+                            -
+                          </button>
+                        </div>
+                                    <div className={styles.phaseNavContainer}>
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handlePreviousPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            ⬅ Назад
+                          </button>
+
+                          <button
+                            className={styles.phaseNavBtn}
+                            onClick={handleNextPhase}
+                            disabled={isPenaltyTime || !isAdmin}
+                          >
+                            Вперёд ➡
+                          </button>
+                      </div>
+                      </div>
+                    )}
+
+                    <div className={styles.tabs}>
+                      <button
+                        type="button"
+                        onClick={() => !isPenaltyTime && setActiveTab('gameInfo')}
+                        className={activeTab === 'gameInfo' ? styles.activeTab : styles.tab}
+                        aria-selected={activeTab === 'gameInfo'}
+                        disabled={isPenaltyTime || !isAdmin}
+                        style={isPenaltyTime ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                      >
+                        Ход игры
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('fouls')}
+                        className={activeTab === 'fouls' ? styles.activeTab : styles.tab}
+                        aria-selected={activeTab === 'fouls'}
+                      >
+                        Фолы
+                      </button>
+                    </div>
+
+                    <div
+                      className={styles.tabPanels}
+                      ref={tabPanelsRef}
+                      style={{ height: tabHeight ? `${tabHeight}px` : 'auto' }}
+                    >
+                      <div
+                        ref={gameInfoPanelRef}
+                        className={`${styles.panel} ${activeTab === 'gameInfo' ? styles.visiblePanel : styles.hiddenPanel}`}
+                        style={isPenaltyTime ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
+                      >
+                        <GameInfo
+                          votingResults={votingResults}
+                          shootingResults={shootingResults}
+                          donResults={donResults}
+                          sheriffResults={sheriffResults}
+                        />
+                      </div>
+
+                      <div
+                        ref={foulsPanelRef}
+                        className={`${styles.panel} ${activeTab === 'fouls' ? styles.visiblePanel : styles.hiddenPanel}`}
+                      >
+                        <FoulsComponent
+                          players={getAlivePlayers()}
+                          onIncrementFoul={incrementFouls}
+                          onIncrementDFouls={incrementDFouls}
+                          onDecrementFoul={decrementFouls}
+                          isPenaltyTime={isPenaltyTime || !isAdmin}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+        )}
         </div>
       <div className={styles.saveButtonContainer}>
         <button
