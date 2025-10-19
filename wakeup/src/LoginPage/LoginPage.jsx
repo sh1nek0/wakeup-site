@@ -2,8 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './LoginPage.module.css';
-
-
+import SuggestionInput from '../components/SuggestionInput/SuggestionInput';
 
 const LoginPage = () => {
   const { login } = useContext(AuthContext);
@@ -137,14 +136,11 @@ const LoginPage = () => {
           )}
           <div className={styles.inputGroup}>
             <label htmlFor="nickname" className={styles.label}>Никнейм</label>
-            <input
-              type="text"
-              id="nickname"
-              name="nickname"
+            <SuggestionInput
               value={formData.nickname}
-              onChange={handleInputChange}
-              className={styles.input}
+              onChange={(value) => handleInputChange({ target: { name: 'nickname', value } })}
               placeholder="Ваш никнейм"
+              className={styles.input}
             />
           </div>
           <div className={styles.inputGroup}>
