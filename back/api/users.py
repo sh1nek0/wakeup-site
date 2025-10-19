@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Form, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import json
 import logging
 import time
@@ -12,7 +13,7 @@ import os
 
 from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
-from db.models import User, Game, Registration
+from db.models import User, Game, Registration, Notification # <-- Добавлен импорт Notification
 from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest
 from services.calculations import calculate_ci_bonuses, calculate_dynamic_penalties
 from services.search import get_player_suggestions_logic
@@ -162,7 +163,6 @@ async def get_rating(limit: int = Query(10, description="Количество э
     rating.sort(key=lambda x: x["rating_score"], reverse=True)
     return {"players": rating[offset: offset + limit], "total_count": len(rating)}
 
-# --- ИСПРАВЛЕННАЯ ВЕРСИЯ ЭНДПОИНТА ---
 @router.get("/getDetailedStats")
 async def get_detailed_stats(
     limit: int = Query(200, description="Количество игроков на странице"),
@@ -363,7 +363,6 @@ async def delete_avatar(request: DeleteAvatarRequest, current_user: User = Depen
 
     return {"message": "Аватар успешно удален"}
 
-# --- ДОБАВЛЕННЫЙ ЭНДПОИНТ ---
 @router.post("/update_credentials")
 async def update_credentials(request: UpdateCredentialsRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.id != request.userId and current_user.role != "admin":
@@ -381,11 +380,49 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
     
     # 2. Обновляем никнейм, если он предоставлен
     if request.new_nickname and request.new_nickname != user_to_update.nickname:
-        existing_user = db.query(User).filter(User.nickname == request.new_nickname).first()
+        old_nickname = user_to_update.nickname
+        new_nickname = request.new_nickname
+
+        existing_user = db.query(User).filter(User.nickname == new_nickname).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Этот никнейм уже занят")
-        user_to_update.nickname = request.new_nickname
+        
+        user_to_update.nickname = new_nickname
         token_needs_refresh = True
+
+        # --- НАЧАЛО: Логика каскадного обновления ---
+        
+        # Обновление в таблице игр
+        all_games = db.query(Game).all()
+        for game in all_games:
+            try:
+                game_data = json.loads(game.data)
+                is_game_updated = False
+                # Обновляем ник в списке игроков
+                for player in game_data.get("players", []):
+                    if player.get("name") == old_nickname:
+                        player["name"] = new_nickname
+                        is_game_updated = True
+                # Обновляем ник судьи
+                if game_data.get("gameInfo", {}).get("judgeNickname") == old_nickname:
+                    game_data["gameInfo"]["judgeNickname"] = new_nickname
+                    is_game_updated = True
+                
+                if is_game_updated:
+                    game.data = json.dumps(game_data, ensure_ascii=False)
+            except (json.JSONDecodeError, TypeError):
+                continue # Пропускаем поврежденные записи
+
+        # Обновление в сообщениях уведомлений (более эффективно через SQL)
+        db.query(Notification).filter(
+            Notification.message.contains(old_nickname)
+        ).update(
+            {Notification.message: func.replace(Notification.message, old_nickname, new_nickname)},
+            synchronize_session=False
+        )
+        
+        # --- КОНЕЦ: Логика каскадного обновления ---
+
 
     # 3. Обновляем пароль, если он предоставлен
     if request.new_password:
@@ -402,6 +439,6 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
             data={"sub": user_to_update.nickname, "role": user_to_update.role, "id": user_to_update.id}
         )
         response_data["new_token"] = new_token
-        response_data["message"] = "Никнейм успешно изменен. Пожалуйста, используйте новый токен для дальнейших запросов."
+        response_data["message"] = "Никнейм успешно изменен. Данные во всех записях обновлены. Пожалуйста, используйте новый токен."
 
     return response_data
