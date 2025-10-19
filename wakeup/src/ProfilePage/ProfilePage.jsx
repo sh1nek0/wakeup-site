@@ -103,7 +103,7 @@ const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"];
 const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"];
 
 const ProfilePage = () => {
-  const { user, token } = useContext(AuthContext) || {};
+  const { user, token, login } = useContext(AuthContext) || {};
   const { profileId } = useParams();
 
   const targetUserId = profileId || user?.id;
@@ -134,6 +134,15 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   const [activeTab, setActiveTab] = useState("profile");
+
+  const [credentials, setCredentials] = useState({
+    current_password: '',
+    new_nickname: '',
+    new_password: '',
+    confirm_new_password: ''
+  });
+  const [credError, setCredError] = useState('');
+  const [credSuccess, setCredSuccess] = useState('');
 
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -377,6 +386,55 @@ const ProfilePage = () => {
     }
   };
 
+  const handleSaveCredentials = async () => {
+    if (!canEdit || !token) return;
+    
+    if (!credentials.current_password) {
+      setCredError("Введите текущий пароль для подтверждения.");
+      return;
+    }
+    if (credentials.new_password && credentials.new_password !== credentials.confirm_new_password) {
+      setCredError("Новые пароли не совпадают.");
+      return;
+    }
+    if (!credentials.new_nickname && !credentials.new_password) {
+      setCredError("Введите новый никнейм или новый пароль.");
+      return;
+    }
+
+    setCredError('');
+    setCredSuccess('');
+    
+    try {
+      const res = await fetch(`/api/update_credentials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          userId: targetUserId,
+          current_password: credentials.current_password,
+          new_nickname: credentials.new_nickname || null,
+          new_password: credentials.new_password || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Ошибка обновления данных");
+
+      setCredSuccess(data.message);
+      setCredentials({ current_password: '', new_nickname: '', new_password: '', confirm_new_password: '' });
+
+      if (data.new_token) {
+        login(data.new_token);
+        setTimeout(() => {
+           window.location.reload();
+        }, 1500);
+      }
+
+    } catch (e) {
+      setCredError(e.message);
+    }
+  };
+
   const onPickAvatar = (file) => {
     setUploadError(null);
     setAvatarFile(null);
@@ -521,6 +579,14 @@ const ProfilePage = () => {
             >
               Турниры
             </button>
+            {canEdit && (
+              <button
+                className={`${styles.tabButton} ${activeTab === "security" ? styles.active : ""}`}
+                onClick={() => setActiveTab("security")}
+              >
+                Безопасность
+              </button>
+            )}
           </div>
 
           {activeTab === "profile" && (
@@ -693,6 +759,56 @@ const ProfilePage = () => {
               error={gamesError}
               userMap={userMap}
             />
+          )}
+
+          {activeTab === "security" && canEdit && (
+            <div className={styles.infoBox}>
+              <div className={styles.field}>
+                <label>Новый никнейм (оставьте пустым, если не меняете)</label>
+                <input
+                  type="text"
+                  value={credentials.new_nickname}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, new_nickname: e.target.value }))}
+                  placeholder={profileData.nickname}
+                />
+              </div>
+              <div className={styles.field}>
+                <label>Новый пароль (оставьте пустым, если не меняете)</label>
+                <input
+                  type="password"
+                  value={credentials.new_password}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, new_password: e.target.value }))}
+                  placeholder="••••••••"
+                />
+              </div>
+              {credentials.new_password && (
+                <div className={styles.field}>
+                  <label>Подтвердите новый пароль</label>
+                  <input
+                    type="password"
+                    value={credentials.confirm_new_password}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, confirm_new_password: e.target.value }))}
+                    placeholder="••••••••"
+                  />
+                </div>
+              )}
+              <hr style={{borderColor: '#444', margin: '20px 0'}} />
+              <div className={styles.field}>
+                <label>Текущий пароль (для подтверждения)</label>
+                <input
+                  type="password"
+                  value={credentials.current_password}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, current_password: e.target.value }))}
+                  placeholder="Введите текущий пароль"
+                  required
+                />
+              </div>
+              <div className={styles.editControls}>
+                <button onClick={handleSaveCredentials}>Сохранить изменения</button>
+              </div>
+              {credSuccess && <p style={{color: 'lightgreen', marginTop: '10px'}}>{credSuccess}</p>}
+              {credError && <p className={styles.errorText} style={{marginTop: '10px'}}>{credError}</p>}
+            </div>
           )}
 
           {canEdit && activeTab === "profile" && (

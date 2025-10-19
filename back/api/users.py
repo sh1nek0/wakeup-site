@@ -10,10 +10,10 @@ from typing import Optional
 import math
 import os
 
-from core.security import get_current_user, get_db
+from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
 from db.models import User, Game, Registration
-from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest
+from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest
 from services.calculations import calculate_ci_bonuses, calculate_dynamic_penalties
 from services.search import get_player_suggestions_logic
 
@@ -362,3 +362,46 @@ async def delete_avatar(request: DeleteAvatarRequest, current_user: User = Depen
         print(f"Could not delete avatar file {old_avatar_url}: {e}")
 
     return {"message": "Аватар успешно удален"}
+
+# --- ДОБАВЛЕННЫЙ ЭНДПОИНТ ---
+@router.post("/update_credentials")
+async def update_credentials(request: UpdateCredentialsRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.id != request.userId and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="У вас нет прав для изменения этих данных")
+
+    user_to_update = db.query(User).filter(User.id == request.userId).first()
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    # 1. Проверяем текущий пароль
+    if not verify_password(request.current_password, user_to_update.hashed_password):
+        raise HTTPException(status_code=400, detail="Неверный текущий пароль")
+
+    token_needs_refresh = False
+    
+    # 2. Обновляем никнейм, если он предоставлен
+    if request.new_nickname and request.new_nickname != user_to_update.nickname:
+        existing_user = db.query(User).filter(User.nickname == request.new_nickname).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Этот никнейм уже занят")
+        user_to_update.nickname = request.new_nickname
+        token_needs_refresh = True
+
+    # 3. Обновляем пароль, если он предоставлен
+    if request.new_password:
+        user_to_update.hashed_password = get_password_hash(request.new_password)
+
+    db.commit()
+    db.refresh(user_to_update)
+
+    response_data = {"message": "Данные успешно обновлены"}
+
+    # 4. Если никнейм изменился, нужно сгенерировать новый токен
+    if token_needs_refresh:
+        new_token = create_access_token(
+            data={"sub": user_to_update.nickname, "role": user_to_update.role, "id": user_to_update.id}
+        )
+        response_data["new_token"] = new_token
+        response_data["message"] = "Никнейм успешно изменен. Пожалуйста, используйте новый токен для дальнейших запросов."
+
+    return response_data

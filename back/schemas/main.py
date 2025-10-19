@@ -82,3 +82,10 @@ class MarkNotificationsReadRequest(BaseModel):
 
 class TeamActionRequest(BaseModel):
     action: str # "accept" or "decline"
+
+# --- ДОБАВЛЕННАЯ МОДЕЛЬ ---
+class UpdateCredentialsRequest(BaseModel):
+    userId: str
+    current_password: str
+    new_nickname: Optional[str] = None
+    new_password: Optional[str] = None
