@@ -1,3 +1,5 @@
+// Файл: wakeup/src/RaitingPage/RaitingPage.jsx
+
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
@@ -6,13 +8,14 @@ import defaultAvatar from '../NavBar/avatar.png';
 import RoleIcon from '../RoleIcon/RoleIcon';
 import { useDebounce } from '../useDebounce';
 
-const tabs = ['Сводка', 'Игры', 'Статистика'];
+// --- ИЗМЕНЕНИЕ 1: Приводим массив к единому виду ---
+const tabs = ['Общий рейтинг', 'Игры', 'Статистика'];
 
 const baseURL = ""
 
-
 export default function RatingPage() {
-  const [activeTab, setActiveTab] = useState('Общая сводка');
+  // --- ИЗМЕНЕНИЕ 2: Устанавливаем правильную активную вкладку по умолчанию ---
+  const [activeTab, setActiveTab] = useState('Общий рейтинг');
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
@@ -104,25 +107,27 @@ export default function RatingPage() {
     });
   };
 
-  const fetchPlayers = async () => {
+  // --- ИЗМЕНЕНИЕ 3: Функция для серверной пагинации ---
+  const fetchPlayers = async (page) => {
     setPlayersLoading(true);
     setPlayersError(null);
     try {
-      const res = await fetch(baseURL+`/api/getRating?limit=1000&offset=0`);
-      if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
-      const data = await res.json();
-      if (data && Array.isArray(data.players)) {
-        setPlayersData(data.players);
-        setTotalPlayersCount(data.total_count || 0);
-      } else {
-        throw new Error('Некорректная структура ответа (players)');
-      }
+        const offset = (page - 1) * itemsPerPage;
+        const res = await fetch(baseURL + `/api/getRating?limit=${itemsPerPage}&offset=${offset}`);
+        if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
+        const data = await res.json();
+        if (data && Array.isArray(data.players)) {
+            setPlayersData(data.players);
+            setTotalPlayersCount(data.total_count || 0);
+        } else {
+            throw new Error('Некорректная структура ответа (players)');
+        }
     } catch (e) {
-      setPlayersError(e.message);
-      setPlayersData([]);
-      setTotalPlayersCount(0);
+        setPlayersError(e.message);
+        setPlayersData([]);
+        setTotalPlayersCount(0);
     } finally {
-      setPlayersLoading(false);
+        setPlayersLoading(false);
     }
   };
 
@@ -172,21 +177,28 @@ export default function RatingPage() {
     }
   };
 
+  // --- ИЗМЕНЕНИЕ 4: Логика загрузки данных в useEffect ---
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    if (activeTab === 'Общая сводка') fetchPlayers();
-    else if (activeTab === 'Игры') fetchGames();
-    else if (activeTab === 'Статистика') fetchDetailedStats();
+    if (activeTab === 'Общий рейтинг') {
+        fetchPlayers(currentPage);
+    } else if (activeTab === 'Игры') {
+        fetchGames();
+    } else if (activeTab === 'Статистика') {
+        fetchDetailedStats();
+    }
+  }, [activeTab, isAuthenticated, authLoading, navigate, currentPage]); // Добавили currentPage
 
-  }, [activeTab, isAuthenticated, authLoading, navigate]);
-
+  // --- ИЗМЕНЕНИЕ 5: Логика фильтрации и пагинации ---
   const filteredPlayers = playersData.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const paginatedPlayers = filteredPlayers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
+  // paginatedPlayers больше не нужен, так как данные уже приходят постранично
+  const paginatedPlayers = filteredPlayers;
+  const totalPages = Math.ceil(totalPlayersCount / itemsPerPage);
+
 
   const filteredGames = gamesData.filter(g => 
     g.players.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -335,7 +347,8 @@ export default function RatingPage() {
             )}
         </div>
 
-        {activeTab === 'Общая сводка' && (
+        {/* --- ИЗМЕНЕНИЕ 6: Главное исправление - проверка в JSX --- */}
+        {activeTab === 'Общий рейтинг' && (
           <>
             {playersLoading && <p>Загрузка игроков...</p>}
             {playersError && <p>Ошибка: {playersError}</p>}
@@ -399,7 +412,7 @@ export default function RatingPage() {
                   })}
                 </section>
 
-                {totalPages > 0 && (
+                {totalPages > 1 && (
                   <nav
                     className={styles.pagination}
                     aria-label="Пейджинг рейтинга"
@@ -447,8 +460,10 @@ export default function RatingPage() {
           </>
         )}
 
+        {/* Остальные вкладки без изменений */}
         {activeTab === 'Игры' && (
-          <div>
+            // ... код для вкладки "Игры"
+            <div>
             {isAdmin && (
               <div className={styles.adminActions}>
                 <button
@@ -654,9 +669,9 @@ export default function RatingPage() {
             )}
           </div>
         )}
-
         {activeTab === 'Статистика' && (
-          <section
+            // ... код для вкладки "Статистика"
+            <section
             className={styles.statsWrapper}
             role="tabpanel"
             aria-label="Общая статистика"
@@ -700,227 +715,228 @@ export default function RatingPage() {
   );
 }
 
+// ... компонент DetailedStatsTable без изменений
 function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
-  const navigate = useNavigate();
-
-  const handlePlayerClick = (playerId) => {
-    if (playerId) {
-      navigate(`/profile/${playerId}`);
-    }
-  };
-
-  const renderRoleStats = (wins, games, rolePlusArr) => {
-    const gamesCount = games || 0;
-    const winsCount = wins || 0;
-    const winPercent = gamesCount ? Math.round((winsCount / gamesCount) * 100) : 0;
-    const bonusSum = rolePlusArr?.reduce((a, b) => a + b, 0) || 0;
-    const bonusMax = rolePlusArr?.length ? Math.max(...rolePlusArr) : 0;
-
-    return (
-      <>
-        {winsCount} / {gamesCount} ({winPercent}%)
-        <br />
-        Доп: {bonusSum.toFixed(2)} Макс:&nbsp;{bonusMax.toFixed(2)}
-      </>
-    );
-  };
-
-return (
-  <>
-    <div className={styles.tableWrapper}>
-      <table className={styles.detailedStatsTable}>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Игрок</th>
-            <th>Σ</th>
-            <th>1🏆</th>
-            <th>СК</th>
-            <th>ЖК</th>
-            <th>ЛХ</th>
-            <th>Ci</th>
-            <th>Допы</th>
-            <th>−</th>
-
-            {/* Заголовки ролей */}
-            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCommon}`}>Общая</th>
-            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleSheriff}`}>Шериф</th>
-            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCitizen}`}>Мирн.</th>
-            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleMafia}`}>Мафия</th>
-            <th colSpan="3" className={`${styles.roleHeader} ${styles.roleDon}`}>Дон</th>
-          </tr>
-
-          <tr className={styles.subHeaderRow}>
-            <th colSpan="10"></th>
-            {/* Подзаголовки для каждой роли */}
-            <React.Fragment>
-              <th className={styles.roleCommon}>П/И</th>
-              <th className={styles.roleCommon}>Ср</th>
-              <th className={styles.roleCommon}>МАКС</th>
-
-              <th className={styles.roleSheriff}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleSheriff}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleSheriff}`}>МАКС</th>
-
-              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>МАКС</th>
-
-              <th className={`${styles.subHeader} ${styles.roleMafia}`}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleMafia}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleMafia}`}>МАКС</th>
-
-              <th className={`${styles.subHeader} ${styles.roleDon}`}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleDon}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleDon}`}>МАКС</th>
-            </React.Fragment>
-          </tr>
-        </thead>
-
-        <tbody>
-          {Array.isArray(data) &&
-            data.map((p, i) => {
-              const rank = (currentPage - 1) * 10 + i + 1;
-              const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
-              const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
-              const totalPenalties = (p.total_sk_penalty || 0) + (p.total_jk_penalty || 0);
-
-              // общий рендер
-              const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass) => {
-                const totalBonus =
-                  bonuses.length > 0
-                    ? bonuses.reduce((sum, val) => sum + val, 0).toFixed(1)
-                    : '0.0';
-                const maxBonus =
-                  bonuses.length > 0 ? Math.max(...bonuses).toFixed(1) : '0.0';
-
+    const navigate = useNavigate();
+  
+    const handlePlayerClick = (playerId) => {
+      if (playerId) {
+        navigate(`/profile/${playerId}`);
+      }
+    };
+  
+    const renderRoleStats = (wins, games, rolePlusArr) => {
+      const gamesCount = games || 0;
+      const winsCount = wins || 0;
+      const winPercent = gamesCount ? Math.round((winsCount / gamesCount) * 100) : 0;
+      const bonusSum = rolePlusArr?.reduce((a, b) => a + b, 0) || 0;
+      const bonusMax = rolePlusArr?.length ? Math.max(...rolePlusArr) : 0;
+  
+      return (
+        <>
+          {winsCount} / {gamesCount} ({winPercent}%)
+          <br />
+          Доп: {bonusSum.toFixed(2)} Макс:&nbsp;{bonusMax.toFixed(2)}
+        </>
+      );
+    };
+  
+  return (
+    <>
+      <div className={styles.tableWrapper}>
+        <table className={styles.detailedStatsTable}>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Игрок</th>
+              <th>Σ</th>
+              <th>1🏆</th>
+              <th>СК</th>
+              <th>ЖК</th>
+              <th>ЛХ</th>
+              <th>Ci</th>
+              <th>Допы</th>
+              <th>−</th>
+  
+              {/* Заголовки ролей */}
+              <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCommon}`}>Общая</th>
+              <th colSpan="3" className={`${styles.roleHeader} ${styles.roleSheriff}`}>Шериф</th>
+              <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCitizen}`}>Мирн.</th>
+              <th colSpan="3" className={`${styles.roleHeader} ${styles.roleMafia}`}>Мафия</th>
+              <th colSpan="3" className={`${styles.roleHeader} ${styles.roleDon}`}>Дон</th>
+            </tr>
+  
+            <tr className={styles.subHeaderRow}>
+              <th colSpan="10"></th>
+              {/* Подзаголовки для каждой роли */}
+              <React.Fragment>
+                <th className={styles.roleCommon}>П/И</th>
+                <th className={styles.roleCommon}>Ср</th>
+                <th className={styles.roleCommon}>МАКС</th>
+  
+                <th className={styles.roleSheriff}>П/И</th>
+                <th className={`${styles.subHeader} ${styles.roleSheriff}`}>Ср</th>
+                <th className={`${styles.subHeader} ${styles.roleSheriff}`}>МАКС</th>
+  
+                <th className={`${styles.subHeader} ${styles.roleCitizen}`}>П/И</th>
+                <th className={`${styles.subHeader} ${styles.roleCitizen}`}>Ср</th>
+                <th className={`${styles.subHeader} ${styles.roleCitizen}`}>МАКС</th>
+  
+                <th className={`${styles.subHeader} ${styles.roleMafia}`}>П/И</th>
+                <th className={`${styles.subHeader} ${styles.roleMafia}`}>Ср</th>
+                <th className={`${styles.subHeader} ${styles.roleMafia}`}>МАКС</th>
+  
+                <th className={`${styles.subHeader} ${styles.roleDon}`}>П/И</th>
+                <th className={`${styles.subHeader} ${styles.roleDon}`}>Ср</th>
+                <th className={`${styles.subHeader} ${styles.roleDon}`}>МАКС</th>
+              </React.Fragment>
+            </tr>
+          </thead>
+  
+          <tbody>
+            {Array.isArray(data) &&
+              data.map((p, i) => {
+                const rank = (currentPage - 1) * 10 + i + 1;
+                const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
+                const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
+                const totalPenalties = (p.total_sk_penalty || 0) + (p.total_jk_penalty || 0);
+  
+                // общий рендер
+                const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass) => {
+                  const totalBonus =
+                    bonuses.length > 0
+                      ? bonuses.reduce((sum, val) => sum + val, 0).toFixed(1)
+                      : '0.0';
+                  const maxBonus =
+                    bonuses.length > 0 ? Math.max(...bonuses).toFixed(1) : '0.0';
+  
+                  return (
+                    <>
+                      <td className={`${styles.roleCell} ${colorClass}`}>
+                        {wins || 0}/{games || 0}
+                      </td>
+                      <td className={`${styles.roleCell} ${colorClass}`}>{totalBonus}</td>
+                      <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>
+                    </>
+                  );
+                };
+  
                 return (
-                  <>
-                    <td className={`${styles.roleCell} ${colorClass}`}>
-                      {wins || 0}/{games || 0}
+                  <tr
+                    key={p.nickname}
+                    className={p.nickname === user?.nickname ? styles.currentUserRow : ''}
+                  >
+                    <td>{rank}</td>
+                    <td>
+                      <span
+                        className={p.clickableName}
+                        onClick={() => handlePlayerClick(p.id)}
+                        title={p.nickname}
+                      >
+                        {p.nickname && p.nickname.length > 10
+                          ? p.nickname.slice(0, 10) + '...'
+                          : p.nickname}
+                      </span>
                     </td>
-                    <td className={`${styles.roleCell} ${colorClass}`}>{totalBonus}</td>
-                    <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>
-                  </>
+                    <td>{p.totalPoints?.toFixed(2) || 0}</td>
+                    <td>{totalWins}</td>
+                    <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>
+                    <td>{(p.total_jk_penalty || 0).toFixed(2)}</td>
+                    <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
+                    <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
+                    <td>{p.bonuses?.toFixed(2) || 0}</td>
+                    <td>{totalPenalties.toFixed(2)}</td>
+  
+                    {/* Общая — белая */}
+                    {renderRoleStats(
+                      totalWins,
+                      totalGames,
+                      [].concat(...Object.values(p.role_plus || {})),
+                      styles.roleCommon
+                    )}
+  
+                    {/* Шериф — жёлтая */}
+                    {renderRoleStats(
+                      p.wins?.sheriff,
+                      p.gamesPlayed?.sheriff,
+                      p.role_plus?.sheriff || [],
+                      styles.roleSheriff
+                    )}
+  
+                    {/* Мирный — красная */}
+                    {renderRoleStats(
+                      p.wins?.citizen,
+                      p.gamesPlayed?.citizen,
+                      p.role_plus?.citizen || [],
+                      styles.roleCitizen
+                    )}
+  
+                    {/* Мафия — бирюзовая */}
+                    {renderRoleStats(
+                      p.wins?.mafia,
+                      p.gamesPlayed?.mafia,
+                      p.role_plus?.mafia || [],
+                      styles.roleMafia
+                    )}
+  
+                    {/* Дон — фиолетовая */}
+                    {renderRoleStats(
+                      p.wins?.don,
+                      p.gamesPlayed?.don,
+                      p.role_plus?.don || [],
+                      styles.roleDon
+                    )}
+                  </tr>
                 );
-              };
-
-              return (
-                <tr
-                  key={p.nickname}
-                  className={p.nickname === user?.nickname ? styles.currentUserRow : ''}
-                >
-                  <td>{rank}</td>
-                  <td>
-                    <span
-                      className={p.clickableName}
-                      onClick={() => handlePlayerClick(p.id)}
-                      title={p.nickname}
-                    >
-                      {p.nickname && p.nickname.length > 10
-                        ? p.nickname.slice(0, 10) + '...'
-                        : p.nickname}
-                    </span>
-                  </td>
-                  <td>{p.totalPoints?.toFixed(2) || 0}</td>
-                  <td>{totalWins}</td>
-                  <td>{(p.total_sk_penalty || 0).toFixed(2)}</td>
-                  <td>{(p.total_jk_penalty || 0).toFixed(2)}</td>
-                  <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
-                  <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
-                  <td>{p.bonuses?.toFixed(2) || 0}</td>
-                  <td>{totalPenalties.toFixed(2)}</td>
-
-                  {/* Общая — белая */}
-                  {renderRoleStats(
-                    totalWins,
-                    totalGames,
-                    [].concat(...Object.values(p.role_plus || {})),
-                    styles.roleCommon
-                  )}
-
-                  {/* Шериф — жёлтая */}
-                  {renderRoleStats(
-                    p.wins?.sheriff,
-                    p.gamesPlayed?.sheriff,
-                    p.role_plus?.sheriff || [],
-                    styles.roleSheriff
-                  )}
-
-                  {/* Мирный — красная */}
-                  {renderRoleStats(
-                    p.wins?.citizen,
-                    p.gamesPlayed?.citizen,
-                    p.role_plus?.citizen || [],
-                    styles.roleCitizen
-                  )}
-
-                  {/* Мафия — бирюзовая */}
-                  {renderRoleStats(
-                    p.wins?.mafia,
-                    p.gamesPlayed?.mafia,
-                    p.role_plus?.mafia || [],
-                    styles.roleMafia
-                  )}
-
-                  {/* Дон — фиолетовая */}
-                  {renderRoleStats(
-                    p.wins?.don,
-                    p.gamesPlayed?.don,
-                    p.role_plus?.don || [],
-                    styles.roleDon
-                  )}
-                </tr>
-              );
-            })}
-        </tbody>
-      </table>
-    </div>
-
-    {totalPages > 0 && (
-      <nav
-        className={`${styles.pagination} ${styles.detailedPagination}`}
-        aria-label="Пейджинг детальной статистики"
-      >
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={`${styles.pageBtn} ${styles.pageArrow}`}
-          aria-label="Предыдущая страница"
-          type="button"
+              })}
+          </tbody>
+        </table>
+      </div>
+  
+      {totalPages > 0 && (
+        <nav
+          className={`${styles.pagination} ${styles.detailedPagination}`}
+          aria-label="Пейджинг детальной статистики"
         >
-          ‹
-        </button>
-
-        {[...Array(totalPages)].map((_, i) => {
-          const p = i + 1;
-          const isActive = p === currentPage;
-          return (
-            <button
-              key={p}
-              onClick={() => onPageChange(p)}
-              className={`${styles.pageBtn} ${isActive ? styles.pageActive : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-              aria-label={`Страница ${p}`}
-              type="button"
-            >
-              {p}
-            </button>
-          );
-        })}
-
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={`${styles.pageBtn} ${styles.pageArrow}`}
-          aria-label="Следующая страница"
-          type="button"
-        >
-          ›
-        </button>
-      </nav>
-    )}
-  </>
-);
-
-}
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`${styles.pageBtn} ${styles.pageArrow}`}
+            aria-label="Предыдущая страница"
+            type="button"
+          >
+            ‹
+          </button>
+  
+          {[...Array(totalPages)].map((_, i) => {
+            const p = i + 1;
+            const isActive = p === currentPage;
+            return (
+              <button
+                key={p}
+                onClick={() => onPageChange(p)}
+                className={`${styles.pageBtn} ${isActive ? styles.pageActive : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={`Страница ${p}`}
+                type="button"
+              >
+                {p}
+              </button>
+            );
+          })}
+  
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`${styles.pageBtn} ${styles.pageArrow}`}
+            aria-label="Следующая страница"
+            type="button"
+          >
+            ›
+          </button>
+        </nav>
+      )}
+    </>
+  );
+  
+  }

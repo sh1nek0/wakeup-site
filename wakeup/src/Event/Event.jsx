@@ -15,7 +15,7 @@ const stubAvatar =
 
 export default function Game() {
   const { isAdmin, user, token, isAuthenticated } = useContext(AuthContext) ?? {};
-  const { evenId } = useParams();
+  const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,19 +52,19 @@ export default function Game() {
   const [loading, setLoading] = useState(true);
 
   const [detailedStatsItemsPerPage] = useState(10);
-  const [selectedEventId, setSelectedEventId] = useState(evenId || 'all');
+  const [selectedEventId, setSelectedEventId] = useState(eventId || 'all');
   const [detailedStatsError, setDetailedStatsError] = useState(null);
   const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
   
   const fetchEventData = async () => {
-    if (!evenId) return;
+    if (!eventId) return;
     setLoading(true);
     try {
       const headers = { 'Cache-Control': 'no-cache' };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      const res = await fetch(`/api/getEvent/${evenId}`, { headers });
+      const res = await fetch(`/api/getEvent/${eventId}`, { headers });
       if (!res.ok) throw new Error("Ошибка загрузки данных события");
       const data = await res.json();
       
@@ -82,7 +82,7 @@ export default function Game() {
 
   useEffect(() => {
     fetchEventData();
-  }, [evenId, token]);
+  }, [eventId, token]);
 
   useEffect(() => {
     const fetchDetailedStats = async () => {
@@ -138,7 +138,7 @@ export default function Game() {
       return;
     }
     const membersWithCreator = [...new Set([...selectedIds, user.id])];
-    const requestBody = { event_id: evenId, name: teamName.trim(), members: membersWithCreator };
+    const requestBody = { event_id: eventId, name: teamName.trim(), members: membersWithCreator };
     try {
       const response = await fetch("/api/createTeam", {
         method: "POST",
@@ -183,7 +183,7 @@ export default function Game() {
       return;
     }
     try {
-      const response = await fetch(`/api/events/${evenId}/register`, {
+      const response = await fetch(`/api/events/${eventId}/register`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
       });
