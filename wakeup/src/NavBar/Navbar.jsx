@@ -1,16 +1,17 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./NavBar.module.css";
-import { NavLink, Link, useLocation } from "react-router-dom"; // <-- Импортируем useLocation
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../AuthContext";
 import defaultAvatar from "./avatar.png";
 import wh from "../images/WhiteHeart.png";
-import bellIcon from "../images/bell.png";
 
 const Navbar = () => {
   const { user, isAuthenticated, token, logout } = useContext(AuthContext);
-  const location = useLocation(); // <-- Получаем текущий путь
+  const location = useLocation();
   const [currentUserData, setCurrentUserData] = useState(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!user || !user.id) {
@@ -38,7 +39,6 @@ const Navbar = () => {
     };
 
     const fetchUnreadCount = async () => {
-      // Не запрашиваем, если мы уже на странице уведомлений
       if (location.pathname === '/notifications') {
         setUnreadNotificationsCount(0);
         return;
@@ -60,51 +60,61 @@ const Navbar = () => {
       fetchUnreadCount();
     }
 
+    // При смене страницы закрываем мобильное меню
+    setIsMenuOpen(false);
+
     return () => {
       isCancelled = true;
     };
-  }, [user, token, isAuthenticated, location.pathname]); // <-- Добавляем location.pathname в зависимости
+  }, [user, token, isAuthenticated, location.pathname]);
 
   const avatarSrc = currentUserData?.photoUrl || user?.photoUrl || defaultAvatar;
 
+  const handleLinkClick = () => {
+    setIsMenuOpen(false);
+  };
+
   return (
     <nav className={styles.navbar}>
+      {isMenuOpen && <div className={styles.overlay} onClick={() => setIsMenuOpen(false)} />}
+
       <div className={styles.navbarContainer}>
         <div className={styles.navbarLeft}>
           <div className={styles.navbarLogo}>
-            <NavLink to="/">
+            <NavLink to="/" onClick={handleLinkClick}>
               <img src={wh} alt="" />
               <span className={styles.logoHighlight}>WakeUp</span> Mafia
             </NavLink>
           </div>
         </div>
 
-        <div className={styles.navbarCenter}>
+        {/* --- ИЗМЕНЕНИЕ: Восстановлена правильная структура --- */}
+        <div className={`${styles.navbarCenter} ${isMenuOpen ? styles.menuOpen : ''}`}>
           <ul className={styles.navbarMenu}>
             <li className={styles.navbarItem}>
-              <NavLink to="/events" className={({ isActive }) => (isActive ? styles.active : undefined)}>
+              <NavLink to="/events" onClick={handleLinkClick} className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 Мероприятия
               </NavLink>
             </li>
             <li className={styles.navbarItem}>
-              <NavLink to="/rating" className={({ isActive }) => (isActive ? styles.active : undefined)}>
+              <NavLink to="/rating" onClick={handleLinkClick} className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 Рейтинг
               </NavLink>
             </li>
             <li className={styles.navbarItem}>
-              <NavLink to="/players" className={({ isActive }) => (isActive ? styles.active : undefined)}>
+              <NavLink to="/players" onClick={handleLinkClick} className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 Игроки
               </NavLink>
             </li>
             {isAuthenticated && user && (
               <li className={styles.navbarItem}>
-                <NavLink to={`/profile/${user.id}`} className={({ isActive }) => (isActive ? styles.active : undefined)}>
+                <NavLink to={`/profile/${user.id}`} onClick={handleLinkClick} className={({ isActive }) => (isActive ? styles.active : undefined)}>
                   Профиль
                 </NavLink>
               </li>
             )}
             <li className={styles.navbarItem}>
-              <NavLink to="/BTS" className={({ isActive }) => (isActive ? styles.active : undefined)}>
+              <NavLink to="/BTS" onClick={handleLinkClick} className={({ isActive }) => (isActive ? styles.active : undefined)}>
                 BTS
               </NavLink>
             </li>
@@ -114,7 +124,7 @@ const Navbar = () => {
         <div className={styles.navbarRight}>
           {isAuthenticated && user ? (
             <div className={styles.userInfo}>
-              <Link to="/notifications" className={styles.avatarLink}>
+              <Link to="/notifications" className={styles.avatarLink} onClick={handleLinkClick}>
                 <img
                   src={avatarSrc}
                   alt="Аватар пользователя"
@@ -125,11 +135,11 @@ const Navbar = () => {
                   <span className={styles.notificationsBadge}>{unreadNotificationsCount}</span>
                 )}
               </Link>
-              <Link to={`/profile/${user.id}`} className={styles.userNameLink}>
+              <Link to={`/profile/${user.id}`} className={styles.userNameLink} onClick={handleLinkClick}>
                 <span className={styles.userName}>{user.nickname}</span>
               </Link>
               <button
-                onClick={logout}
+                onClick={() => { logout(); handleLinkClick(); }}
                 className={styles.logoutBtn}
                 aria-label="Выйти из аккаунта"
               >
@@ -141,11 +151,18 @@ const Navbar = () => {
               to="/login"
               className={styles.navbarLoginBtn}
               aria-label="Войти в аккаунт"
+              onClick={handleLinkClick}
             >
               Войти
             </NavLink>
           )}
         </div>
+
+        <button className={styles.hamburger} onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Открыть меню">
+            <span className={styles.hamburgerBar}></span>
+            <span className={styles.hamburgerBar}></span>
+            <span className={styles.hamburgerBar}></span>
+        </button>
       </div>
     </nav>
   );

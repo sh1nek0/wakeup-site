@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import styles from './PlayersListPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
-import { useDebounce } from '../useDebounce'; // Импортируем хук
+import { useDebounce } from '../useDebounce';
 
 const PlayersListPage = () => {
     const [players, setPlayers] = useState([]);
@@ -13,10 +13,8 @@ const PlayersListPage = () => {
     const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-    // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ ПАГИНАЦИИ ---
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
-    // --- КОНЕЦ НОВЫХ СОСТОЯНИЙ ---
+    const itemsPerPage = 20;
 
     useEffect(() => {
         const fetchPlayers = async () => {
@@ -60,7 +58,6 @@ const PlayersListPage = () => {
         player.nickname.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // --- ЛОГИКА ПАГИНАЦИИ ---
     const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedPlayers = filteredPlayers.slice(startIndex, startIndex + itemsPerPage);
@@ -70,7 +67,6 @@ const PlayersListPage = () => {
             setCurrentPage(page);
         }
     };
-    // --- КОНЕЦ ЛОГИКИ ПАГИНАЦИИ ---
 
     if (loading) {
         return <div className={styles.pageWrapper}><p>Загрузка игроков...</p></div>;
@@ -93,7 +89,7 @@ const PlayersListPage = () => {
                         value={searchTerm}
                         onChange={(e) => {
                             setSearchTerm(e.target.value);
-                            setCurrentPage(1); // Сбрасываем на первую страницу при поиске
+                            setCurrentPage(1);
                         }}
                         onFocus={() => setIsSuggestionsVisible(true)}
                         onBlur={() => setTimeout(() => setIsSuggestionsVisible(false), 200)}
@@ -113,45 +109,32 @@ const PlayersListPage = () => {
                     )}
                 </div>
 
-                <section className={styles.listWrapper}>
-                    <div className={styles.listHeader}>
-                        <div className={styles.headerRank}>#</div>
-                        <div className={styles.headerPlayer}>Игрок</div>
-                        <div className={styles.headerGames}>Сыграно игр</div>
-                    </div>
-
-                    {paginatedPlayers.map((player, index) => {
-                        const rank = startIndex + index + 1; // Правильный ранг с учетом страницы
-                        let clubStripeClass = '';
+                <section className={styles.playersGrid}>
+                    {paginatedPlayers.map((player) => {
+                        // --- ИЗМЕНЕНИЕ: Логика классов для фона ---
+                        let cardBgClass = '';
                         if (player.club === 'WakeUp | MIET') {
-                            clubStripeClass = styles.clubMIET;
+                            cardBgClass = styles.bgMIET;
                         } else if (player.club === 'WakeUp | MIPT') {
-                            clubStripeClass = styles.clubMIPT;
+                            cardBgClass = styles.bgMIPT;
                         }
 
                         return (
-                            <NavLink to={`/profile/${player.id}`} key={player.id} className={styles.playerRow}>
-                                <div className={`${styles.orangeStripe} ${clubStripeClass}`} />
-                                
+                            // --- ИЗМЕНЕНИЕ: Новая структура карточки ---
+                            <NavLink to={`/profile/${player.id}`} key={player.id} className={`${styles.playerCard} ${cardBgClass}`}>
+                                <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
                                 <div className={styles.playerInfo}>
-                                    <div className={styles.rank}>{rank}</div>
-                                    <img src={player.photoUrl || defaultAvatar} alt="avatar" className={styles.avatar} />
-                                    <div>
-                                        {player.nickname && player.nickname.length > 10
-                                            ? player.nickname.slice(0, 10) + '...'
-                                            : player.nickname || '-'}
-                                        <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>
+                                    <div className={styles.playerName}>{player.nickname}</div>
+                                    <div className={styles.playerClub}>{player.club || 'Клуб не указан'}</div>
+                                    <div className={styles.playerGames}>
+                                        Игр: <strong>{player.game_count}</strong>
                                     </div>
-                                </div>
-                                <div className={styles.gameCount}>
-                                    {player.game_count}
                                 </div>
                             </NavLink>
                         );
                     })}
                 </section>
 
-                {/* --- КОМПОНЕНТ ПАГИНАЦИИ --- */}
                 {totalPages > 1 && (
                     <nav className={styles.pagination}>
                         <button
@@ -182,7 +165,6 @@ const PlayersListPage = () => {
                         </button>
                     </nav>
                 )}
-                {/* --- КОНЕЦ КОМПОНЕНТА ПАГИНАЦИИ --- */}
             </main>
         </div>
     );

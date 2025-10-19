@@ -144,9 +144,21 @@
   margin-bottom:10px;
 }
 .cardPlayerHeader{ flex:1 1 auto; text-align:left; }
+
+.cardGamesHeader {
+  flex: 0 0 240px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.subHeaderGames {
+  display: flex;
+  justify-content: space-around;
+  font-size: 12px;
+  color: #b0b0b0;
+}
 .cardPointsHeader{ flex:0 0 160px; text-align:right; }
-/* на случай, если используешь дополнительный класс в JSX */
-.pointsCol{ flex:0 0 160px; text-align:right; }
 
 /* =========================
    КАРТОЧКА ИГРОКА
@@ -154,36 +166,20 @@
 .card{
   position:relative;
   display:flex;
-  align-items:center;
+  align-items:stretch;
   background:#2E2E2E;
   border:1px solid #1F1F1F;
   margin-bottom:12px;
-  padding:14px 0;
   transition:background-color .2s, transform .15s;
   border-radius:0;
   overflow:hidden;
 }
 .card:hover{ background:#2A2A2A; transform:translateY(-2px); }
 
-.cardStripe{
-  content:"";
-  position:absolute;
-  top:0; right:150px;
-  width:12px; height:100%;
-  background: #757575; /* Серый по умолчанию */
-  transform:skewX(-30deg);
-  z-index:1;
-  opacity:.95;
-}
-
-.clubMIET { background: #ff6f00 !important; }
-.clubMIPT { background: #5844d4 !important; }
-
-
 .cardPlayer{
   flex:1 1 auto; min-width:0;
   display:flex; align-items:center; gap:14px;
-  padding:0 16px;
+  padding:14px 16px;
   z-index:2;
 }
 
@@ -204,7 +200,6 @@
   font-size:22px; 
   font-weight:800; 
   margin:0 0 2px;  
-  width: 400px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;   
@@ -212,31 +207,57 @@
 
 .clickablePlayerName {
   cursor: pointer;
-  width: 400px;
   transition: color 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;  
 }
 
 .clickablePlayerName:hover {
   color: #FF7A1A;
-  width: 200px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;  
 }
 
 .playerSubtitle{ color:#B0B0B0; font-size:12px; }
 
-.pointsBlock{
-  flex:0 0 160px;
-  display:flex; align-items:center; justify-content:flex-end;
-  padding-right:18px;
-  z-index:2;
+.statsBlock {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  z-index: 2;
 }
-.cardPoints{ font-size:28px; font-weight:800; letter-spacing:.3px; }
 
+.statColumn {
+  width: 120px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.divider {
+  width: 8px;
+  height: auto;
+  align-self: stretch;
+  background-color: currentColor;
+  transform: skewX(-30deg);
+  opacity: 0.95;
+  margin: 0 10px;
+}
+
+.clubMIET { color: #ff6f00 !important; }
+.clubMIPT { color: #5844d4 !important; }
+
+.cardPoints{ 
+  width: 160px;
+  font-size:28px; 
+  font-weight:800; 
+  letter-spacing:.3px;
+  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 16px;
+}
 
 .roleHeader {
   text-align: center;
@@ -282,8 +303,10 @@
 .subHeader {
   font-weight: 500;
   font-size: 12px;
-  color: #999;
+  text-align: center;
+  opacity: 0.9;
 }
+
 
 
 
@@ -712,35 +735,52 @@
    АДАПТИВ
    ========================= */
 @media (max-width:980px){
-  .card::after{ right:130px; }
-  .cardStripe{ right:130px; }
-  .cardPointsHeader, .pointsBlock{ flex-basis:140px; }
   .playerName{
-  width: 350px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;  
+    max-width: 200px;
   }
   .clickablePlayerName{
-    width: 250px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis; 
+    max-width: 200px;
   }
-
 }
+
 @media (max-width:768px){
   .tabs{ flex-direction:column; }
-  .card{ padding:12px; }
-  .card::after{ display:none; }
-  .cardStripe{ display:none; }
+  
+  .cardsHeader {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+  }
+  .cardGamesHeader {
+    display: none;
+  }
+
+  .card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "player points";
+    gap: 10px;
+    padding: 12px;
+  }
+  
+  .cardPlayer {
+    grid-area: player;
+  }
+  .cardPoints {
+    grid-area: points;
+    padding-right: 0;
+    font-size: 24px;
+    align-self: center;
+  }
+
+  .statColumn, .divider {
+    display: none;
+  }
+
   .avatarWrap{ width:48px; height:48px; flex-basis:48px; }
   .avatar{ width:48px; height:48px; }
-  .playerName{ font-size:18px;   width: 120px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;}
-  .cardPoints{ font-size:24px; }
+  .playerName{ font-size:18px; max-width: 150px; }
+  
   .sheetTable tbody td{ height:38px; padding:10px; }
   .detailedStatsTable th, .detailedStatsTable td{ font-size:.7rem; padding:.3rem; }
   .modalContent{ width:95%; }

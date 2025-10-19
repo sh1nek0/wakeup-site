@@ -5,6 +5,8 @@ import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
 import RoleIcon from "../RoleIcon/RoleIcon";
 
+// ... (компонент PlayerGames без изменений)
+
 const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
   const navigate = useNavigate();
 
@@ -87,6 +89,8 @@ const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
   );
 };
 
+// ... (остальные вспомогательные функции без изменений)
+
 const humanFileSize = (bytes) => {
   const thresh = 1024;
   if (Math.abs(bytes) < thresh) return bytes + " B";
@@ -102,7 +106,9 @@ const humanFileSize = (bytes) => {
 const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"];
 const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"];
 
+
 const ProfilePage = () => {
+  // ... (все хуки useState, useEffect, функции-обработчики без изменений)
   const { user, token, login } = useContext(AuthContext) || {};
   const { profileId } = useParams();
 
@@ -536,6 +542,13 @@ const ProfilePage = () => {
 
   const photoSrc = avatarPreview || profileData.photoUrl || placeholderAvatar;
 
+  // --- ИЗМЕНЕНИЕ: Логика для цвета рамки аватара ---
+  const getClubColorClass = () => {
+    if (profileData.club === 'WakeUp | MIET') return styles.clubMIET;
+    if (profileData.club === 'WakeUp | MIPT') return styles.clubMIPT;
+    return '';
+  };
+
   if (loading) return <div className={styles.pageWrapper}>Загрузка…</div>;
   if (loadError)
     return (
@@ -709,41 +722,46 @@ const ProfilePage = () => {
             </div>
           )}
 
+          {/* --- ИЗМЕНЕНИЕ: Возвращаем старую структуру таблиц с оберткой --- */}
           {activeTab === "stats" && (
             <div className={styles.statsContainer}>
               <h3 className={styles.statsTitle}>Общая статистика</h3>
-              <table className={styles.statsTable}>
-                <tbody>
-                  <tr><td>Игры</td><td>{playerStats.totalGames}</td></tr>
-                  <tr><td>Победы</td><td>{playerStats.totalWins}</td></tr>
-                  <tr><td>Поражения</td><td>{playerStats.totalLosses}</td></tr>
-                  <tr><td>Ничьи</td><td>{playerStats.totalGames - playerStats.totalWins - playerStats.totalLosses}</td></tr>
-                  <tr><td>Winrate</td><td>{playerStats.winrate}%</td></tr>
-                </tbody>
-              </table>
+              <div className={styles.tableContainer}>
+                <table className={styles.statsTable}>
+                  <tbody>
+                    <tr><td>Игры</td><td>{playerStats.totalGames}</td></tr>
+                    <tr><td>Победы</td><td>{playerStats.totalWins}</td></tr>
+                    <tr><td>Поражения</td><td>{playerStats.totalLosses}</td></tr>
+                    <tr><td>Ничьи</td><td>{playerStats.totalGames - playerStats.totalWins - playerStats.totalLosses}</td></tr>
+                    <tr><td>Winrate</td><td>{playerStats.winrate}%</td></tr>
+                  </tbody>
+                </table>
+              </div>
 
               <h3 className={styles.statsTitle}>По ролям</h3>
-              <table className={styles.statsTable}>
-                <thead>
-                  <tr><th>Роль</th><th>Игры</th><th>Победы</th><th>%</th><th>Поражения</th></tr>
-                </thead>
-                <tbody>
-                  {['Черная карта', 'Дон', 'Мафия', 'Красная карта', 'Шериф', 'Мирный'].map(role => {
-                    const data = playerStats.byRole[role];
-                    const losses = data.games - data.wins;
-                    const winPercent = data.games > 0 ? Math.round((data.wins / data.games) * 100) : 0;
-                    return (
-                      <tr key={role}>
-                        <td>{role}</td>
-                        <td>{data.games}</td>
-                        <td>{data.wins}</td>
-                        <td>{winPercent}%</td>
-                        <td>{losses}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className={styles.tableContainer}>
+                <table className={styles.statsTable}>
+                  <thead>
+                    <tr><th>Роль</th><th>Игры</th><th>Победы</th><th>%</th><th>Поражения</th></tr>
+                  </thead>
+                  <tbody>
+                    {['Черная карта', 'Дон', 'Мафия', 'Красная карта', 'Шериф', 'Мирный'].map(role => {
+                      const data = playerStats.byRole[role];
+                      const losses = data.games - data.wins;
+                      const winPercent = data.games > 0 ? Math.round((data.wins / data.games) * 100) : 0;
+                      return (
+                        <tr key={role}>
+                          <td>{role}</td>
+                          <td>{data.games}</td>
+                          <td>{data.wins}</td>
+                          <td>{winPercent}%</td>
+                          <td>{losses}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -828,10 +846,11 @@ const ProfilePage = () => {
         </div>
 
         <div className={styles.right}>
+          {/* --- ИЗМЕНЕНИЕ: Добавлен класс для цвета рамки --- */}
           <img
             src={photoSrc}
             alt="Фото профиля"
-            className={styles.photo}
+            className={`${styles.photo} ${getClubColorClass()}`}
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = placeholderAvatar;

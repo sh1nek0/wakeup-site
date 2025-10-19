@@ -13,7 +13,7 @@ import os
 
 from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
-from db.models import User, Game, Registration, Notification # <-- Добавлен импорт Notification
+from db.models import User, Game, Registration, Notification
 from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest
 from services.calculations import calculate_ci_bonuses, calculate_dynamic_penalties
 from services.search import get_player_suggestions_logic
@@ -117,6 +117,7 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
 async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
     return get_player_suggestions_logic(query, db)
 
+# --- ИЗМЕНЕНИЕ: Добавлен подсчет игр по локациям ---
 @router.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"), offset: int = Query(0, description="Смещение для пагинации"), db: Session = Depends(get_db)):
     logger = logging.getLogger("uvicorn.error")
@@ -131,9 +132,12 @@ async def get_rating(limit: int = Query(10, description="Количество э
     for game in games:
         try:
             game_data = json.loads(game.data)
+            location = game_data.get("location", "").lower()
+
             for player in game_data.get("players", []):
                 name = player.get("name")
                 if not name or not name.strip(): continue
+                
                 user = users.get(name)
                 base_sum = player.get("sum", 0)
                 ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
@@ -147,9 +151,17 @@ async def get_rating(limit: int = Query(10, description="Количество э
                         "games": 0, "total_sum": 0,
                         "user_id": user.id if user else None,
                         "photo_url": user.avatar if user else None,
+                        "games_miet": 0,
+                        "games_mipt": 0,
                     }
                 player_stats[name]["games"] += 1
                 player_stats[name]["total_sum"] += final_points
+                
+                if "миэт" in location:
+                    player_stats[name]["games_miet"] += 1
+                elif "мфти" in location:
+                    player_stats[name]["games_mipt"] += 1
+
         except (json.JSONDecodeError, TypeError) as je:
             logger.warning(f"JSON decode error for game {game.gameId}: {je}")
             continue
@@ -157,11 +169,15 @@ async def get_rating(limit: int = Query(10, description="Количество э
     rating = [{
         "name": name, "games": stats["games"], "points": stats["total_sum"],
         "club": clubs.get(name), "id": stats["user_id"], "photoUrl": stats["photo_url"],
-        "rating_score": stats["total_sum"] / math.sqrt(stats["games"]) if stats["games"] > 0 else 0.0
+        "rating_score": stats["total_sum"] / math.sqrt(stats["games"]) if stats["games"] > 0 else 0.0,
+        "games_miet": stats["games_miet"],
+        "games_mipt": stats["games_mipt"],
     } for name, stats in player_stats.items() if stats["games"] > 0]
 
     rating.sort(key=lambda x: x["rating_score"], reverse=True)
     return {"players": rating[offset: offset + limit], "total_count": len(rating)}
+
+# ... (остальной код файла без изменений до конца)
 
 @router.get("/getDetailedStats")
 async def get_detailed_stats(
