@@ -1,10 +1,13 @@
 import React from 'react';
 import styles from './GameCard.module.css';
 import RoleIcon from '../../RoleIcon/RoleIcon';
+import { useNavigate } from 'react-router-dom';
 
 function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }) {
+    const navigate = useNavigate();
+    
     // Определяем номер стола из разных возможных полей
-    const tableNumber = game.tableNumber || game.id.match(/_t(\d+)/)?.[1] || '?';
+    const tableNumber = game.tableNumber;
     
     // Гарантируем, что у нас всегда 10 строк
     const rows = Array.from({ length: 10 }, (_, i) => game.players?.[i] || {});
@@ -22,11 +25,20 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
     if (game.location === 'МФТИ') locationColorClass = styles.locMIPT;
     else if (game.location === 'МИЭТ') locationColorClass = styles.locMIET;
 
+    // --- ИЗМЕНЕНИЕ: Формируем заголовок игры ---
+    const title = game.roundNumber 
+        ? `Раунд ${game.roundNumber} (Стол: ${game.tableNumber})`
+        : `Игра #${gameNumber || game.id.slice(-4)}`;
+
     return (
         <article className={styles.sheetCard}>
             <div className={styles.sheetMeta}>
                 <div className={`${styles.sheetLocation} ${locationColorClass}`}>{game.location || ''}</div>
-                <div className={styles.sheetTableNumber}>Стол #{tableNumber}</div>
+                {tableNumber ? (
+                    <div className={styles.sheetTableNumber}>Стол #{tableNumber}</div>
+                ) : (
+                    <div></div> // Пустой div для сохранения структуры сетки
+                )}
                 <div className={styles.sheetJudge}>
                     {game.judge_id ? (
                         <span className={styles.clickableName} onClick={() => onPlayerClick(game.judge_id)}>
@@ -38,7 +50,7 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                 </div>
             </div>
             <div className={styles.sheetTop}>
-                <span className={styles.sheetTitle}>Игра #{gameNumber || tableNumber}</span>
+                <span className={styles.sheetTitle}>{title}</span>
                 <div className={`${styles.sheetSlashTop} ${locationColorClass}`} />
                 <time className={styles.sheetDate}>{gameDate}</time>
             </div>
@@ -77,12 +89,16 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                     {game.badgeColor ? (game.badgeColor === 'red' ? 'Победа мирных' : 'Победа мафии') : 'Не сыграна'}
                 </span>
             </div>
-            {isAdmin && (
-                <div className={styles.sheetActions}>
-                    <button onClick={() => onEdit(game.id, game.event_id)} className={styles.sheetEditBtn}>Редактировать</button>
-                    <button onClick={() => onDelete(game.id)} className={styles.sheetDeleteBtn}>Удалить</button>
-                </div>
-            )}
+            <div className={styles.sheetActions}>
+                {/* --- ИЗМЕНЕНИЕ: Кнопка "Посмотреть" теперь добавляет ?mode=view --- */}
+                <button onClick={() => navigate(`/Event/${game.event_id || '1'}/Game/${game.id}?mode=view`)} className={styles.sheetViewBtn}>Посмотреть</button>
+                {isAdmin && (
+                    <>
+                        <button onClick={() => onEdit(game.id, game.event_id)} className={styles.sheetEditBtn}>Редактировать</button>
+                        <button onClick={() => onDelete(game.id)} className={styles.sheetDeleteBtn}>Удалить</button>
+                    </>
+                )}
+            </div>
         </article>
     );
 }

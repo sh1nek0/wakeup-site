@@ -303,6 +303,10 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
             
             judge_nickname = game_data.get("gameInfo", {}).get("judgeNickname")
             
+            # --- ИЗМЕНЕНИЕ: Добавляем roundNumber ---
+            round_match = re.search(r'_r(\d+)', game.gameId)
+            round_number = int(round_match.group(1)) if round_match else None
+
             games_list.append({
                 "id": game.gameId,
                 "event_id": game.event_id,
@@ -313,6 +317,7 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
                 "judge_id": nick_to_id_map.get(judge_nickname),
                 "location": game_data.get("location"),
                 "tableNumber": game_data.get("gameInfo", {}).get("tableNumber"),
+                "roundNumber": round_number,
             })
 
     return {
@@ -411,10 +416,18 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     for r in range(1, request.num_rounds + 1):
         for t in range(1, request.num_tables + 1):
             game_id = f"{event_id}_r{r}_t{t}"
+            # --- ИЗМЕНЕНИЕ: Добавляем информацию о раунде и столе в JSON ---
+            game_data = {
+                "players": [],
+                "gameInfo": {
+                    "roundNumber": r,
+                    "tableNumber": t
+                }
+            }
             game = Game(
                 gameId=game_id,
                 event_id=event_id,
-                data=json.dumps({"players": []}) # Пустой список игроков
+                data=json.dumps(game_data)
             )
             new_games.append(game)
     

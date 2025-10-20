@@ -1,5 +1,6 @@
-
 /* Styles for GameCard component, adapted from RatingPage.module.css and Event.module.css */
+
+/* --- НАСТРОЙКИ РАЗМЕРОВ ТАБЛИЦЫ --- */
 
 .sheetCard {
     background: #171717;
@@ -71,12 +72,18 @@
     font-weight: 800;
     font-size: 18px;
     letter-spacing: .2px;
+    /* --- ИЗМЕНЕНИЕ: z-index, чтобы текст был НАД полосой --- */
+    position: relative;
+    z-index: 2;
 }
 
 .sheetDate {
     color: #fff;
     font-weight: 800;
     font-size: 16px;
+    /* --- ИЗМЕНЕНИЕ: z-index, чтобы текст был НАД полосой --- */
+    position: relative;
+    z-index: 2;
 }
 
 .sheetSlashTop {
@@ -88,6 +95,8 @@
     background: #757575;
     transform: skewX(-30deg);
     pointer-events: none;
+    /* --- ИЗМЕНЕНИЕ: z-index, чтобы полоса была ПОД текстом --- */
+    z-index: 1;
 }
 
 .sheetSlashTop.locMIET {
@@ -114,9 +123,9 @@
 }
 
 .sheetTable {
-    width: 100%;
+    width: 100%; /* Таблица занимает всю ширину обертки .sheetTableWrap */
     border-collapse: collapse !important;
-    table-layout: fixed;
+    table-layout: fixed; /* Важно для управления шириной колонок */
     background-color: rgb(250, 235, 224);
 }
 
@@ -128,20 +137,22 @@
     padding: 10px 12px;
     text-align: left;
     border: 1px solid #1f1f1f !important;
+    /* --- ИЗМЕНЕНИЕ ШИРИНЫ КОЛОНОК --- */
+    /* Ширина колонок задается здесь. table-layout: fixed; обязателен. */
 }
 
 .sheetTable thead th:first-child {
-    width: 40px;
+    width: 40px; /* Ширина колонки "№" */
     text-align: center;
 }
 
 .sheetTable thead th:nth-child(3) {
-    width: 40px;
+    width: 54px; /* Ширина колонки "Роль" */
     text-align: center;
 }
 
 .sheetTable thead th:last-child {
-    width: 96px;
+    width: 98px; /* Ширина колонки "Очки" */
     text-align: left;
 }
 
@@ -149,14 +160,26 @@
     background: transparent;
     color: #111;
     font-size: 14px;
-    padding: 12px;
+    /* --- ИЗМЕНЕНИЕ: Уменьшаем padding и убираем fixed height --- */
+    padding: 2px 2px; /* Уменьшен вертикальный отступ */
+    /* height: 44px; -- УБРАНО! Высота теперь зависит от контента и padding */
     border: 1px solid #ccc !important;
-    height: 44px;
     vertical-align: middle;
     overflow: hidden;
 }
 
+/* Добавляем чередование цветов строк для лучшего соответствия картинке */
+.sheetTable tbody tr:nth-child(even) td {
+    background-color: rgba(0,0,0,0.05);
+}
+
+
 .sheetTable tbody td:first-child {
+    text-align: center;
+}
+
+/* --- ИЗМЕНЕНИЕ: Центрируем иконку роли --- */
+.sheetTable tbody td:nth-child(3) {
     text-align: center;
 }
 
@@ -173,7 +196,7 @@
 }
 
 .eliminatedRow td {
-    background-color: #e0e0e0 !important;
+    background-color: #9b9b9b !important;
     color: #111 !important;
 }
 
@@ -203,6 +226,9 @@
     color: #fff;
     font-weight: 800;
     font-size: 16px;
+    /* --- ИЗМЕНЕНИЕ: z-index, чтобы текст был НАД полосой --- */
+    position: relative;
+    z-index: 2;
 }
 
 .sheetSlashBottom {
@@ -213,6 +239,8 @@
     height: 100%;
     transform: skewX(-30deg);
     pointer-events: none;
+    /* --- ИЗМЕНЕНИЕ: z-index, чтобы полоса была ПОД текстом --- */
+    z-index: 1;
 }
 
 .resRed {
@@ -234,8 +262,7 @@
     align-self: flex-start;
 }
 
-.sheetEditBtn,
-.sheetDeleteBtn {
+.sheetEditBtn, .sheetDeleteBtn, .sheetViewBtn {
     border: none;
     padding: 8px 14px;
     font-size: .9rem;
@@ -245,16 +272,22 @@
     border-radius: 4px;
 }
 
-.sheetEditBtn:hover,
-.sheetDeleteBtn:hover {
+.sheetEditBtn:hover, .sheetDeleteBtn:hover, .sheetViewBtn:hover {
     transform: translateY(-1px);
+}
+
+.sheetViewBtn {
+    background: #3a4a5a;
+    color: #cae0e5;
+}
+.sheetViewBtn:hover {
+    background: #4a5a6b;
 }
 
 .sheetEditBtn {
     background: #4a4a4a;
     color: #e0e0e0;
 }
-
 .sheetEditBtn:hover {
     background: #5a5a5a;
 }
@@ -263,7 +296,6 @@
     background: #5a2a2a;
     color: #e5caca;
 }
-
 .sheetDeleteBtn:hover {
     background: #6b3a3a;
 }

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import styles from './GamePage.module.css';
 import { AuthContext } from '../AuthContext';
 import OBSWebSocket from "obs-websocket-js";
@@ -56,11 +55,12 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
   );
 };
 
-const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, onDecrementFoul, isPenaltyTime }) => {
+const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, onDecrementFoul, isPenaltyTime, isReadOnly }) => {
   const holdDuration = 500; // Время удержания в мс
   const holdTimers = useRef({}); // Для хранения таймеров для каждого игрока
 
   const startHold = (playerId) => (event) => {
+    if (isReadOnly) return;
     event.preventDefault(); // Предотвращает обычный клик
     holdTimers.current[playerId] = setTimeout(() => {
       onDecrementFoul(playerId);
@@ -68,11 +68,22 @@ const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, onDecreme
   };
 
   const endHold = (playerId) => () => {
+    if (isReadOnly) return;
     if (holdTimers.current[playerId]) {
       clearTimeout(holdTimers.current[playerId]);
       delete holdTimers.current[playerId];
     }
   };
+
+  const handleClick = (playerId, atMax) => {
+    if (isReadOnly) return;
+    if (!atMax && !isPenaltyTime) {
+      onIncrementFoul(playerId);
+    } else if (!atMax && isPenaltyTime) {
+      onIncrementDFouls(playerId);
+    }
+  };
+
 
 return (
   <div className={styles.foulsWrapper}>
@@ -87,15 +98,15 @@ return (
             key={player.id}
             className={styles.foulCard}
             role="button"
-            tabIndex={0}
-            aria-disabled={atMax || isPenaltyTime}
+            tabIndex={isReadOnly ? -1 : 0}
+            aria-disabled={atMax || isPenaltyTime || isReadOnly}
             aria-label={`Добавить фол игроку ${player.id}`}
-            onClick={() => !atMax && !isPenaltyTime ? onIncrementFoul(player.id) : onIncrementDFouls(player.id)}
+            onClick={() => handleClick(player.id, atMax)}
             onMouseDown={!atMin ? startHold(player.id) : undefined}
             onMouseUp={!atMin ? endHold(player.id) : undefined}
             onTouchStart={!atMin ? startHold(player.id) : undefined}
             onTouchEnd={!atMin ? endHold(player.id) : undefined}
-            style={{ ...deadStyle }}
+            style={{ ...deadStyle, cursor: isReadOnly ? 'default' : 'pointer' }}
           >
             <div className={styles.playerNumber}>{player.id}</div>
             <div className={styles.foulCircles}>
@@ -246,6 +257,7 @@ const BadgeDropdown = ({ value, onChange, disabled }) => {
 const Game = () => {
   const { gameId, eventId } = useParams();
   const navigate = useNavigate();
+  const { search } = useLocation(); // --- ИЗМЕНЕНИЕ: Получаем query-параметры
   const [selectedVoteValue, setSelectedVoteValue] = useState(null);
   const [firstVoteValue, setFirstVoteValue] = useState(null);
 
@@ -257,6 +269,11 @@ const Game = () => {
 
   const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
   const isAdmin = user && user.role === 'admin';
+  
+  // --- ИЗМЕНЕНИЕ: Определяем режим "только для чтения" ---
+  const queryParams = new URLSearchParams(search);
+  const mode = queryParams.get('mode');
+  const isReadOnly = !isAdmin || mode === 'view';
 
   const [players, setPlayers] = useState(
     Array.from({ length: 10 }, (_, i) => ({
@@ -266,7 +283,7 @@ const Game = () => {
       fouls: 0,
       best_move: '',
       role: 'мирный',
-      plus: 0,
+      plus: 2.5,
       sk: 0,
       jk: 0,
     }))
@@ -427,6 +444,7 @@ const Game = () => {
   const aliveCount = alivePlayers.filter(p => p.alive).length;
 
   const handleNextPhase = () => {
+  if (isReadOnly) return;
   const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
   const currentIndex = days.indexOf(currentDay);
 
@@ -454,7 +472,7 @@ const [showConfirmModal, setShowConfirmModal] = useState(false);
 
 
 const handleClearFormClick = () => {
-if (!isPenaltyTime) {
+if (!isPenaltyTime && !isReadOnly) {
 setShowConfirmModal(true);
 }
 };
@@ -521,7 +539,7 @@ setShowConfirmModal(false);
   const getLocalStorageKey = () => `gameData-${eventId}-${gameId}`;
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isReadOnly) return;
 
     const dataToSave = {
       players,
@@ -551,6 +569,7 @@ setShowConfirmModal(false);
     location,
     tableNumber,
     loading,
+    isReadOnly
   ]);
 
   
@@ -594,24 +613,31 @@ setShowConfirmModal(false);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-  const toggleTimer = () => setIsRunning(!isRunning);
+  const toggleTimer = () => {
+    if (isReadOnly) return;
+    setIsRunning(!isRunning);
+  };
   const resetTimer = () => {
+    if (isReadOnly) return;
     setIsRunning(false);
     setTime(0);
     setMaxTime(null);
   };
   const startTimerLimited = (seconds) => {
+    if (isReadOnly) return;
     setTime(0);
     setMaxTime(seconds);
     setIsRunning(true);
   };
 
   const startTimer = (seconds) => {
+    if (isReadOnly) return;
     setMaxTime(seconds);
     setIsRunning(true);
   };
 
   const updateTimer = (seconds) => {
+    if (isReadOnly) return;
     setTime(time);
     setMaxTime(maxTime + seconds);
     setIsRunning(true);
@@ -619,6 +645,7 @@ setShowConfirmModal(false);
   };
 
   const handlePreviousPhase = () => {
+    if (isReadOnly) return;
     const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
     const currentIndex = days.indexOf(currentDay);
 
@@ -684,6 +711,7 @@ setShowConfirmModal(false);
      ВЫСТАВЛЕНИЕ/ГОЛОСОВАНИЕ
      ============================ */
   const handlePlayerNumberClick = (playerId) => {
+    if (isReadOnly) return;
     if (!votes.some((v) => v.playerId === playerId)) {
       setVotes((prev) => [...prev, { playerId, votesCount: 0 }]);
       if (selectedPlayerId === null) setSelectedPlayerId(playerId);
@@ -696,7 +724,7 @@ setShowConfirmModal(false);
     );
 
     const handleVoteButtonClick = (increment) => {
-  if (selectedPlayerId === null) return;
+  if (isReadOnly || selectedPlayerId === null) return;
 
   if (firstVoteValue === null) {
     setFirstVoteValue(increment);
@@ -713,7 +741,7 @@ setShowConfirmModal(false);
 
   
 const handleBackspace = () => {
-  if (selectedPlayerId === null) return;
+  if (isReadOnly || selectedPlayerId === null) return;
   setVotes((prev) => prev.filter((v) => v.playerId !== selectedPlayerId));
   const remaining = votes.filter((v) => v.playerId !== selectedPlayerId);
   setSelectedPlayerId(remaining[0]?.playerId ?? null);
@@ -722,6 +750,7 @@ const handleBackspace = () => {
 
 
   const handleStartVoting = () => {
+    if (isReadOnly) return;
     setSelectedPlayerId(null);
     setIsCounting(false);
     setRound(1);
@@ -732,6 +761,7 @@ const handleBackspace = () => {
 
 
 const handleCount = () => {
+if (isReadOnly) return;
 const voted = votes.filter((v) => v.votesCount > 0);
 if (voted.length === 0) {
 setIsCounting(false);
@@ -782,6 +812,7 @@ else saveResult(candidates.map((c) => c.playerId));
   };
 
   const saveResult = (playerIds) => {
+    if (isReadOnly) return;
     const voteSummary = playerIds.length > 0 ? playerIds.join(', ') : '-';
     setVotingResults((prev) => ({
       ...prev,
@@ -799,6 +830,7 @@ else saveResult(candidates.map((c) => c.playerId));
      ФАЗЫ НОЧИ
      ========= */
   const handlePhaseButtonClick = (value, phase) => {
+    if (isReadOnly) return;
     const result = value === 'miss' ? '-' : value.toString();
     const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
     if (phase === 'shooting') {
@@ -822,7 +854,7 @@ else saveResult(candidates.map((c) => c.playerId));
     setPlayers(
       Array.from({ length: 10 }, (_, i) => ({
         id: i + 1, userId: null, name: '', fouls: 0, best_move: '',
-        role: 'мирный', plus: 0, sk: 0, jk: 0,
+        role: 'мирный', plus: 2.5, sk: 0, jk: 0,
       }))
     );
     setVotingResults({});
@@ -846,7 +878,7 @@ else saveResult(candidates.map((c) => c.playerId));
   const processLoadedPlayers = (loadedPlayers) => {
     const newPlayers = Array.from({ length: 10 }, (_, i) => ({
       id: i + 1, userId: null, name: '', fouls: 0, best_move: '',
-      role: 'мирный', plus: 0, sk: 0, jk: 0,
+      role: 'мирный', plus: 2.5, sk: 0, jk: 0,
     }));
     
     if (Array.isArray(loadedPlayers)) {
@@ -869,7 +901,7 @@ else saveResult(candidates.map((c) => c.playerId));
     setServerUnavailable(false);
 
     const savedData = localStorage.getItem(getLocalStorageKey());
-    if (savedData) {
+    if (savedData && !isReadOnly) {
       try {
         const data = JSON.parse(savedData);
         setPlayers(processLoadedPlayers(data.players));
@@ -927,7 +959,7 @@ else saveResult(candidates.map((c) => c.playerId));
 
   useEffect(() => {
     fetchGameData();
-  }, [gameId, user]);
+  }, [gameId, user, isReadOnly]);
 
   const clearSavedData = () => {
     localStorage.removeItem(getLocalStorageKey());
@@ -948,8 +980,8 @@ else saveResult(candidates.map((c) => c.playerId));
      СОХРАНЕНИЕ НА СЕРВЕРЕ
      ======================= */
   const handleSave = async () => {
-    if (!isAdmin) {
-      showMessage('Только администратор может сохранять данные.', true);
+    if (isReadOnly) {
+      showMessage('Нельзя сохранить изменения в режиме просмотра.', true);
       return;
     }
 
@@ -1046,19 +1078,19 @@ else saveResult(candidates.map((c) => c.playerId));
       {isAdmin && (
       <div className={styles.topControlsContainer}>
         <div className={styles.btnWrap}>
-          <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime || !isAdmin} />
+          <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime || isReadOnly} />
           <button
             type="button"
             onClick={() => !isPenaltyTime && handleClearFormClick()}
             className={styles.clearBtn}
-            disabled={isPenaltyTime || !isAdmin}
+            disabled={isPenaltyTime || isReadOnly}
           >
             Очистить форму
           </button>
           <button
             type="button"
             onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
-            disabled={isPenaltyTime || !isAdmin}
+            disabled={isPenaltyTime || isReadOnly}
             className={styles.clearBtn}
           >
             {!visibleRole ? "Показать роли" : "Скрыть роль"}
@@ -1078,7 +1110,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={judgeNickname}
                 onChange={setJudgeNickname}
                 placeholder="Судья"
-                disabled={isPenaltyTime || !isAdmin}
+                disabled={isPenaltyTime || isReadOnly}
                 className={styles.judgeInput}
               />
             </div>
@@ -1088,7 +1120,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
                 placeholder="Стол №"
-                disabled={isPenaltyTime || !isAdmin}
+                disabled={isPenaltyTime || isReadOnly}
                 className={styles.judgeInput}
               />
             </div>
@@ -1097,7 +1129,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={location || "Локация"}
                     onChange={setLocation}
                     roles={locations}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                 />
             </div>
             <div className={styles.obsInputsContainer}>
@@ -1106,7 +1138,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={obsAddress}
                 onChange={(e) => setObsAddress(e.target.value)}
                 placeholder="Адрес OBS (например, ws://127.0.0.1:4455)"
-                disabled={isPenaltyTime || !isAdmin}
+                disabled={isPenaltyTime || isReadOnly}
                 className={styles.obsInput}
               />
               <input
@@ -1114,7 +1146,7 @@ else saveResult(candidates.map((c) => c.playerId));
                 value={obsPassword}
                 onChange={(e) => setObsPassword(e.target.value)}
                 placeholder="Пароль OBS"
-                disabled={isPenaltyTime || !isAdmin}
+                disabled={isPenaltyTime || isReadOnly}
                 className={styles.obsInput}
               />
             </div>
@@ -1146,20 +1178,20 @@ else saveResult(candidates.map((c) => c.playerId));
                   className={styles.numberCell}
                   onClick={() => !isPenaltyTime && handlePlayerNumberClick(player.id)}
                   style={{
-                    cursor: isPenaltyTime ? 'not-allowed' : 'pointer',
+                    cursor: isPenaltyTime || isReadOnly ? 'not-allowed' : 'pointer',
                     userSelect: 'none',
-                    opacity: isPenaltyTime ? 0.5 : 1
+                    opacity: isPenaltyTime || isReadOnly ? 0.5 : 1
                   }}
-                  tabIndex={isPenaltyTime ? -1 : 0}
+                  tabIndex={isPenaltyTime || isReadOnly ? -1 : 0}
                   onKeyDown={(e) => {
-                    if (isPenaltyTime) return;
+                    if (isPenaltyTime || isReadOnly) return;
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       handlePlayerNumberClick(player.id);
                     }
                   }}
                   aria-label={`Выставить игрока ${player.id} на голосование`}
-                  aria-disabled={isPenaltyTime || !isAdmin}
+                  aria-disabled={isPenaltyTime || isReadOnly}
                 >
                   {player.id}
                 </td>
@@ -1169,7 +1201,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={player.name}
                     onChange={(value) => handleNameChange(player.id, value)}
                     placeholder={`Игрок ${player.id}`}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                   />
                 </td>
 
@@ -1178,7 +1210,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     value={player.role}
                     onChange={(role) => handleRoleChange(player.id, role)}
                     roles={roles}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                   />}
                 </td>
 
@@ -1188,7 +1220,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.lxInput}
                     value={player.best_move}
                     onChange={(e) => !isPenaltyTime && handleBestMoveChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                     aria-label={`Лучший ход игрока ${player.id}`}
                   />
                 </td>
@@ -1202,7 +1234,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.dopsInput}
                     value={player.plus}
                     onChange={(e) => !isPenaltyTime && handlePlusChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                     aria-label={`Допы игрока ${player.id}`}
                   />
                 </td>
@@ -1215,7 +1247,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.numberInput}
                     value={player.sk}
                     onChange={(e) => !isPenaltyTime && handleSkChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                     aria-label={`СК игрока ${player.id}`}
                   />
                 </td>
@@ -1228,7 +1260,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.numberInput}
                     value={player.jk}
                     onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                     aria-label={`ЖК игрока ${player.id}`}
                   />
                 </td>
@@ -1241,7 +1273,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     className={styles.numberInput}
                     value={player.fouls}
                     onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)}
-                    disabled={isPenaltyTime || !isAdmin}
+                    disabled={isPenaltyTime || isReadOnly}
                     aria-label={`ЖК игрока ${player.id}`}
                   />
                 </td>
@@ -1258,10 +1290,10 @@ else saveResult(candidates.map((c) => c.playerId));
                         <div
                           className={isRunning ? styles.timerTimeRunning : styles.timerTimePaused}
                           onClick={() => !isPenaltyTime && toggleTimer()}
-                          style={{ cursor: isPenaltyTime ? 'not-allowed' : 'pointer', opacity: isPenaltyTime ? 0.5 : 1 }}
+                          style={{ cursor: isPenaltyTime || isReadOnly ? 'not-allowed' : 'pointer', opacity: isPenaltyTime || isReadOnly ? 0.5 : 1 }}
                           aria-label="Таймер, нажмите для запуска/паузы"
                           role="timer"
-                          aria-disabled={isPenaltyTime || !isAdmin}
+                          aria-disabled={isPenaltyTime || isReadOnly}
                         >
                           {formatTime(time)}
                         </div>
@@ -1271,7 +1303,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.resetBtn}
                             onClick={() => !isPenaltyTime && startTimer(60 * 10)}
                             type="button"
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Cтарт
                           </button>
@@ -1279,7 +1311,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.resetBtn}
                             onClick={() => !isPenaltyTime && toggleTimer()}
                             type="button"
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Стоп
                           </button>
@@ -1287,7 +1319,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.resetBtn}
                             onClick={() => !isPenaltyTime && resetTimer()}
                             type="button"
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Сброс
                           </button>
@@ -1298,7 +1330,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.timerBtn}
                             onClick={() => !isPenaltyTime && startTimerLimited(20)}
                             type="button"
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             20
                           </button>
@@ -1306,7 +1338,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.timerBtn}
                             onClick={() => !isPenaltyTime && startTimerLimited(30)}
                             type="button"
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             30
                           </button>
@@ -1314,7 +1346,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.timerBtn}
                             onClick={() => !isPenaltyTime && startTimerLimited(60)}
                             type="button"
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             60
                           </button>
@@ -1322,6 +1354,7 @@ else saveResult(candidates.map((c) => c.playerId));
                             className={styles.timerBtn}
                             onClick={() => updateTimer(30)}
                             type="button"
+                            disabled={isReadOnly}
                           >
                             +30
                           </button>
@@ -1357,6 +1390,7 @@ else saveResult(candidates.map((c) => c.playerId));
                                 className={playerId === selectedPlayerId ? styles.selectedPlayerBtn : styles.playerBtn}
                                 aria-current={playerId === selectedPlayerId ? 'true' : undefined}
                                 aria-label={`Выбрать игрока ${playerId} для выставления`}
+                                disabled={isReadOnly}
                               >
                                 {playerId}
                               </button>
@@ -1376,14 +1410,14 @@ else saveResult(candidates.map((c) => c.playerId));
                                 type="button"
                                 onClick={() => handlePlayerNumberClick(num)}
                                 className={styles.keyboardBtn}
-                                disabled={!isAlive}
+                                disabled={!isAlive || isReadOnly}
                                 aria-label={`Добавить ${num} игрока на выставление`}
                               >
                                 {num}
                               </button>
                             );
                           })}
-                          <button type="button" onClick={handleBackspace} className={styles.keyboardBtn}>
+                          <button type="button" onClick={handleBackspace} className={styles.keyboardBtn} disabled={isReadOnly}>
                             ⮾
                           </button>
                         </div>
@@ -1392,7 +1426,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handlePreviousPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             ⬅ Назад
                           </button>
@@ -1400,7 +1434,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handleNextPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Вперёд ➡
                           </button>
@@ -1429,6 +1463,7 @@ else saveResult(candidates.map((c) => c.playerId));
                                     className={isSelected ? styles.selectedPlayerBtn : styles.playerBtn}
                                     aria-current={isSelected ? 'true' : undefined}
                                     aria-label={`Выбрать игрока ${playerId} для голосования`}
+                                    disabled={isReadOnly}
                                   >
                                     {playerId}
                                   </button>
@@ -1446,7 +1481,7 @@ else saveResult(candidates.map((c) => c.playerId));
             const maxAllowed = aliveCount - totalVotesCast;
 
             const isDisabled =
-              selectedPlayerId === null || (num !== 0 && num > maxAllowed);
+              selectedPlayerId === null || (num !== 0 && num > maxAllowed) || isReadOnly;
 
             return (
               <button
@@ -1464,7 +1499,7 @@ else saveResult(candidates.map((c) => c.playerId));
           <button
             type="button"
             onClick={handleBackspace}
-            disabled={selectedPlayerId === null}
+            disabled={selectedPlayerId === null || isReadOnly}
             className={styles.keyboardBtn}
             aria-label="Удалить игрока из голосования"
           >
@@ -1478,26 +1513,26 @@ else saveResult(candidates.map((c) => c.playerId));
                           type="button"
                           onClick={handleCount}
                           className={styles.saveVotingBtn}
-                          disabled={votes.length === 0}
+                          disabled={votes.length === 0 || isReadOnly}
                         >
                           Посчитать
                         </button>
                       ) : (
                         <div className={styles.countButtons}>
-                          <button type="button" onClick={handleLeft} className={styles.countBtn}>
+                          <button type="button" onClick={handleLeft} className={styles.countBtn} disabled={isReadOnly}>
                             Оставили
                           </button>
-                          <button type="button" onClick={handleRaised} className={styles.countBtn}>
+                          <button type="button" onClick={handleRaised} className={styles.countBtn} disabled={isReadOnly}>
                             Подняли
                           </button>
                         </div>
                       )}
 
                       <div className={styles.phaseNavContainer}>
-                        <button className={styles.phaseNavBtn} onClick={handlePreviousPhase}>
+                        <button className={styles.phaseNavBtn} onClick={handlePreviousPhase} disabled={isReadOnly}>
                           ⬅ Назад
                         </button>
-                        <button className={styles.phaseNavBtn} onClick={handleNextPhase}>
+                        <button className={styles.phaseNavBtn} onClick={handleNextPhase} disabled={isReadOnly}>
                           Вперёд ➡
                         </button>
                       </div>
@@ -1510,11 +1545,11 @@ else saveResult(candidates.map((c) => c.playerId));
                         <h3>Стрельба</h3>
                         <div className={styles.keyboardGrid}>
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'shooting')} className={styles.keyboardBtn}>
+                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'shooting')} className={styles.keyboardBtn} disabled={isReadOnly}>
                               {num}
                             </button>
                           ))}
-                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'shooting')} className={styles.keyboardBtn}>
+                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'shooting')} className={styles.keyboardBtn} disabled={isReadOnly}>
                             Промах
                           </button>
                         </div>
@@ -1522,7 +1557,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handlePreviousPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             ⬅ Назад
                           </button>
@@ -1530,7 +1565,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handleNextPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Вперёд ➡
                           </button>
@@ -1543,11 +1578,11 @@ else saveResult(candidates.map((c) => c.playerId));
                         <h3>Дон</h3>
                         <div className={styles.keyboardGrid}>
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'don')} className={styles.keyboardBtn}>
+                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'don')} className={styles.keyboardBtn} disabled={isReadOnly}>
                               {num}
                             </button>
                           ))}
-                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn}>
+                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'don')} className={styles.keyboardBtn} disabled={isReadOnly}>
                             -
                           </button>
                         </div>
@@ -1555,7 +1590,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handlePreviousPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             ⬅ Назад
                           </button>
@@ -1563,7 +1598,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handleNextPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Вперёд ➡
                           </button>
@@ -1576,11 +1611,11 @@ else saveResult(candidates.map((c) => c.playerId));
                         <h3>Шериф</h3>
                         <div className={styles.keyboardGrid}>
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'sheriff')} className={styles.keyboardBtn}>
+                            <button key={num} type="button" onClick={() => handlePhaseButtonClick(num, 'sheriff')} className={styles.keyboardBtn} disabled={isReadOnly}>
                               {num}
                             </button>
                           ))}
-                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn}>
+                          <button type="button" onClick={() => handlePhaseButtonClick('miss', 'sheriff')} className={styles.keyboardBtn} disabled={isReadOnly}>
                             -
                           </button>
                         </div>
@@ -1588,7 +1623,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handlePreviousPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             ⬅ Назад
                           </button>
@@ -1596,7 +1631,7 @@ else saveResult(candidates.map((c) => c.playerId));
                           <button
                             className={styles.phaseNavBtn}
                             onClick={handleNextPhase}
-                            disabled={isPenaltyTime || !isAdmin}
+                            disabled={isPenaltyTime || isReadOnly}
                           >
                             Вперёд ➡
                           </button>
@@ -1610,7 +1645,7 @@ else saveResult(candidates.map((c) => c.playerId));
                         onClick={() => !isPenaltyTime && setActiveTab('gameInfo')}
                         className={activeTab === 'gameInfo' ? styles.activeTab : styles.tab}
                         aria-selected={activeTab === 'gameInfo'}
-                        disabled={isPenaltyTime || !isAdmin}
+                        disabled={isPenaltyTime || isReadOnly}
                         style={isPenaltyTime ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                       >
                         Ход игры
@@ -1620,6 +1655,7 @@ else saveResult(candidates.map((c) => c.playerId));
                         onClick={() => setActiveTab('fouls')}
                         className={activeTab === 'fouls' ? styles.activeTab : styles.tab}
                         aria-selected={activeTab === 'fouls'}
+                        disabled={isReadOnly}
                       >
                         Фолы
                       </button>
@@ -1652,7 +1688,8 @@ else saveResult(candidates.map((c) => c.playerId));
                           onIncrementFoul={incrementFouls}
                           onIncrementDFouls={incrementDFouls}
                           onDecrementFoul={decrementFouls}
-                          isPenaltyTime={isPenaltyTime || !isAdmin}
+                          isPenaltyTime={isPenaltyTime}
+                          isReadOnly={isReadOnly}
                         />
                       </div>
                     </div>
@@ -1661,16 +1698,26 @@ else saveResult(candidates.map((c) => c.playerId));
         )}
         </div>
       <div className={styles.saveButtonContainer}>
-        <button
-          type="button"
-          onClick={() => !isPenaltyTime && handleSave()}
-          className={styles.saveBtn}
-          aria-label="Сохранить данные игры"
-          disabled={!isAdmin || isSaving || isPenaltyTime}
-          title={!isAdmin ? 'Только администратор может сохранять данные' : isPenaltyTime ? 'Недоступно в штрафное время' : undefined}
-        >
-          {isSaving ? 'Сохранение...' : 'Сохранить'}
-        </button>
+        {isReadOnly ? (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className={styles.saveBtn}
+          >
+            Выйти
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => !isPenaltyTime && handleSave()}
+            className={styles.saveBtn}
+            aria-label="Сохранить данные игры"
+            disabled={!isAdmin || isSaving || isPenaltyTime}
+            title={!isAdmin ? 'Только администратор может сохранять данные' : isPenaltyTime ? 'Недоступно в штрафное время' : undefined}
+          >
+            {isSaving ? 'Сохранение...' : 'Сохранить'}
+          </button>
+        )}
       </div>
     </>
   );
