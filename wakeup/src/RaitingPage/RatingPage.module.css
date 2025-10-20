@@ -327,22 +327,21 @@
 
 .roleSheriff {
   color: #ffd700; /* золотисто-жёлтый */
-  min-width: 40px;
+  min-width: 42px;
 }
 
 .roleCitizen {
   color: #ff4d4d; /* красный */
-  min-width: 40px;
+  min-width: 42px;
 }
 
 .roleMafia {
   color: #00e5e5; /* бирюзовый */
-  min-width: 40px;
-}
+  min-width: 42px;}
 
 .roleDon {
   color: #b266ff; /* фиолетовый */
-  min-width: 40px;
+  min-width: 42px;
 }
 
 .roleHeader {

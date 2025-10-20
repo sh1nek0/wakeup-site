@@ -771,20 +771,20 @@ return (
               <th className={styles.roleCommon}>МАКС</th>
 
               <th className={styles.roleSheriff}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleSheriff}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleSheriff}`}>МАКС</th>
+              <th className={styles.roleSheriff}>Ср</th>
+              <th className={styles.roleSheriff}>МАКС</th>
 
-              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleCitizen}`}>МАКС</th>
+              <th className={styles.roleCitizen}>П/И</th>
+              <th className={styles.roleCitizen}>Ср</th>
+              <th className={styles.roleCitizen}>МАКС</th>
 
-              <th className={`${styles.subHeader} ${styles.roleMafia}`}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleMafia}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleMafia}`}>МАКС</th>
+              <th className={styles.roleMafia}>П/И</th>
+              <th className={styles.roleMafia}>Ср</th>
+              <th className={styles.roleMafia}>МАКС</th>
 
-              <th className={`${styles.subHeader} ${styles.roleDon}`}>П/И</th>
-              <th className={`${styles.subHeader} ${styles.roleDon}`}>Ср</th>
-              <th className={`${styles.subHeader} ${styles.roleDon}`}>МАКС</th>
+              <th className={styles.roleDon}>П/И</th>
+              <th className={styles.roleDon}>Ср</th>
+              <th className={styles.roleDon}>МАКС</th>
             </React.Fragment>
           </tr>
         </thead>
