@@ -32,6 +32,8 @@
 .navbarRight {
   flex-shrink: 0;
   z-index: 1002;
+  display: flex;
+  align-items: center;
 }
 
 .navbarLogo {
@@ -221,8 +223,60 @@
   z-index: 999;
 }
 
+/* Стили для блока пользователя в мобильном меню */
+.mobileUserInfo {
+  padding: 20px 20px 10px;
+  border-bottom: 1px solid #444;
+}
+
+.mobileUserLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.mobileUserAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mobileUserName {
+  font-weight: 700;
+  font-size: 18px;
+  color: white;
+}
+
+/* Стили для кнопки выхода в мобильном меню */
+.logoutBtnMobile {
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease;
+  font-family: inherit;
+  font-weight: 500; /* Не жирный */
+}
+
+.logoutBtnMobile:hover {
+  background: rgba(255, 140, 58, 0.15);
+  color: #ff6f00;
+}
+
 
 @media (max-width: 900px) {
+  .desktopUserInfo {
+    display: none;
+  }
+
   .hamburger {
     display: flex;
   }
@@ -239,22 +293,18 @@
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    padding-top: 80px;
+    padding-top: 0;
     transform: translateX(100%);
     transition: transform 0.35s ease-in-out, box-shadow 0.35s ease-in-out;
     z-index: 1001;
-
-    /* ⛔️ по умолчанию без тени */
     box-shadow: none;
   }
 
-  /* ✅ при открытом меню добавляем тень */
   .navbarCenter.menuOpen {
     transform: translateX(0);
     box-shadow: -3px 0 12px rgba(0, 0, 0, 0.6);
   }
 
-  /* затемнение фона */
   .overlay {
     display: block;
     position: fixed;
@@ -275,7 +325,6 @@
     background: rgba(0, 0, 0, 0.55);
   }
 
-  /* пункты меню */
   .navbarMenu {
     list-style: none;
     display: flex;
@@ -318,14 +367,6 @@
   }
 
   .navbarItem a.active::after {
-    display: none;
-  }
-
-  .navbarItem button {
-    font-weight: bold;
-  }
-
-  .navbarRight .logoutBtn {
     display: none;
   }
 }

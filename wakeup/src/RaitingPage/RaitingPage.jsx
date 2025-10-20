@@ -28,7 +28,7 @@ export default function RatingPage() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, token, isAdmin, loading: authLoading } = useContext(AuthContext);
+  const { user, isAuthenticated, token, isAdmin } = useContext(AuthContext);
 
   const [playersData, setPlayersData] = useState([]);
   const [totalPlayersCount, setTotalPlayersCount] = useState(0);
@@ -172,12 +172,8 @@ export default function RatingPage() {
     }
   };
 
+  // --- ИЗМЕНЕНИЕ: Убрана проверка isAuthenticated ---
   useEffect(() => {
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
     if (activeTab === 'Общий рейтинг') {
         fetchPlayers(currentPage);
     } else if (activeTab === 'Игры') {
@@ -185,7 +181,7 @@ export default function RatingPage() {
     } else if (activeTab === 'Статистика') {
         fetchDetailedStats();
     }
-  }, [activeTab, isAuthenticated, authLoading, navigate, currentPage]);
+  }, [activeTab, currentPage]);
 
   const filteredPlayers = playersData.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const paginatedPlayers = filteredPlayers;

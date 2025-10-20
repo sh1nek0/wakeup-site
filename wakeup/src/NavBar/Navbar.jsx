@@ -96,6 +96,20 @@ const Navbar = () => {
             isMenuOpen ? styles.menuOpen : ""
           }`}
         >
+          {/* Блок с информацией о пользователе для мобильного меню */}
+          {isMenuOpen && isAuthenticated && user && (
+            <div className={styles.mobileUserInfo}>
+              <Link to={`/profile/${user.id}`} onClick={handleLinkClick} className={styles.mobileUserLink}>
+                <img
+                  src={avatarSrc}
+                  alt="Аватар"
+                  className={styles.mobileUserAvatar}
+                />
+                <span className={styles.mobileUserName}>{user.nickname}</span>
+              </Link>
+            </div>
+          )}
+
           <ul className={styles.navbarMenu}>
             <li className={styles.navbarItem}>
               <NavLink
@@ -149,90 +163,90 @@ const Navbar = () => {
               </NavLink>
             </li>
 
-            {/* Кнопка выхода внутри бургер-меню */}
-            {isAuthenticated && isMenuOpen && (
+            {/* Кнопка Входа/Выхода для мобильного меню */}
+            {isMenuOpen && (
               <li className={styles.navbarItem}>
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => {
+                      logout();
+                      handleLinkClick();
+                    }}
+                    className={styles.logoutBtnMobile}
+                  >
+                    Выйти
+                  </button>
+                ) : (
+                  <NavLink to="/login" onClick={handleLinkClick}>
+                    Войти
+                  </NavLink>
+                )}
+              </li>
+            )}
+          </ul>
+        </div>
+
+        {/* Правая часть */}
+        <div className={styles.navbarRight}>
+          {/* Информация о пользователе для десктопа */}
+          <div className={styles.desktopUserInfo}>
+            {isAuthenticated && user ? (
+              <div className={styles.userInfo}>
+                <Link
+                  to="/notifications"
+                  className={styles.avatarLink}
+                  onClick={handleLinkClick}
+                >
+                  <img
+                    src={avatarSrc}
+                    alt="Аватар пользователя"
+                    className={styles.userAvatar}
+                  />
+                  {unreadNotificationsCount > 0 && (
+                    <span className={styles.notificationsBadge}>
+                      {unreadNotificationsCount}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to={`/profile/${user.id}`}
+                  className={styles.userNameLink}
+                  onClick={handleLinkClick}
+                >
+                  <span className={styles.userName}>{user.nickname}</span>
+                </Link>
                 <button
                   onClick={() => {
                     logout();
                     handleLinkClick();
                   }}
                   className={styles.logoutBtn}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    marginLeft: "0px",
-                    fontWeight:"bold",
-                    fontSize: "16px",
-                    display: "block",
-                    background: "none",
-                  }}
                 >
                   Выйти
                 </button>
-              </li>
+              </div>
+            ) : (
+              <NavLink
+                to="/login"
+                className={styles.navbarLoginBtn}
+                onClick={handleLinkClick}
+              >
+                Войти
+              </NavLink>
             )}
-          </ul>
+          </div>
+          
+          {/* Кнопка-бургер для мобильных */}
+          <button
+            className={styles.hamburger}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Открыть меню"
+          >
+            <span className={styles.hamburgerBar}></span>
+            <span className={styles.hamburgerBar}></span>
+            <span className={styles.hamburgerBar}></span>
+          </button>
         </div>
-
-        {/* Правая часть (десктоп) */}
-        <div className={styles.navbarRight}>
-          {isAuthenticated && user ? (
-            <div className={styles.userInfo}>
-              <Link
-                to="/notifications"
-                className={styles.avatarLink}
-                onClick={handleLinkClick}
-              >
-                <img
-                  src={avatarSrc}
-                  alt="Аватар пользователя"
-                  className={styles.userAvatar}
-                />
-                {unreadNotificationsCount > 0 && (
-                  <span className={styles.notificationsBadge}>
-                    {unreadNotificationsCount}
-                  </span>
-                )}
-              </Link>
-              <Link
-                to={`/profile/${user.id}`}
-                className={styles.userNameLink}
-                onClick={handleLinkClick}
-              >
-                <span className={styles.userName}>{user.nickname}</span>
-              </Link>
-              <button
-                onClick={() => {
-                  logout();
-                  handleLinkClick();
-                }}
-                className={styles.logoutBtn}
-              >
-                Выйти
-              </button>
-            </div>
-          ) : (
-            <NavLink
-              to="/login"
-              className={styles.navbarLoginBtn}
-              onClick={handleLinkClick}
-            >
-              Войти
-            </NavLink>
-          )}
-        </div>
-
-        {/* Кнопка-бургер */}
-        <button
-          className={styles.hamburger}
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label="Открыть меню"
-        >
-          <span className={styles.hamburgerBar}></span>
-          <span className={styles.hamburgerBar}></span>
-          <span className={styles.hamburgerBar}></span>
-        </button>
       </div>
     </nav>
   );
