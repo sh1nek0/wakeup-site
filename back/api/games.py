@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 import json
 import logging
 import math
@@ -52,6 +53,10 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     elif not game_info.get("judgeNickname"):
         game_info["judgeNickname"] = current_user.nickname
 
+    # --- ИЗМЕНЕНИЕ: Добавляем номер стола в gameInfo ---
+    if data.tableNumber is not None:
+        game_info["tableNumber"] = data.tableNumber
+
     game_json = json.dumps({
         "players": data.players,
         "fouls": data.fouls,
@@ -62,9 +67,13 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
 
     if existing_game:
         existing_game.data = game_json
-        existing_game.event_id = data.eventId
+        existing_game.event_id = data.eventId if data.eventId != '1' else None
     else:
-        new_game = Game(gameId=data.gameId, data=game_json, event_id=data.eventId)
+        new_game = Game(
+            gameId=data.gameId, 
+            data=game_json, 
+            event_id=data.eventId if data.eventId != '1' else None
+        )
         db.add(new_game)
     
     db.commit()
@@ -99,15 +108,32 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     user_id_map = {user.nickname: user.id for user in all_users}
 
     base_query = db.query(Game)
+    # --- ИЗМЕНЕНИЕ: Фильтрация игр для рейтинга (не должны быть привязаны к событию) ---
     if event_id and event_id != 'all':
         base_query = base_query.filter(Game.event_id == event_id)
+    else:
+        # Показываем только игры без event_id или с event_id='1' (старый формат)
+        base_query = base_query.filter(or_(Game.event_id.is_(None), Game.event_id == '1'))
+
 
     all_games_for_calc = base_query.order_by(Game.created_at.asc()).all()
-    ci_bonuses = calculate_ci_bonuses(all_games_for_calc)
-    dynamic_penalties = calculate_dynamic_penalties(all_games_for_calc)
+    
+    # --- ИЗМЕНЕНИЕ: Фильтруем только "сыгранные" игры (у которых есть результат) ---
+    played_games_for_calc = []
+    for game in all_games_for_calc:
+        try:
+            data = json.loads(game.data)
+            if data.get("badgeColor"):
+                played_games_for_calc.append(game)
+        except (json.JSONDecodeError, TypeError):
+            continue
 
-    total_count = base_query.count()
-    paginated_games = base_query.order_by(Game.created_at.desc()).offset(offset).limit(limit).all()
+    ci_bonuses = calculate_ci_bonuses(played_games_for_calc)
+    dynamic_penalties = calculate_dynamic_penalties(played_games_for_calc)
+
+    total_count = len(played_games_for_calc)
+    # Пагинация по отфильтрованному и отсортированному списку
+    paginated_games = sorted(played_games_for_calc, key=lambda g: g.created_at, reverse=True)[offset:offset+limit]
     
     games_list = []
     for game in paginated_games:
@@ -131,7 +157,8 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 "best_move": p.get("best_move", "")
             })
         
-        judge_nickname = data.get("gameInfo", {}).get("judgeNickname")
+        game_info = data.get("gameInfo", {})
+        judge_nickname = game_info.get("judgeNickname")
         games_list.append({
             "id": game.gameId,
             "date": game.created_at.strftime("%d.%m.%Y %H:%M"),
@@ -140,7 +167,8 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
             "players": processed_players,
             "judge_nickname": judge_nickname,
             "judge_id": user_id_map.get(judge_nickname),
-            "location": data.get("location")
+            "location": data.get("location"),
+            "tableNumber": game_info.get("tableNumber"),
         })
 
     return {"games": games_list, "total_count": total_count}
@@ -150,7 +178,8 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
     all_users = db.query(User).all()
     user_id_map = {user.nickname: user.id for user in all_users}
 
-    all_games_for_calc = db.query(Game).order_by(Game.created_at.asc()).all()
+    # --- ИЗМЕНЕНИЕ: Фильтруем только рейтинговые игры ---
+    all_games_for_calc = db.query(Game).filter(or_(Game.event_id.is_(None), Game.event_id == '1')).order_by(Game.created_at.asc()).all()
     ci_bonuses = calculate_ci_bonuses(all_games_for_calc)
     dynamic_penalties = calculate_dynamic_penalties(all_games_for_calc)
 
@@ -179,7 +208,8 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
                         "best_move": p.get("best_move", "")
                     })
                 
-                judge_nickname = data.get("gameInfo", {}).get("judgeNickname")
+                game_info = data.get("gameInfo", {})
+                judge_nickname = game_info.get("judgeNickname")
                 player_games_list.append({
                     "id": game.gameId,
                     "date": game.created_at.strftime("%d.%m.%Y %H:%M"),
@@ -188,7 +218,8 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
                     "players": processed_players,
                     "judge_nickname": judge_nickname,
                     "judge_id": user_id_map.get(judge_nickname),
-                    "location": data.get("location")
+                    "location": data.get("location"),
+                    "tableNumber": game_info.get("tableNumber"),
                 })
         except (json.JSONDecodeError, TypeError):
             continue

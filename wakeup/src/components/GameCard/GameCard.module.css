@@ -1,0 +1,280 @@
+
+/* Styles for GameCard component, adapted from RatingPage.module.css and Event.module.css */
+
+.sheetCard {
+    background: #171717;
+    border: 1px solid #2A2A2A;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+}
+
+.sheetMeta {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 4px 4px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.sheetLocation {
+    font-weight: bold;
+    text-align: left;
+}
+
+.sheetTableNumber {
+    font-weight: bold;
+    text-align: center;
+}
+
+.sheetJudge {
+    font-style: italic;
+    text-align: right;
+}
+
+.clickableName {
+    cursor: pointer;
+    color: #ccc;
+    text-decoration: none;
+    font-style: normal;
+    font-weight: bold;
+}
+
+.clickableName:hover {
+    color: #FF7A1A;
+}
+
+.locMIET {
+    color: #ff6f00;
+}
+
+.locMIPT {
+    color: #5844d4;
+}
+
+.sheetTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #2a2a2a;
+    padding: 14px 18px;
+    min-height: 58px;
+    position: relative;
+}
+
+.sheetTitle {
+    color: #fff;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: .2px;
+}
+
+.sheetDate {
+    color: #fff;
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.sheetSlashTop {
+    position: absolute;
+    left: 60%;
+    top: 0;
+    width: 18px;
+    height: 100%;
+    background: #757575;
+    transform: skewX(-30deg);
+    pointer-events: none;
+}
+
+.sheetSlashTop.locMIET {
+    background-color: #ff6f00;
+}
+
+.sheetSlashTop.locMIPT {
+    background-color: #5844d4;
+}
+
+.sheetTop::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -10px;
+    height: 10px;
+    background: #1f1f1f;
+}
+
+.sheetTableWrap {
+    background: #1f1f1f;
+    padding: 8px 10px 10px;
+}
+
+.sheetTable {
+    width: 100%;
+    border-collapse: collapse !important;
+    table-layout: fixed;
+    background-color: rgb(250, 235, 224);
+}
+
+.sheetTable thead th {
+    background: #ff6f00 !important;
+    color: #1f1f1f !important;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 10px 12px;
+    text-align: left;
+    border: 1px solid #1f1f1f !important;
+}
+
+.sheetTable thead th:first-child {
+    width: 40px;
+    text-align: center;
+}
+
+.sheetTable thead th:nth-child(3) {
+    width: 40px;
+    text-align: center;
+}
+
+.sheetTable thead th:last-child {
+    width: 96px;
+    text-align: left;
+}
+
+.sheetTable tbody td {
+    background: transparent;
+    color: #111;
+    font-size: 14px;
+    padding: 12px;
+    border: 1px solid #ccc !important;
+    height: 44px;
+    vertical-align: middle;
+    overflow: hidden;
+}
+
+.sheetTable tbody td:first-child {
+    text-align: center;
+}
+
+.clickableNameInTable {
+    cursor: pointer;
+    transition: color 0.2s ease;
+    font-weight: 600;
+    color: #111;
+    font-size: 15px;
+}
+
+.clickableNameInTable:hover {
+    color: #FF7A1A;
+}
+
+.eliminatedRow td {
+    background-color: #e0e0e0 !important;
+    color: #111 !important;
+}
+
+.bestMoveText {
+    font-size: 0.8em;
+    color: #555;
+    margin-left: 4px;
+    font-style: italic;
+}
+
+.eliminatedRow .bestMoveText {
+    color: #222 !important;
+}
+
+.sheetBottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #2a2a2a;
+    padding: 12px 18px;
+    min-height: 48px;
+    position: relative;
+}
+
+.sheetBottomLeft,
+.sheetBottomRight {
+    color: #fff;
+    font-weight: 800;
+    font-size: 16px;
+}
+
+.sheetSlashBottom {
+    position: absolute;
+    left: 60%;
+    bottom: 0;
+    width: 18px;
+    height: 100%;
+    transform: skewX(-30deg);
+    pointer-events: none;
+}
+
+.resRed {
+    background-color: #c51a1a;
+}
+
+.resBlack {
+    background-color: #6d6d6d;
+}
+
+.resGray {
+    background-color: #ffffff;
+}
+
+.sheetActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+    align-self: flex-start;
+}
+
+.sheetEditBtn,
+.sheetDeleteBtn {
+    border: none;
+    padding: 8px 14px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .2s, transform .12s;
+    border-radius: 4px;
+}
+
+.sheetEditBtn:hover,
+.sheetDeleteBtn:hover {
+    transform: translateY(-1px);
+}
+
+.sheetEditBtn {
+    background: #4a4a4a;
+    color: #e0e0e0;
+}
+
+.sheetEditBtn:hover {
+    background: #5a5a5a;
+}
+
+.sheetDeleteBtn {
+    background: #5a2a2a;
+    color: #e5caca;
+}
+
+.sheetDeleteBtn:hover {
+    background: #6b3a3a;
+}
+
+.sheetDeleteBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.nameP {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

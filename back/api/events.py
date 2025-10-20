@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 import json
 import uuid
+import random
+import re
 
 from core.security import get_current_user, get_optional_current_user, get_db
-from db.models import Event, Team, Registration, User, Notification
-from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest
+from db.models import Event, Team, Registration, User, Notification, Game
+from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest
 from api.notifications import create_notification
 
 router = APIRouter()
@@ -207,27 +209,42 @@ async def manage_registration(registration_id: str, request: ManageRegistrationR
 
 @router.get("/events")
 async def get_events(db: Session = Depends(get_db)):
-    # ... (код без изменений)
-    events = db.query(Event).order_by(Event.created_at.desc()).all()
+    # Запрашиваем только нужные поля, чтобы избежать ошибок при добавлении новых колонок в модель
+    events_query = db.query(
+        Event.id,
+        Event.title,
+        Event.dates,
+        Event.location,
+        Event.type,
+        Event.participants_limit,
+        Event.participants_count,
+        Event.created_at
+    ).order_by(Event.created_at.desc()).all()
+
     return {"events": [{
-        "id": event.id, "title": event.title, "dates": event.dates,
-        "location": event.location, "type": event.type,
+        "id": event.id,
+        "title": event.title,
+        "dates": event.dates,
+        "location": event.location,
+        "type": event.type,
         "participants_limit": event.participants_limit,
         "participants_count": event.participants_count,
-    } for event in events]}
+    } for event in events_query]}
 
 @router.get("/getEvent/{event_id}")
 async def get_event(event_id: str, current_user: User = Depends(get_optional_current_user), db: Session = Depends(get_db)):
-    # ... (код без изменений)
-    event = db.query(Event).filter(Event.id == event_id).first()
+    event = db.query(Event).options(selectinload(Event.games)).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено")
+    
+    # Логика получения участников и команд остается прежней
     registrations = db.query(Registration).filter(Registration.event_id == event_id).all()
     approved_regs = [reg for reg in registrations if reg.status == "approved"]
     participants_list = [{
         "id": reg.user.id, "nick": reg.user.nickname,
         "avatar": reg.user.avatar or "", "club": reg.user.club
     } for reg in approved_regs]
+    
     pending_registrations_list = []
     if current_user and current_user.role == "admin":
         pending_regs = [reg for reg in registrations if reg.status == "pending"]
@@ -238,11 +255,13 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
                 "avatar": reg.user.avatar or "", "club": reg.user.club
             }
         } for reg in pending_regs]
+        
     user_registration_status = "none"
     if current_user:
         user_reg = next((reg for reg in registrations if reg.user_id == current_user.id), None)
         if user_reg:
             user_registration_status = user_reg.status
+            
     teams_list = []
     teams = db.query(Team).filter(Team.event_id == event_id).all()
     all_users_in_event = {p['id']: p for p in participants_list}
@@ -264,6 +283,38 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
                         "status": m['status']
                     })
             teams_list.append({"id": t.id, "name": t.name, "members": members_with_nicks, "status": t.status})
+
+    # --- ИЗМЕНЕНИЕ: Получение списка игр с полной информацией ---
+    games_list = []
+    is_admin = current_user and current_user.role == "admin"
+    
+    # Карта никнеймов для получения ID судьи
+    all_users_in_db = db.query(User.id, User.nickname).all()
+    nick_to_id_map = {nick: uid for uid, nick in all_users_in_db}
+
+    if not event.games_are_hidden or is_admin:
+        sorted_games = sorted(event.games, key=lambda g: g.gameId)
+        for game in sorted_games:
+            try:
+                game_data = json.loads(game.data)
+                players = game_data.get("players", [])
+            except (json.JSONDecodeError, TypeError):
+                players = []
+            
+            judge_nickname = game_data.get("gameInfo", {}).get("judgeNickname")
+            
+            games_list.append({
+                "id": game.gameId,
+                "event_id": game.event_id,
+                "players": players,
+                "created_at": game.created_at,
+                "badgeColor": game_data.get("badgeColor"),
+                "judge_nickname": judge_nickname,
+                "judge_id": nick_to_id_map.get(judge_nickname),
+                "location": game_data.get("location"),
+                "tableNumber": game_data.get("gameInfo", {}).get("tableNumber"),
+            })
+
     return {
         "title": event.title, "dates": event.dates, "location": event.location, "type": event.type,
         "participantsLimit": event.participants_limit, "participantsCount": event.participants_count,
@@ -272,10 +323,14 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
         "org": {"name": event.org_name, "role": event.org_role, "avatar": event.org_avatar},
         "participants": participants_list, "teams": teams_list,
         "pending_registrations": pending_registrations_list,
-        "user_registration_status": user_registration_status
+        "user_registration_status": user_registration_status,
+        # --- НОВЫЕ ДАННЫЕ ---
+        "games": games_list,
+        "games_are_hidden": event.games_are_hidden,
+        "seating_exclusions": event.seating_exclusions or ""
     }
 
-# --- ИЗМЕНЕНИЕ: Логика удаления/выхода из команды ---
+
 @router.delete("/deleteTeam/{team_id}")
 async def leave_or_delete_team(team_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     team = db.query(Team).filter(Team.id == team_id).first()
@@ -337,3 +392,130 @@ async def leave_or_delete_team(team_id: str, current_user: User = Depends(get_cu
             return {"message": f"Вы покинули команду {team.name}."}
 
     raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия.")
+
+# --- НОВЫЕ ЭНДПОИНТЫ ДЛЯ АДМИНИСТРИРОВАНИЯ ТУРНИРА ---
+
+@router.post("/events/{event_id}/setup_games", status_code=201)
+async def setup_event_games(event_id: str, request: EventSetupRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут настраивать игры.")
+    
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+
+    # Удаляем старые игры этого события, чтобы избежать дубликатов
+    db.query(Game).filter(Game.event_id == event_id).delete(synchronize_session=False)
+
+    new_games = []
+    for r in range(1, request.num_rounds + 1):
+        for t in range(1, request.num_tables + 1):
+            game_id = f"{event_id}_r{r}_t{t}"
+            game = Game(
+                gameId=game_id,
+                event_id=event_id,
+                data=json.dumps({"players": []}) # Пустой список игроков
+            )
+            new_games.append(game)
+    
+    db.add_all(new_games)
+    db.commit()
+    return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
+
+@router.post("/events/{event_id}/generate_seating")
+async def generate_event_seating(event_id: str, request: GenerateSeatingRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут генерировать рассадку.")
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+
+    games = db.query(Game).filter(Game.event_id == event_id).order_by(Game.gameId).all()
+    if not games:
+        raise HTTPException(status_code=400, detail="Сначала необходимо создать сетку игр.")
+
+    # Получаем список подтвержденных участников или команд
+    if event.type in ["pair", "team"]:
+        entities = db.query(Team).filter(Team.event_id == event_id, Team.status == "approved").all()
+    else: # solo
+        registrations = db.query(Registration).options(selectinload(Registration.user)).filter(Registration.event_id == event_id, Registration.status == "approved").all()
+        entities = [reg.user for reg in registrations]
+
+    if not entities:
+        raise HTTPException(status_code=400, detail="Нет подтвержденных участников или команд для рассадки.")
+
+    # Сохраняем исключения
+    event.seating_exclusions = request.exclusions_text
+    db.commit()
+    
+    num_tables = len(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId))
+    if num_tables == 0:
+        raise HTTPException(status_code=400, detail="Не удалось определить количество столов из ID игр.")
+
+    # --- ИЗМЕНЕНИЕ: Более надежный способ определения количества раундов ---
+    max_round_num = 0
+    for g in games:
+        match = re.search(r'_r(\d+)', g.gameId)
+        if match:
+            max_round_num = max(max_round_num, int(match.group(1)))
+    
+    num_rounds = max_round_num
+    if num_rounds == 0 and num_tables > 0:
+        num_rounds = len(games) // num_tables
+    
+    if num_rounds == 0:
+        raise HTTPException(status_code=400, detail="Не удалось определить количество раундов из ID игр.")
+    
+    for r in range(1, num_rounds + 1):
+        random.shuffle(entities)
+        
+        for t in range(1, num_tables + 1):
+            game_id = f"{event_id}_r{r}_t{t}"
+            game = next((g for g in games if g.gameId == game_id), None)
+            if not game: continue
+
+            start_index = (t - 1) * 10
+            end_index = start_index + 10
+            table_entities = entities[start_index:end_index]
+
+            players_for_game = []
+            if event.type == "solo":
+                # --- ИЗМЕНЕНИЕ: Добавляем 'id' и 'plus' по умолчанию ---
+                players_for_game = [{"id": p.id, "name": p.nickname, "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0, "best_move": ""} for p in table_entities]
+            else: # team or pair
+                for team_obj in table_entities:
+                    members = json.loads(team_obj.members)
+                    user_ids = [m['user_id'] for m in members]
+                    users = db.query(User).filter(User.id.in_(user_ids)).all()
+                    user_map = {u.id: u.nickname for u in users}
+                    for member in members:
+                        # --- ИЗМЕНЕНИЕ: Добавляем 'id' и 'plus' по умолчанию ---
+                        players_for_game.append({"id": member['user_id'], "name": user_map.get(member['user_id'], "???"), "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0, "best_move": ""})
+            
+            # Заполняем стол до 10 игроков, если нужно
+            while len(players_for_game) < 10:
+                players_for_game.append({"id": f"placeholder_{len(players_for_game)+1}", "name": "", "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0, "best_move": ""})
+
+            game_data = json.loads(game.data) if game.data else {}
+            game_data['players'] = players_for_game
+            game.data = json.dumps(game_data, ensure_ascii=False)
+
+    db.commit()
+    return {"message": "Расадка успешно сгенерирована и сохранена."}
+
+
+@router.post("/events/{event_id}/toggle_visibility")
+async def toggle_games_visibility(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут выполнять это действие.")
+    
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+        
+    event.games_are_hidden = not event.games_are_hidden
+    db.commit()
+    
+    status = "скрыты" if event.games_are_hidden else "показаны"
+    return {"message": f"Игры турнира теперь {status} для обычных пользователей.", "games_are_hidden": event.games_are_hidden}

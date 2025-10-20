@@ -1,13 +1,12 @@
+
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ProfilePage.module.css";
 import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
-import RoleIcon from "../RoleIcon/RoleIcon";
+import GameCard from "../components/GameCard/GameCard";
 
-// ... (компонент PlayerGames без изменений)
-
-const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
+const PlayerGames = ({ nickname, games, loading, error }) => {
   const navigate = useNavigate();
 
   const handlePlayerClick = (playerId) => {
@@ -25,71 +24,20 @@ const PlayerGames = ({ nickname, games, loading, error, userMap }) => {
 
   return (
     <div className={styles.gamesGrid}>
-      {games.map((game, index) => {
-        let headerFooterClass = '';
-        if (game.badgeColor === 'red') {
-            headerFooterClass = styles.bgRed;
-        } else if (game.badgeColor === 'black') {
-            headerFooterClass = styles.bgBlack;
-        } else {
-            headerFooterClass = styles.bgGray;
-        }
-
-        return (
-          <article key={game.id ?? `${nickname}-${index}`} className={styles.gameCard}>
-            <div className={`${styles.gameHeader} ${headerFooterClass}`}>
-              <span>Игра #{totalGames - index}</span>
-              <time>{game.date}</time>
-            </div>
-
-            <div className={`${styles.gameJudge} ${headerFooterClass}`}>
-              {game.location && <span className={styles.gameLocation}>{game.location}</span>}
-              {game.judge_id ? (
-                <span className={styles.clickableName} onClick={() => handlePlayerClick(game.judge_id)}>
-                  {game.judge_nickname || "Не указан"}
-                </span>
-              ) : (
-                game.judge_nickname || "Не указан"
-              )}
-            </div>
-
-            <table className={styles.gameTable}>
-              <tbody>
-                {(game.players || []).map((player, i) => (
-                  <tr
-                    key={i}
-                    className={player.name === nickname ? styles.highlightedRow : ""}
-                  >
-                    <td className={styles.playerNumber}>{i + 1}</td>
-                    <td className={styles.playerName}>
-                      <span className={styles.clickableName} onClick={() => handlePlayerClick(player.id)}>
-                        {player.name}
-                      </span>
-                    </td>
-                    <td className={styles.playerPoints}>
-                      <RoleIcon role={player.role} />
-                      <span>
-                        {typeof player.sum === "number" ? player.sum.toFixed(2) : player.sum ?? "-"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className={`${styles.gameFooter} ${headerFooterClass}`}>
-              <span>
-                {game.badgeColor === 'black' ? "Победа мафии" : "Победа мирных"}
-              </span>
-            </div>
-          </article>
-        );
-      })}
+      {games.map((game, index) => (
+        <GameCard
+          key={game.id ?? `${nickname}-${index}`}
+          game={game}
+          gameNumber={totalGames - index}
+          isAdmin={false}
+          onDelete={() => {}}
+          onEdit={() => {}}
+          onPlayerClick={handlePlayerClick}
+        />
+      ))}
     </div>
   );
 };
-
-// ... (остальные вспомогательные функции без изменений)
 
 const humanFileSize = (bytes) => {
   const thresh = 1024;
@@ -108,7 +56,6 @@ const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"]
 
 
 const ProfilePage = () => {
-  // ... (все хуки useState, useEffect, функции-обработчики без изменений)
   const { user, token, login } = useContext(AuthContext) || {};
   const { profileId } = useParams();
 
@@ -161,27 +108,9 @@ const ProfilePage = () => {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [gamesError, setGamesError] = useState(null);
 
-  const [userMap, setUserMap] = useState(new Map());
-
   useEffect(() => {
     setActiveTab("profile");
   }, [targetUserId]);
-
-  useEffect(() => {
-    const fetchAllUsers = async () => {
-      try {
-        const res = await fetch('/api/getUsers');
-        const data = await res.json();
-        if (data.users) {
-          const map = new Map(data.users.map(u => [u.nickname, u.id]));
-          setUserMap(map);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user list for navigation:", error);
-      }
-    };
-    fetchAllUsers();
-  }, []);
 
   const resetProfileData = (data) => {
     const src = data?.user || data || {};
@@ -542,7 +471,6 @@ const ProfilePage = () => {
 
   const photoSrc = avatarPreview || profileData.photoUrl || placeholderAvatar;
 
-  // --- ИЗМЕНЕНИЕ: Логика для цвета рамки аватара ---
   const getClubColorClass = () => {
     if (profileData.club === 'WakeUp | MIET') return styles.clubMIET;
     if (profileData.club === 'WakeUp | MIPT') return styles.clubMIPT;
@@ -722,7 +650,6 @@ const ProfilePage = () => {
             </div>
           )}
 
-          {/* --- ИЗМЕНЕНИЕ: Возвращаем старую структуру таблиц с оберткой --- */}
           {activeTab === "stats" && (
             <div className={styles.statsContainer}>
               <h3 className={styles.statsTitle}>Общая статистика</h3>
@@ -775,7 +702,6 @@ const ProfilePage = () => {
               games={playerGames}
               loading={gamesLoading}
               error={gamesError}
-              userMap={userMap}
             />
           )}
 
@@ -846,7 +772,6 @@ const ProfilePage = () => {
         </div>
 
         <div className={styles.right}>
-          {/* --- ИЗМЕНЕНИЕ: Добавлен класс для цвета рамки --- */}
           <img
             src={photoSrc}
             alt="Фото профиля"

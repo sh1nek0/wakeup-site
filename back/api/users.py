@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Form, UploadFile, File
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import json
 import logging
 import time
@@ -121,7 +121,8 @@ async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
 @router.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"), offset: int = Query(0, description="Смещение для пагинации"), db: Session = Depends(get_db)):
     logger = logging.getLogger("uvicorn.error")
-    games = db.query(Game).order_by(Game.created_at.asc()).all()
+    # --- ИЗМЕНЕНИЕ: Фильтруем только рейтинговые игры ---
+    games = db.query(Game).filter(or_(Game.event_id.is_(None), Game.event_id == '1')).order_by(Game.created_at.asc()).all()
     raw_users = db.query(User).all()
     users = {u.nickname: u for u in raw_users if u.nickname}
     clubs = {name: u.club for name, u in users.items()}
@@ -190,8 +191,12 @@ async def get_detailed_stats(
     user_map = {p.nickname: p for p in users}
     
     games_query = db.query(Game)
+    # --- ИЗМЕНЕНИЕ: Фильтруем только рейтинговые игры ---
     if event_id and event_id != 'all':
         games_query = games_query.filter(Game.event_id == event_id)
+    else:
+        games_query = games_query.filter(or_(Game.event_id.is_(None), Game.event_id == '1'))
+
     
     games = games_query.order_by(Game.created_at.asc()).all()
     

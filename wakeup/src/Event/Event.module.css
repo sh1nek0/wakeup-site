@@ -1,3 +1,4 @@
+
 /* =============== базовые цвета темы =============== */
 :root {
   --bg: #1f1f1f;
@@ -139,6 +140,23 @@
 .primaryBtn:hover { transform: translateY(-1px); filter: brightness(1.05); }
 .primaryBtnDisabled { opacity: .55; cursor: not-allowed; }
 
+.secondaryBtn {
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--text);
+  background: var(--panel-2);
+  cursor: pointer;
+  transition: background-color .2s ease;
+}
+.secondaryBtn:hover {
+  background-color: var(--panel-3);
+}
+
+
 /* =============== СЕКЦИЯ АДМИНА =============== */
 .adminSection {
   margin-top: 36px;
@@ -193,6 +211,12 @@
   font-size: clamp(22px, 2.5vw, 34px);
   font-weight: 800;
   margin: 16px 0 12px;
+}
+.h3 {
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 700;
+  margin: 24px 0 8px;
+  color: var(--muted);
 }
 .emptyHint {
   color: var(--muted);
@@ -250,7 +274,7 @@
 .formRow { width: 100%; }
 .formLabel { color: var(--muted); margin-bottom: 6px; }
 
-.input {
+.input, .textarea {
   display: block;
   width: 100%;
   max-width: 100%; /* не шире контейнера */
@@ -261,8 +285,13 @@
   padding: 14px 16px;
   font-size: 16px;
   outline: none;
+  font-family: inherit;
 }
-.input:focus { box-shadow: 0 0 0 2px rgba(255,111,0,.35); }
+.textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.input:focus, .textarea:focus { box-shadow: 0 0 0 2px rgba(255,111,0,.35); }
 
 .membersPool {
   display: flex;
@@ -362,104 +391,45 @@
 
 .teamMember .memberAvatar { width: 20px; height: 20px; }
 
-/* =============== вкладки результатов (если используются) =============== */
-.tabs {
-  display: inline-flex;
-  gap: 10px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
-}
-.tab,
-.tabActive {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  padding: 10px 14px;
-  border-radius: 10px 10px 0 0;
-  color: var(--text);
-  font-weight: 800;
-  cursor: pointer;
-}
-.tab:hover { background: var(--panel-2); }
-.tabActive {
-  background: var(--panel-2);
-  color: var(--accent);
-  border-bottom: 2px solid var(--accent);
-}
-.tabPanel { margin-top: 14px; }
-.placeholder {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+/* --- НОВЫЕ СТИЛИ ДЛЯ АДМИН-ПАНЕЛИ И СПИСКА ИГР --- */
+.adminPanel {
+  margin-top: 36px;
+  padding: 20px;
   background: var(--panel);
-  color: var(--muted);
+  border: 1px solid var(--accent);
 }
-
-/* =============== результаты / таблица =============== */
-.resultsWrap { margin-top: 34px; }
-.tableOnly { margin-top: 10px; }
-
-.tableWrapper {
-  margin-top: 10px;
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel);
+.adminGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: flex-start;
 }
-
-.detailedStatsTable {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 880px;
-  font-size: 15px;
-}
-.detailedStatsTable thead th {
-  position: sticky;
-  top: 0;
-  background: var(--panel-2);
-  color: var(--text);
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  font-weight: 700;
-}
-.detailedStatsTable tbody td {
-  padding: 10px 12px;
-  border-top: 1px solid var(--line);
-  white-space: nowrap;
-}
-.currentUserRow { background: rgba(255,111,0,.08); }
-.link { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
-
-/* пейджинг */
-.pagination {
+.adminForm {
   display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin: 14px 0 0;
+  flex-direction: column;
+  gap: 14px;
 }
-.detailedPagination { margin-top: 12px; }
-.pageBtn {
-  min-width: 36px; height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--text);
-  cursor: pointer;
-  font-weight: 700;
+.adminActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 220px;
 }
-.pageBtn[disabled] { opacity: .5; cursor: not-allowed; }
-.pageActive { background: var(--accent); color: #1b1b1b; border-color: var(--accent); }
-.pageArrow { font-size: 18px; }
+.gamesSection {
+  margin-top: 36px;
+}
 
 /* =============== адаптив =============== */
 @media (max-width: 1024px) {
   .topGrid { grid-template-columns: 1fr; }
   .infoGrid { grid-template-columns: 1fr 1fr; }
+  .adminGrid { grid-template-columns: 1fr; }
+  .adminActions { flex-direction: row; }
 }
 @media (max-width: 720px) {
   .infoGrid { grid-template-columns: 1fr; }
   .discussBtn { text-align: center; }
+  .adminActions { flex-direction: column; }
 }
 
 /* =============== СТИЛИ УВЕДОМЛЕНИЙ =============== */

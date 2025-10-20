@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './GamePage.module.css';
@@ -260,11 +261,12 @@ const Game = () => {
   const [players, setPlayers] = useState(
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
+      userId: null, // ID пользователя из БД
       name: '',
       fouls: 0,
       best_move: '',
       role: 'мирный',
-      plus: 2.5,
+      plus: 0,
       sk: 0,
       jk: 0,
     }))
@@ -402,6 +404,7 @@ const Game = () => {
   
   const [judgeNickname, setJudgeNickname] = useState('');
   const [location, setLocation] = useState('');
+  const [tableNumber, setTableNumber] = useState('');
 
   // показ ролей
   const [visibleRole, setVisibleRole] = useState(true)
@@ -522,7 +525,7 @@ setShowConfirmModal(false);
 
     const dataToSave = {
       players,
-      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname },
+      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname, tableNumber },
       currentDay,
       currentPhase,
       badgeColor,
@@ -546,6 +549,7 @@ setShowConfirmModal(false);
     badgeColor,
     judgeNickname,
     location,
+    tableNumber,
     loading,
   ]);
 
@@ -815,6 +819,12 @@ else saveResult(candidates.map((c) => c.playerId));
      ЗАГРУЗКА ДАННЫХ ИЗ СЕРВЕРА
      ========================== */
   const bootstrapEmptyGame = () => {
+    setPlayers(
+      Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1, userId: null, name: '', fouls: 0, best_move: '',
+        role: 'мирный', plus: 0, sk: 0, jk: 0,
+      }))
+    );
     setVotingResults({});
     setShootingResults({});
     setDonResults({});
@@ -823,6 +833,7 @@ else saveResult(candidates.map((c) => c.playerId));
     setCurrentPhase('nominating');
     setBadgeColor('red');
     setJudgeNickname(user?.nickname || '');
+    setTableNumber('');
     if (user?.club === 'WakeUp | MIET') {
         setLocation('МИЭТ');
     } else if (user?.club === 'WakeUp | MIPT') {
@@ -830,6 +841,27 @@ else saveResult(candidates.map((c) => c.playerId));
     } else {
         setLocation('');
     }
+  };
+
+  const processLoadedPlayers = (loadedPlayers) => {
+    const newPlayers = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1, userId: null, name: '', fouls: 0, best_move: '',
+      role: 'мирный', plus: 0, sk: 0, jk: 0,
+    }));
+    
+    if (Array.isArray(loadedPlayers)) {
+      loadedPlayers.forEach((p, i) => {
+        if (i < 10) {
+          newPlayers[i] = {
+            ...newPlayers[i],
+            ...p,
+            id: i + 1, // Всегда используем номер слота как ID
+            userId: p.id, // ID пользователя из БД сохраняем отдельно
+          };
+        }
+      });
+    }
+    return newPlayers;
   };
 
   const fetchGameData = async () => {
@@ -840,7 +872,7 @@ else saveResult(candidates.map((c) => c.playerId));
     if (savedData) {
       try {
         const data = JSON.parse(savedData);
-        setPlayers(data.players);
+        setPlayers(processLoadedPlayers(data.players));
         setVotingResults(data.gameInfo.votingResults || {});
         setShootingResults(data.gameInfo.shootingResults || {});
         setDonResults(data.gameInfo.donResults || {});
@@ -850,6 +882,7 @@ else saveResult(candidates.map((c) => c.playerId));
         setBadgeColor(data.badgeColor || 'red');
         setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
         setLocation(data.location || '');
+        setTableNumber(data.gameInfo.tableNumber || '');
         setLoading(false);
         console.log("Данные игры загружены из localStorage.");
         return;
@@ -869,13 +902,14 @@ else saveResult(candidates.map((c) => c.playerId));
         throw new Error(`Ошибка загрузки: ${response.status}`);
       }
       const data = await response.json();
-      if (data.players) setPlayers(data.players);
+      if (data.players) setPlayers(processLoadedPlayers(data.players));
       if (data.gameInfo) {
         setVotingResults(data.gameInfo.votingResults || {});
         setShootingResults(data.gameInfo.shootingResults || {});
         setDonResults(data.gameInfo.donResults || {});
         setSheriffResults(data.gameInfo.sheriffResults || {});
         setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
+        setTableNumber(data.gameInfo.tableNumber || '');
       }
       if (data.currentDay) setCurrentDay(data.currentDay);
       if (data.currentPhase) setCurrentPhase(data.currentPhase);
@@ -897,18 +931,6 @@ else saveResult(candidates.map((c) => c.playerId));
 
   const clearSavedData = () => {
     localStorage.removeItem(getLocalStorageKey());
-    setPlayers(
-      Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        name: '',
-        fouls: 0,
-        best_move: '',
-        role: 'мирный',
-        plus: 2.5,
-        sk: 0,
-        jk: 0,
-      }))
-    );
     bootstrapEmptyGame();
     showMessage("Сохраненные данные для этой игры очищены.");
   };
@@ -935,19 +957,21 @@ else saveResult(candidates.map((c) => c.playerId));
     const dataToSave = {
       gameId,
       eventId,
-      players,
+      players: players.map(p => ({...p, id: p.userId || p.id })), // Отправляем обратно ID пользователя
       fouls: players.map(({ id, fouls }) => ({ playerId: id, fouls })),
       gameInfo: { 
         votingResults, 
         shootingResults, 
         donResults, 
         sheriffResults,
-        judgeNickname 
+        judgeNickname,
+        tableNumber: tableNumber ? parseInt(tableNumber, 10) : null,
       },
       currentDay,
       currentPhase,
       badgeColor,
       location,
+      tableNumber: tableNumber ? parseInt(tableNumber, 10) : null,
     };
 
     try {
@@ -965,7 +989,8 @@ else saveResult(candidates.map((c) => c.playerId));
         showMessage(result.message);
         localStorage.removeItem(getLocalStorageKey());
         clearRatingPageCache();
-        setTimeout(() => navigate('/rating', { state: { defaultTab: 'Игры' } }), 500);
+        const targetUrl = eventId && eventId !== '1' ? `/Event/${eventId}` : '/rating';
+        setTimeout(() => navigate(targetUrl, { state: { defaultTab: 'Игры' } }), 500);
       } else {
         let errorMsg = 'Неизвестная ошибка';
         if (response.status === 403) {
@@ -1057,6 +1082,16 @@ else saveResult(candidates.map((c) => c.playerId));
                 className={styles.judgeInput}
               />
             </div>
+            <div className={styles.judgeInputContainer}>
+              <input
+                type="number"
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                placeholder="Стол №"
+                disabled={isPenaltyTime || !isAdmin}
+                className={styles.judgeInput}
+              />
+            </div>
             <div className={styles.locationContainer}>
                 <RoleDropdown
                     value={location || "Локация"}
@@ -1105,7 +1140,7 @@ else saveResult(candidates.map((c) => c.playerId));
             </tr>
           </thead>
           <tbody>
-            {players.map((player) => (
+            {players.map((player, i) => (
               <tr key={player.id}>
                 <td
                   className={styles.numberCell}

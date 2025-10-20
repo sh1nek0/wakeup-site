@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
-import RoleIcon from '../RoleIcon/RoleIcon';
 import { useDebounce } from '../useDebounce';
+import GameCard from '../components/GameCard/GameCard';
 
 const tabs = ['Общий рейтинг', 'Игры', 'Статистика'];
 
@@ -172,7 +173,6 @@ export default function RatingPage() {
     }
   };
 
-  // --- ИЗМЕНЕНИЕ: Убрана проверка isAuthenticated ---
   useEffect(() => {
     if (activeTab === 'Общий рейтинг') {
         fetchPlayers(currentPage);
@@ -483,131 +483,16 @@ export default function RatingPage() {
                 >
                   {paginatedGames.map((game, idx) => {
                     const gameNumber = totalGamesCount - ((gamesCurrentPage - 1) * gamesPerPage) - idx;
-                    const rows = Array.from(
-                      { length: 10 },
-                      (_, i) => game.players?.[i] || {}
-                    );
-                    
-                    let locationColorClass = '';
-                    if (game.location === 'МФТИ') {
-                        locationColorClass = styles.locMIPT;
-                    } else if (game.location === 'МИЭТ') {
-                        locationColorClass = styles.locMIET;
-                    }
-
-                    let resultColorClass = '';
-                    if (game.badgeColor === 'red') {
-                        resultColorClass = styles.resRed;
-                    } else if (game.badgeColor === 'black') {
-                        resultColorClass = styles.resBlack;
-                    } else {
-                        resultColorClass = styles.resGray;
-                    }
-
                     return (
-                      <article key={game.id} className={styles.sheetCard}>
-                        <div className={styles.sheetMeta}>
-                            <div className={`${styles.sheetLocation} ${locationColorClass}`}>
-                                {game.location || ''}
-                            </div>
-                            <div className={styles.sheetJudge}>
-                                {game.judge_id ? (
-                                    <span className={styles.clickableName} onClick={() => handlePlayerClick(game.judge_id)}>
-                                        {game.judge_nickname || 'Не указан'}
-                                    </span>
-                                ) : (
-                                    game.judge_nickname || 'Не указан'
-                                )}
-                            </div>
-                        </div>
-                        <div className={styles.sheetTop}>
-                          <span className={styles.sheetTitle}>
-                            Игра #{gameNumber}
-                          </span>
-                          <div
-                            className={`${styles.sheetSlashTop} ${locationColorClass}`}
-                            aria-hidden="true"
-                          />
-                          <time className={styles.sheetDate}>
-                            {game.date || ''}
-                          </time>
-                        </div>
-
-                        <div className={styles.sheetTableWrap}>
-                          <table className={styles.sheetTable}>
-                            <thead>
-                              <tr>
-                                <th>№</th>
-                                <th>Игрок</th>
-                                <th>Роль</th>
-                                <th>Очки</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {rows.map((row, i) => (
-                                <tr
-                                  key={`${game.id}-${i}`}
-                                  className={
-                                    row.best_move ? styles.eliminatedRow : ''
-                                  }
-                                >
-                                  <td>{i + 1}</td>
-                                  <td className={styles.nameP}>
-                                    <span className={styles.clickableNameInTable} onClick={() => handlePlayerClick(row.id)}>
-                                      {row.name ?? row.nickname ?? ''}
-                                    </span>
-                                  </td>
-                                  <td><RoleIcon role={row.role ?? row.role_name ?? ''} /></td>
-                                  <td>
-                                    {row.points?.toFixed(2) ?? ''}
-                                    {row.best_move && (
-                                      <span className={styles.bestMoveText}>
-                                        {' '}
-                                        (ЛХ: {row.best_move})
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <div className={styles.sheetBottom}>
-                          <span className={styles.sheetBottomLeft}>
-                            Результат
-                          </span>
-                          <div
-                            className={`${styles.sheetSlashBottom} ${resultColorClass}`}
-                            aria-hidden="true"
-                          />
-                          <span className={styles.sheetBottomRight}>
-                            {game.badgeColor === 'red' ? 'Победа мирных' : game.badgeColor === 'black' ? 'Победа мафии' : 'Ничья'}
-                          </span>
-                        </div>
-
-                        {isAdmin && (
-                          <div className={styles.sheetActions}>
-                            <button
-                              onClick={() => navigate(`/Event/${game.event_id || '1'}/Game/${game.id}`)}
-                              className={styles.sheetEditBtn}
-                              type="button"
-                              aria-label={`Редактировать игру ${gameNumber}`}
-                            >
-                              Редактировать
-                            </button>
-                            <button
-                              onClick={() => handleDeleteGame(game.id)}
-                              className={styles.sheetDeleteBtn}
-                              type="button"
-                              aria-label={`Удалить игру ${gameNumber}`}
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? '...' : 'Удалить'}
-                            </button>
-                          </div>
-                        )}
-                      </article>
+                      <GameCard
+                        key={game.id}
+                        game={game}
+                        gameNumber={gameNumber}
+                        isAdmin={isAdmin}
+                        onDelete={handleDeleteGame}
+                        onEdit={(gameId, eventId) => navigate(`/Event/${eventId || '1'}/Game/${gameId}`)}
+                        onPlayerClick={handlePlayerClick}
+                      />
                     );
                   })}
                 </section>

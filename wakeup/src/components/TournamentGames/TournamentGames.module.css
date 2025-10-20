@@ -1,0 +1,26 @@
+
+.roundsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.roundGroup {
+    /* Стили для контейнера одного раунда */
+}
+
+.roundTitle {
+    font-size: 24px;
+    font-weight: 700;
+    color: #bdbdbd; /* var(--muted) */
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #3c3c3c; /* var(--line) */
+}
+
+.gamesGridSheet {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+}
+

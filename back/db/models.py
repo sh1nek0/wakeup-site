@@ -24,8 +24,9 @@ class Game(Base):
     __tablename__ = "games"
     gameId = Column(String, primary_key=True, index=True)
     data = Column(Text)
-    event_id = Column(String, index=True)
+    event_id = Column(String, ForeignKey("events.id"), index=True) # --- ИЗМЕНЕНИЕ: Добавлен ForeignKey ---
     created_at = Column(DateTime, default=datetime.utcnow)
+    event = relationship("Event", backref="games") # --- ИЗМЕНЕНИЕ: Добавлена связь ---
 
 class Event(Base):
     __tablename__ = "events"
@@ -45,6 +46,9 @@ class Event(Base):
     org_role = Column(String, default="Организатор")
     org_avatar = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # --- НОВЫЕ ПОЛЯ ---
+    games_are_hidden = Column(Boolean, default=False, nullable=False)
+    seating_exclusions = Column(Text, nullable=True) # JSON-строка со списком никнеймов
 
 class Team(Base):
     __tablename__ = "teams"

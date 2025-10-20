@@ -1,7 +1,9 @@
+
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
 import { AuthContext } from "../AuthContext";
-import { useLocation, useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate, NavLink } from "react-router-dom";
+import TournamentGames from "../components/TournamentGames/TournamentGames";
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
@@ -14,7 +16,8 @@ const stubAvatar =
   );
 
 export default function Game() {
-  const { isAdmin, user, token, isAuthenticated } = useContext(AuthContext) ?? {};
+  const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
+  const isAdmin = user?.role === 'admin';
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,15 +49,12 @@ export default function Game() {
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
   const [userRegistrationStatus, setUserRegistrationStatus] = useState('none');
   
-  const [detailedStatsData, setDetailedStatsData] = useState([]);
-  const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
-  const [detailedStatsTotalPages, setDetailedStatsTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const [detailedStatsItemsPerPage] = useState(10);
-  const [selectedEventId, setSelectedEventId] = useState(eventId || 'all');
-  const [detailedStatsError, setDetailedStatsError] = useState(null);
-  const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
+  const [numRounds, setNumRounds] = useState(8);
+  const [numTables, setNumTables] = useState(1);
+  const [exclusionsText, setExclusionsText] = useState("");
+
   
   const fetchEventData = async () => {
     if (!eventId) return;
@@ -73,6 +73,7 @@ export default function Game() {
       setTeams(data.teams || []);
       setPendingRegistrations(data.pending_registrations || []);
       setUserRegistrationStatus(data.user_registration_status || 'none');
+      setExclusionsText(data.seating_exclusions || "");
     } catch (err) {
       console.error("Ошибка:", err);
     } finally {
@@ -83,35 +84,6 @@ export default function Game() {
   useEffect(() => {
     fetchEventData();
   }, [eventId, token]);
-
-  useEffect(() => {
-    const fetchDetailedStats = async () => {
-      setDetailedStatsLoading(true);
-      setDetailedStatsError(null);
-      try {
-        const res = await fetch(
-          `/api/getDetailedStats?limit=999` +
-          (selectedEventId !== 'all' ? `&event_id=${selectedEventId}` : ''),
-          { headers: { 'Cache-Control': 'no-cache' } }
-        );
-        if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
-        const data = await res.json();
-        if (data && Array.isArray(data.players)) {
-          setDetailedStatsData(data.players);
-          setDetailedStatsTotalPages(Math.ceil(data.players.length / detailedStatsItemsPerPage));
-          setDetailedStatsCurrentPage(1);
-        } else {
-          throw new Error('Некорректная структура ответа (players)');
-        }
-      } catch (e) {
-        setDetailedStatsError(e.message);
-        setDetailedStatsData([]);
-      } finally {
-        setDetailedStatsLoading(false);
-      }
-    };
-    fetchDetailedStats();
-  }, [selectedEventId, detailedStatsItemsPerPage]);
 
   const teamSize = useMemo(() => {
     if (tournament.type === "pair") return 2;
@@ -216,18 +188,87 @@ export default function Game() {
       showMessage(`Ошибка: ${error.message}`, true);
     }
   };
+  
+  const handleSetupGames = async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await fetch(`/api/events/${eventId}/setup_games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ num_rounds: numRounds, num_tables: numTables }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Ошибка создания сетки");
+      showMessage(data.message);
+      fetchEventData();
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+  };
 
-  const PAGE_SIZE = 10;
-  const handleDetailedStatsPageChange = (p) =>
-    setDetailedStatsCurrentPage(
-      Math.min(Math.max(1, p), detailedStatsTotalPages)
-    );
+  const handleGenerateSeating = async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await fetch(`/api/events/${eventId}/generate_seating`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ exclusions_text: exclusionsText }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Ошибка генерации рассадки");
+      showMessage(data.message);
+      fetchEventData();
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+  };
 
-  const tabs = ["Игры", "Личный зачёт"];
-  if (tournament.type !== "solo") {
-    tabs.push("Командный зачёт");
-  }
-  const [activeTab, setActiveTab] = useState(1);
+  const handleToggleVisibility = async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await fetch(`/api/events/${eventId}/toggle_visibility`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Ошибка");
+      showMessage(data.message);
+      setTournament(prev => ({ ...prev, games_are_hidden: data.games_are_hidden }));
+    } catch (error) {
+      showMessage(error.message, true);
+    }
+  };
+
+  const handleDeleteGame = async (gameId) => {
+    if (!isAdmin || !window.confirm(`Вы уверены, что хотите удалить игру ${gameId}?`)) return;
+    try {
+      const res = await fetch(`/api/deleteGame/${gameId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Ошибка удаления');
+      }
+      showMessage('Игра успешно удалена.');
+      fetchEventData(); // Обновляем список игр
+    } catch (err) {
+      showMessage(err.message, true);
+    }
+  };
+
+  const handleCreateSingleGame = async () => {
+    if (!isAdmin) return;
+    const round = prompt("Введите номер раунда:");
+    const table = prompt("Введите номер стола:");
+    if (!round || !table || isNaN(parseInt(round)) || isNaN(parseInt(table))) {
+      showMessage("Некорректный номер раунда или стола.", true);
+      return;
+    }
+    const gameId = `${eventId}_r${round}_t${table}`;
+    navigate(`/Event/${eventId}/Game/${gameId}`);
+  };
+
 
   if (loading) {
     return <div>Загрузка...</div>;
@@ -251,7 +292,6 @@ export default function Game() {
     isRegButtonDisabled = true;
   }
 
-  // --- ИЗМЕНЕНИЕ: Упрощенная логика для отображения кнопки ---
   const canManageTeam = (team) => {
     if (!user) return false;
     if (isAdmin) return true;
@@ -328,6 +368,50 @@ export default function Game() {
           </div>
         </aside>
       </div>
+
+      {isAdmin && (
+        <section className={styles.adminPanel}>
+          <h2 className={styles.h2}>Панель администратора</h2>
+          <div className={styles.adminGrid}>
+            <div className={styles.adminForm}>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>Количество раундов</label>
+                <input type="number" className={styles.input} value={numRounds} onChange={e => setNumRounds(e.target.value)} />
+              </div>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>Количество столов</label>
+                <input type="number" className={styles.input} value={numTables} onChange={e => setNumTables(e.target.value)} />
+              </div>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>Исключения рассадки (каждая пара с новой строки)</label>
+                <textarea className={styles.textarea} value={exclusionsText} onChange={e => setExclusionsText(e.target.value)} placeholder="Player1, Player2&#10;Player3, Player4" />
+              </div>
+            </div>
+            <div className={styles.adminActions}>
+              <button onClick={handleSetupGames} className={styles.primaryBtn}>Создать сетку игр</button>
+              <button onClick={handleGenerateSeating} className={styles.primaryBtn}>Сгенерировать рассадку</button>
+              <button onClick={handleCreateSingleGame} className={styles.secondaryBtn}>Создать отдельную игру</button>
+              <button onClick={handleToggleVisibility} className={styles.secondaryBtn}>
+                {tournament.games_are_hidden ? "Показать игры" : "Скрыть игры"}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {(isAdmin || !tournament.games_are_hidden) && tournament.games && tournament.games.length > 0 && (
+        <section className={styles.gamesSection}>
+          <h2 className={styles.h2}>Игры турнира</h2>
+          <TournamentGames
+            games={tournament.games}
+            isAdmin={isAdmin}
+            onDelete={handleDeleteGame}
+            onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
+            onPlayerClick={(playerId) => navigate(`/profile/${playerId}`)}
+          />
+        </section>
+      )}
+
 
       {isAdmin && pendingRegistrations.length > 0 && (
         <section className={styles.adminSection}>
@@ -446,166 +530,6 @@ export default function Game() {
           </div>
         </section>
       )}
-
-      <section className={styles.resultsWrap}>
-        <div className={styles.tabs}>
-          {tabs.map((t, i) => (
-            <button
-              key={t}
-              type="button"
-              className={i === activeTab ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab(i)}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        <div className={styles.tabPanel}>
-          {activeTab === 0 && (
-            <div className={styles.placeholder}>Таблица «Игры» появится здесь</div>
-          )}
-          {activeTab === 1 && (
-            <div className={styles.tableOnly}>
-              {detailedStatsLoading && <div>Загрузка статистики...</div>}
-              {detailedStatsError && <div>Ошибка: {detailedStatsError}</div>}
-              {!detailedStatsLoading && !detailedStatsError && (
-                <DetailedStatsTable
-                  data={detailedStatsData.slice((detailedStatsCurrentPage - 1) * PAGE_SIZE, detailedStatsCurrentPage * PAGE_SIZE)}
-                  currentPage={detailedStatsCurrentPage}
-                  totalPages={detailedStatsTotalPages}
-                  onPageChange={handleDetailedStatsPageChange}
-                  user={user}
-                />
-              )}
-            </div>
-          )}
-          {activeTab === 2 && tournament.type !== "solo" && (
-            <div className={styles.tableWrapper}>
-              <table className={styles.detailedStatsTable} aria-label="Командный зачёт">
-                <thead>
-                  <tr>
-                    <th>Место</th>
-                    <th>{tournament.type === "pair" ? "Пара" : "Команда"}</th>
-                    <th>Очки</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teams.filter(t => t.status === 'approved').length === 0 ? (
-                    <tr><td colSpan={3} style={{ textAlign: "center", color: "#bbb" }}>Нет подтвержденных команд</td></tr>
-                  ) : (
-                    teams.filter(t => t.status === 'approved').map((t, idx) => (
-                      <tr key={t.id}><td>{idx + 1}</td><td>{t.name}</td><td>0</td></tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
     </section>
-  );
-}
-
-function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user }) {
-  const roleCell = (wins = 0, games = 0, plusArr = []) => {
-    const g = games || 0;
-    const w = wins || 0;
-    const pct = g ? Math.round((w / g) * 100) : 0;
-    const sum = (plusArr || []).reduce((a, b) => a + b, 0);
-    const max = (plusArr || []).length ? Math.max(...plusArr) : 0;
-    const tip = `Победы: ${w}/${g} (${pct}%) • Доп: ${sum.toFixed(2)} • Макс: ${max.toFixed(2)}`;
-    return <span title={tip}>{w}/{g} ({pct}%)</span>;
-  };
-
-  const cardsCell = (plusArr = []) => {
-    const total = plusArr.reduce((a, b) => a + b, 0);
-    return <span className={styles.num}>{total.toFixed(2)}</span>;
-  };
-
-  return (
-    <>
-      <div className={styles.tableWrapper}>
-        <table className={styles.detailedStatsTable}>
-          <colgroup>
-            <col className={styles.colRank} />
-            <col className={styles.colPlayer} />
-            <col className={styles.colShort} />
-            <col className={styles.colTiny} />
-            <col className={styles.colTiny} />
-            <col className={styles.colTiny} />
-            <col className={styles.colTiny} />
-            <col className={styles.colShort} />
-            <col className={styles.colTiny} />
-            <col className={styles.colTiny} />
-            <col className={styles.colWide} />
-            <col className={styles.colWide} />
-            <col className={styles.colWide} />
-            <col className={styles.colWide} />
-            <col className={styles.colWide} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th className={`${styles.stickyCol1} ${styles.center}`}>#</th>
-              <th className={styles.stickyCol2}>Игрок</th>
-              <th className={styles.center}>Σ</th>
-              <th className={styles.center}>1🏆</th>
-              <th className={styles.center}>СК</th>
-              <th className={styles.center}>ЖК</th>
-              <th className={styles.center}>ЛХ</th>
-              <th className={styles.center}>Ci</th>
-              <th className={styles.center}>Допы</th>
-              <th className={styles.center}>−</th>
-              <th className={styles.center}>Общая</th>
-              <th className={styles.center}>Шериф</th>
-              <th className={styles.center}>Мирн.</th>
-              <th className={styles.center}>Мафия</th>
-              <th className={styles.center}>Дон</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.isArray(data) &&
-              data.map((p, i) => {
-                const rank = (currentPage - 1) * 10 + i + 1;
-                const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
-                const totalWins = Object.values(p.wins || {}).reduce((a, b) => a + b, 0);
-                const allPlus = Object.values(p.role_plus || {}).flat();
-                return (
-                  <tr key={p.nickname} className={user && p.nickname === user.nickname ? styles.currentUserRow : ""}>
-                    <td className={`${styles.stickyCol1} ${styles.center}`}>{rank}</td>
-                    <td className={styles.stickyCol2}><span className={styles.link}>{p.nickname}</span></td>
-                    <td className={`${styles.num} ${styles.center}`}>{(p.totalPoints ?? 0).toFixed(2)}</td>
-                    <td className={`${styles.num} ${styles.center}`}>{totalWins}</td>
-                    <td className={styles.center}>{cardsCell(p.role_plus?.sk || [])}</td>
-                    <td className={styles.center}>{cardsCell(p.role_plus?.jk || [])}</td>
-                    <td className={styles.center}>{cardsCell(p.role_plus?.red || [])}</td>
-                    <td className={`${styles.num} ${styles.center}`}>0</td>
-                    <td className={`${styles.num} ${styles.center}`}>{(p.bonuses ?? 0).toFixed(2)}</td>
-                    <td className={`${styles.num} ${styles.center}`}>{(p.penalties ?? 0).toFixed(2)}</td>
-                    <td className={styles.center}>{roleCell(totalWins, totalGames, allPlus)}</td>
-                    <td className={styles.center}>{roleCell(p.wins?.red, p.gamesPlayed?.red, p.role_plus?.red)}</td>
-                    <td className={styles.center}>{roleCell(p.wins?.peaceful, p.gamesPlayed?.peaceful, p.role_plus?.peaceful)}</td>
-                    <td className={styles.center}>{roleCell(p.wins?.mafia, p.gamesPlayed?.mafia, p.role_plus?.mafia)}</td>
-                    <td className={styles.center}>{roleCell(p.wins?.don, p.gamesPlayed?.don, p.role_plus?.don)}</td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
-      {totalPages > 0 && (
-        <nav className={`${styles.pagination} ${styles.detailedPagination}`} aria-label="Пейджинг детальной статистики">
-          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className={`${styles.pageBtn} ${styles.pageArrow}`} aria-label="Предыдущая страница" type="button">‹</button>
-          {[...Array(totalPages)].map((_, i) => {
-            const p = i + 1;
-            const isActive = p === currentPage;
-            return (
-              <button key={p} onClick={() => onPageChange(p)} className={`${styles.pageBtn} ${isActive ? styles.pageActive : ""}`} aria-current={isActive ? "page" : undefined} aria-label={`Страница ${p}`} type="button">{p}</button>
-            );
-          })}
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={`${styles.pageBtn} ${styles.pageArrow}`} aria-label="Следующая страница" type="button">›</button>
-        </nav>
-      )}
-    </>
   );
 }

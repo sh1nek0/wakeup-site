@@ -1,3 +1,4 @@
+
 /* wakeup-site/wakeup/src/ProfilePage/ProfilePage.module.css */
 
 /* ProfilePage.module.css  — версия под макет №2 */
@@ -195,69 +196,11 @@ input:focus,select:focus{
 
 
 /* КАРТОЧКИ ИГР */
-.gamesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.gameCard{background:#181818;border:1px solid #2f2f2f;border-radius:10px;overflow:hidden}
-.gameHeader{display:flex;justify-content:space-between;padding:8px 12px;font-weight:700}
-.gameJudge{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding:6px 12px;
-  color:#bfbfbf;
-  font-style:italic
+.gamesGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+  gap:16px
 }
-.gameLocation {
-  font-style: normal;
-  font-weight: 700;
-}
-
-/* Цвета для шапки/подвала */
-.bgRed { background-color: #D32F2F; }
-.bgBlack { background-color: #212121; }
-.bgGray { background-color: #616161; }
-
-.gameTable{width:100%;border-collapse:collapse}
-.gameTable tr{border-bottom:1px solid #2f2f2f; transition: background-color 0.2s ease;}
-
-.gameTable tr:hover {
-  background-color: #3a3a3a;
-}
-
-.gameTable td{padding:6px 10px;font-size:.95rem; vertical-align: middle;}
-
-.highlightedRow {
-  background-color: #4a4a4a !important;
-}
-.highlightedRow td {
-  color: #ef741c;
-}
-.highlightedRow .playerName {
-  font-weight: 900;
-}
-
-.clickableName {
-  cursor: pointer;
-  transition: color 0.2s ease;
-  font-weight: 600;
-  color: #bfbfbf; /* Цвет по умолчанию */
-}
-
-.clickableName:hover {
-  color: #FF7A1A;
-}
-
-.playerNumber{width:28px;text-align:center;color:#a7a7a7}
-.playerName{font-weight:700}
-.playerRole{color:#cfcfcf}
-.playerPoints{
-  text-align:right;
-  font-weight:800;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-}
-
 
 /* АДАПТИВ */
 @media (max-width:1024px){
@@ -423,15 +366,6 @@ input:focus,select:focus{
     padding: 12px 14px;
   }
 
-  .gameCard{
-    margin: 0 auto;
-    max-width: 100%;
-  }
-  .gameTable td{
-    font-size: 0.85rem;
-    padding: 4px 6px;
-  }
-  
   .gameFooter{
     padding: 6px;
     font-size: 13px;

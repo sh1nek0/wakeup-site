@@ -10,6 +10,7 @@ class SaveGameData(BaseModel):
     badgeColor: str = Field(..., description="Цвет бейджа")
     eventId: str = Field(..., description="ID события для привязки")
     location: Optional[str] = Field(None, description="Локация игры")
+    tableNumber: Optional[int] = Field(None, description="Номер стола")
 
 class DeleteGameRequest(BaseModel):
     admin_nickname: str = Field(..., description="Никнейм админа для аутентификации")
@@ -82,6 +83,15 @@ class MarkNotificationsReadRequest(BaseModel):
 
 class TeamActionRequest(BaseModel):
     action: str # "accept" or "decline"
+
+class EventSetupRequest(BaseModel):
+    num_rounds: int = Field(..., gt=0, description="Количество раундов/игр на участника")
+    num_tables: int = Field(..., gt=0, description="Количество параллельных столов")
+
+class GenerateSeatingRequest(BaseModel):
+    exclusions: List[List[str]] = Field([], description="Список пар никнеймов, которых нельзя сажать вместе")
+    exclusions_text: str = Field("", description="Текстовое поле с исключениями")
+
 
 # --- ДОБАВЛЕННАЯ МОДЕЛЬ ---
 class UpdateCredentialsRequest(BaseModel):
