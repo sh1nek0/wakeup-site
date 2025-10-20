@@ -322,22 +322,27 @@
 /* Цвета по ролям */
 .roleCommon {
   color: #ffffff; /* белый / базовый */
+  min-width: 40px;
 }
 
 .roleSheriff {
   color: #ffd700; /* золотисто-жёлтый */
+  min-width: 40px;
 }
 
 .roleCitizen {
   color: #ff4d4d; /* красный */
+  min-width: 40px;
 }
 
 .roleMafia {
   color: #00e5e5; /* бирюзовый */
+  min-width: 40px;
 }
 
 .roleDon {
   color: #b266ff; /* фиолетовый */
+  min-width: 40px;
 }
 
 .roleHeader {
