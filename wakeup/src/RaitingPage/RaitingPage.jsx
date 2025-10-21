@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
@@ -624,16 +623,8 @@ return (
       <table className={styles.detailedStatsTable}>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Игрок</th>
-            <th>Σ</th>
-            <th>1🏆</th>
-            <th>СК</th>
-            <th>ЖК</th>
-            <th>ЛХ</th>
-            <th>Ci</th>
-            <th>Допы</th>
-            <th>−</th>
+            {/* --- ИЗМЕНЕНИЕ: Добавлена колонка C_b --- */}
+            <th>#</th><th>Игрок</th><th>Σ</th><th>1🏆</th><th>СК</th><th>ЖК</th><th>ЛХ</th><th>Ci</th><th>C_b</th><th>Допы</th><th>−</th>
 
             {/* Заголовки ролей */}
             <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCommon}`}>Общая</th>
@@ -644,7 +635,8 @@ return (
           </tr>
 
           <tr className={styles.subHeaderRow}>
-            <th colSpan="10"></th>
+            {/* --- ИЗМЕНЕНИЕ: Увеличен colspan --- */}
+            <th colSpan="11"></th>
             {/* Подзаголовки для каждой роли */}
             <React.Fragment>
               <th className={styles.roleCommon}>П/И</th>
@@ -721,6 +713,8 @@ return (
                   <td>{(p.total_jk_penalty || 0).toFixed(2)}</td>
                   <td>{p.total_best_move_bonus?.toFixed(2) || 0}</td>
                   <td>{p.total_ci_bonus?.toFixed(2) || 0}</td>
+                  {/* --- ИЗМЕНЕНИЕ: Новая ячейка для C_b --- */}
+                  <td className={styles.cbBonus}>{p.total_cb_bonus?.toFixed(2) || 0}</td>
                   <td>{p.bonuses?.toFixed(2) || 0}</td>
                   <td>{totalPenalties.toFixed(2)}</td>
 

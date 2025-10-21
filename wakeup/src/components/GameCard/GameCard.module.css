@@ -72,7 +72,6 @@
     font-weight: 800;
     font-size: 18px;
     letter-spacing: .2px;
-    /* --- ИЗМЕНЕНИЕ: z-index, чтобы текст был НАД полосой --- */
     position: relative;
     z-index: 2;
 }
@@ -81,7 +80,6 @@
     color: #fff;
     font-weight: 800;
     font-size: 16px;
-    /* --- ИЗМЕНЕНИЕ: z-index, чтобы текст был НАД полосой --- */
     position: relative;
     z-index: 2;
 }
@@ -95,7 +93,6 @@
     background: #757575;
     transform: skewX(-30deg);
     pointer-events: none;
-    /* --- ИЗМЕНЕНИЕ: z-index, чтобы полоса была ПОД текстом --- */
     z-index: 1;
 }
 
@@ -123,9 +120,9 @@
 }
 
 .sheetTable {
-    width: 100%; /* Таблица занимает всю ширину обертки .sheetTableWrap */
+    width: 100%; 
     border-collapse: collapse !important;
-    table-layout: fixed; /* Важно для управления шириной колонок */
+    table-layout: fixed; 
     background-color: rgb(250, 235, 224);
 }
 
@@ -137,22 +134,20 @@
     padding: 10px 12px;
     text-align: left;
     border: 1px solid #1f1f1f !important;
-    /* --- ИЗМЕНЕНИЕ ШИРИНЫ КОЛОНОК --- */
-    /* Ширина колонок задается здесь. table-layout: fixed; обязателен. */
 }
 
 .sheetTable thead th:first-child {
-    width: 40px; /* Ширина колонки "№" */
+    width: 40px; 
     text-align: center;
 }
 
 .sheetTable thead th:nth-child(3) {
-    width: 54px; /* Ширина колонки "Роль" */
+    width: 54px; 
     text-align: center;
 }
 
 .sheetTable thead th:last-child {
-    width: 98px; /* Ширина колонки "Очки" */
+    width: 98px; 
     text-align: left;
 }
 
@@ -160,15 +155,12 @@
     background: transparent;
     color: #111;
     font-size: 14px;
-    /* --- ИЗМЕНЕНИЕ: Уменьшаем padding и убираем fixed height --- */
-    padding: 2px 2px; /* Уменьшен вертикальный отступ */
-    /* height: 44px; -- УБРАНО! Высота теперь зависит от контента и padding */
-    border: 1px solid #ccc !important;
+    padding: 2px 2px; 
+    border: 1px solid #444 !important;
     vertical-align: middle;
     overflow: hidden;
 }
 
-/* Добавляем чередование цветов строк для лучшего соответствия картинке */
 .sheetTable tbody tr:nth-child(even) td {
     background-color: rgba(0,0,0,0.05);
 }
@@ -178,7 +170,6 @@
     text-align: center;
 }
 
-/* --- ИЗМЕНЕНИЕ: Центрируем иконку роли --- */
 .sheetTable tbody td:nth-child(3) {
     text-align: center;
 }
@@ -195,20 +186,22 @@
     color: #FF7A1A;
 }
 
-.eliminatedRow td {
-    background-color: #9b9b9b !important;
-    color: #111 !important;
+/* --- ИЗМЕНЕНИЕ: Стили для выделения строк --- */
+/* Красная строка для "сломанного" игрока */
+.brokenPlayerRow td {
+    background-color: #df7685 !important; /* Светло-красный фон */
+}
+
+/* Синяя строка для игрока с ЛХ (не сломанного) */
+.bestMoveRow td {
+    background-color: #94b2c7 !important; /* Светло-синий фон */
 }
 
 .bestMoveText {
     font-size: 0.8em;
-    color: #555;
+    color: #1d1d1d;
     margin-left: 4px;
     font-style: italic;
-}
-
-.eliminatedRow .bestMoveText {
-    color: #222 !important;
 }
 
 .sheetBottom {
@@ -226,7 +219,6 @@
     color: #fff;
     font-weight: 800;
     font-size: 16px;
-    /* --- ИЗМЕНЕНИЕ: z-index, чтобы текст был НАД полосой --- */
     position: relative;
     z-index: 2;
 }
@@ -239,7 +231,6 @@
     height: 100%;
     transform: skewX(-30deg);
     pointer-events: none;
-    /* --- ИЗМЕНЕНИЕ: z-index, чтобы полоса была ПОД текстом --- */
     z-index: 1;
 }
 

@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -24,25 +25,63 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     elif data.badgeColor == "black":
         winning_roles = ["мафия", "дон"]
 
+    # --- ИЗМЕНЕНИЕ: Логика полностью опирается на breakdownPlayerNumber ---
+    game_info = data.gameInfo
+    breakdown_source = game_info.get("breakdownSource", "none")
+    breakdown_player_number = game_info.get("breakdownPlayerNumber") # Это ID игрока, в которого сломали
+
     for player in data.players:
         role = player.get("role", "").lower()
         best_move_string = player.get("best_move", "")
         
         best_move_bonus = 0
-        if role not in ["мафия", "дон"] and best_move_string:
+        cb_bonus = 0
+
+        # Является ли этот игрок "сломанным"
+        is_broken_player = (
+            breakdown_source != 'none' and
+            breakdown_player_number is not None and
+            player.get("id") == breakdown_player_number
+        )
+
+        if is_broken_player:
             best_move_numbers = parse_best_move(best_move_string)
             black_players_in_best_move = {p_num for p_num in best_move_numbers if player_roles.get(p_num) in ["мафия", "дон"]}
             count_black = len(black_players_in_best_move)
-            if count_black == 3:
-                best_move_bonus = 1.0
-            elif count_black == 2:
-                best_move_bonus = 0.5
-        
-        player["best_move_bonus"] = best_move_bonus
-        team_win_bonus = 2.5 if role in winning_roles else 0
-        player["sum"] = player.get("plus", 0) + best_move_bonus + team_win_bonus
 
-    game_info = data.gameInfo
+            if role in ["мирный", "шериф"]:
+                if breakdown_source == 'black':
+                    if count_black > 0: cb_bonus = 0.5
+                    if count_black == 2: best_move_bonus = 0.5
+                    elif count_black == 3: best_move_bonus = 1.0
+                
+                elif breakdown_source == 'red':
+                    cb_bonus = 0.5
+                    if count_black == 1: best_move_bonus = 0.5
+                    elif count_black == 2: best_move_bonus = 1.0
+                    elif count_black == 3: best_move_bonus = 1.5
+            
+            elif role in ["мафия", "дон"]:
+                cb_bonus = 0.5
+        
+        # Логика для C_i (игроки с ЛХ, которые не являются "сломанными")
+        elif best_move_string and not is_broken_player:
+            if role in ["мирный", "шериф"]:
+                best_move_numbers = parse_best_move(best_move_string)
+                black_players_in_best_move = {p_num for p_num in best_move_numbers if player_roles.get(p_num) in ["мафия", "дон"]}
+                count_black = len(black_players_in_best_move)
+                if count_black == 2:
+                    best_move_bonus = 0.5
+                elif count_black == 3:
+                    best_move_bonus = 1.0
+
+        player["best_move_bonus"] = best_move_bonus
+        player["cb_bonus"] = cb_bonus
+        
+        team_win_bonus = 2.5 if role in winning_roles else 0
+        
+        player["sum"] = player.get("plus", 0) + best_move_bonus + cb_bonus + team_win_bonus
+
     existing_game = db.query(Game).filter(Game.gameId == data.gameId).first()
 
     if existing_game:
@@ -53,7 +92,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     elif not game_info.get("judgeNickname"):
         game_info["judgeNickname"] = current_user.nickname
 
-    # --- ИЗМЕНЕНИЕ: Добавляем номер стола в gameInfo ---
     if data.tableNumber is not None:
         game_info["tableNumber"] = data.tableNumber
 
@@ -108,17 +146,14 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     user_id_map = {user.nickname: user.id for user in all_users}
 
     base_query = db.query(Game)
-    # --- ИЗМЕНЕНИЕ: Фильтрация игр для рейтинга (не должны быть привязаны к событию) ---
     if event_id and event_id != 'all':
         base_query = base_query.filter(Game.event_id == event_id)
     else:
-        # Показываем только игры без event_id или с event_id='1' (старый формат)
         base_query = base_query.filter(or_(Game.event_id.is_(None), Game.event_id == '1'))
 
 
     all_games_for_calc = base_query.order_by(Game.created_at.asc()).all()
     
-    # --- ИЗМЕНЕНИЕ: Фильтруем только "сыгранные" игры (у которых есть результат) ---
     played_games_for_calc = []
     for game in all_games_for_calc:
         try:
@@ -132,7 +167,6 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     dynamic_penalties = calculate_dynamic_penalties(played_games_for_calc)
 
     total_count = len(played_games_for_calc)
-    # Пагинация по отфильтрованному и отсортированному списку
     paginated_games = sorted(played_games_for_calc, key=lambda g: g.created_at, reverse=True)[offset:offset+limit]
     
     games_list = []
@@ -169,6 +203,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
             "judge_id": user_id_map.get(judge_nickname),
             "location": data.get("location"),
             "tableNumber": game_info.get("tableNumber"),
+            "gameInfo": game_info,
         })
 
     return {"games": games_list, "total_count": total_count}
@@ -178,7 +213,6 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
     all_users = db.query(User).all()
     user_id_map = {user.nickname: user.id for user in all_users}
 
-    # --- ИЗМЕНЕНИЕ: Фильтруем только рейтинговые игры ---
     all_games_for_calc = db.query(Game).filter(or_(Game.event_id.is_(None), Game.event_id == '1')).order_by(Game.created_at.asc()).all()
     ci_bonuses = calculate_ci_bonuses(all_games_for_calc)
     dynamic_penalties = calculate_dynamic_penalties(all_games_for_calc)

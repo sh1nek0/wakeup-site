@@ -6,16 +6,12 @@ import { useNavigate } from 'react-router-dom';
 function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }) {
     const navigate = useNavigate();
     
-    // Определяем номер стола из разных возможных полей
     const tableNumber = game.tableNumber;
     
-    // Гарантируем, что у нас всегда 10 строк
     const rows = Array.from({ length: 10 }, (_, i) => game.players?.[i] || {});
     
-    // Форматируем дату
     const gameDate = game.date || (game.created_at ? new Date(game.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 
-    // Определяем классы для цвета результата и локации
     let resultColorClass = '';
     if (game.badgeColor === 'red') resultColorClass = styles.resRed;
     else if (game.badgeColor === 'black') resultColorClass = styles.resBlack;
@@ -25,10 +21,12 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
     if (game.location === 'МФТИ') locationColorClass = styles.locMIPT;
     else if (game.location === 'МИЭТ') locationColorClass = styles.locMIET;
 
-    // --- ИЗМЕНЕНИЕ: Формируем заголовок игры ---
     const title = game.roundNumber 
         ? `Раунд ${game.roundNumber} (Стол: ${game.tableNumber})`
         : `Игра #${gameNumber || game.id.slice(-4)}`;
+
+    const breakdownSource = game.gameInfo?.breakdownSource;
+    const breakdownPlayerNumber = game.gameInfo?.breakdownPlayerNumber;
 
     return (
         <article className={styles.sheetCard}>
@@ -37,7 +35,7 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                 {tableNumber ? (
                     <div className={styles.sheetTableNumber}>Стол #{tableNumber}</div>
                 ) : (
-                    <div></div> // Пустой div для сохранения структуры сетки
+                    <div></div>
                 )}
                 <div className={styles.sheetJudge}>
                     {game.judge_id ? (
@@ -60,25 +58,44 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                         <tr><th>№</th><th>Игрок</th><th>Роль</th><th>Очки</th></tr>
                     </thead>
                     <tbody>
-                        {rows.map((row, i) => (
-                            <tr key={`${game.id}-${i}`} className={row.best_move ? styles.eliminatedRow : ''}>
-                                <td>{i + 1}</td>
-                                <td className={styles.nameP}>
-                                    <span className={styles.clickableNameInTable} onClick={() => onPlayerClick(row.id)}>
-                                        {row.name || ''}
-                                    </span>
-                                </td>
-                                <td><RoleIcon role={row.role || ''} /></td>
-                                <td>
-                                    {typeof row.points === 'number' ? row.points.toFixed(2) : (typeof row.sum === 'number' ? row.sum.toFixed(2) : '')}
-                                    {row.best_move && (
-                                        <span className={styles.bestMoveText}>
-                                            {' '}(ЛХ: {row.best_move})
+                        {rows.map((row, i) => {
+                            const playerNumber = i + 1;
+                            const hasBestMove = row.best_move && String(row.best_move).trim() !== '';
+                            
+                            let rowClass = '';
+
+                            const isBrokenPlayer = 
+                                (breakdownSource === 'red' || breakdownSource === 'black') &&
+                                breakdownPlayerNumber === playerNumber;
+
+                            const isBestMoveNotBroken = hasBestMove && !isBrokenPlayer;
+
+                            if (isBrokenPlayer) {
+                                rowClass = styles.brokenPlayerRow;
+                            } else if (isBestMoveNotBroken) {
+                                rowClass = styles.bestMoveRow;
+                            }
+
+                            return (
+                                <tr key={`${game.id}-${i}`} className={rowClass}>
+                                    <td>{i + 1}</td>
+                                    <td className={styles.nameP}>
+                                        <span className={styles.clickableNameInTable} onClick={() => onPlayerClick(row.id)}>
+                                            {row.name || ''}
                                         </span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td><RoleIcon role={row.role || ''} /></td>
+                                    <td>
+                                        {typeof row.points === 'number' ? row.points.toFixed(2) : (typeof row.sum === 'number' ? row.sum.toFixed(2) : '')}
+                                        {row.best_move && (
+                                            <span className={styles.bestMoveText}>
+                                                {' '}(ЛХ: {row.best_move})
+                                            </span>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -90,7 +107,6 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                 </span>
             </div>
             <div className={styles.sheetActions}>
-                {/* --- ИЗМЕНЕНИЕ: Кнопка "Посмотреть" теперь добавляет ?mode=view --- */}
                 <button onClick={() => navigate(`/Event/${game.event_id || '1'}/Game/${game.id}?mode=view`)} className={styles.sheetViewBtn}>Посмотреть</button>
                 {isAdmin && (
                     <>

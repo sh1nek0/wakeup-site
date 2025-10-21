@@ -117,11 +117,9 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
 async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
     return get_player_suggestions_logic(query, db)
 
-# --- ИЗМЕНЕНИЕ: Добавлен подсчет игр по локациям ---
 @router.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"), offset: int = Query(0, description="Смещение для пагинации"), db: Session = Depends(get_db)):
     logger = logging.getLogger("uvicorn.error")
-    # --- ИЗМЕНЕНИЕ: Фильтруем только рейтинговые игры ---
     games = db.query(Game).filter(or_(Game.event_id.is_(None), Game.event_id == '1')).order_by(Game.created_at.asc()).all()
     raw_users = db.query(User).all()
     users = {u.nickname: u for u in raw_users if u.nickname}
@@ -178,8 +176,6 @@ async def get_rating(limit: int = Query(10, description="Количество э
     rating.sort(key=lambda x: x["rating_score"], reverse=True)
     return {"players": rating[offset: offset + limit], "total_count": len(rating)}
 
-# ... (остальной код файла без изменений до конца)
-
 @router.get("/getDetailedStats")
 async def get_detailed_stats(
     limit: int = Query(200, description="Количество игроков на странице"),
@@ -191,7 +187,6 @@ async def get_detailed_stats(
     user_map = {p.nickname: p for p in users}
     
     games_query = db.query(Game)
-    # --- ИЗМЕНЕНИЕ: Фильтруем только рейтинговые игры ---
     if event_id and event_id != 'all':
         games_query = games_query.filter(Game.event_id == event_id)
     else:
@@ -219,6 +214,7 @@ async def get_detailed_stats(
                 plus = player.get("plus", 0)
                 base_sum = player.get("sum", 0)
                 best_move_bonus = player.get("best_move_bonus", 0)
+                cb_bonus = player.get("cb_bonus", 0) # --- ИЗМЕНЕНИЕ: Получаем C_b бонус
                 
                 ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
                 penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
@@ -234,7 +230,8 @@ async def get_detailed_stats(
                         "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0},
                         "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
                         "total_jk": 0, "total_sk": 0,
-                        "successful_best_moves": 0, "total_best_move_bonus": 0, "total_ci_bonus": 0
+                        "successful_best_moves": 0, "total_best_move_bonus": 0, "total_ci_bonus": 0,
+                        "total_cb_bonus": 0, # --- ИЗМЕНЕНИЕ: Добавляем счетчик C_b
                     }
 
                 stats = player_stats[name]
@@ -246,6 +243,7 @@ async def get_detailed_stats(
                 stats["total_sk"] += player.get("sk", 0)
                 stats["total_best_move_bonus"] += best_move_bonus
                 stats["total_ci_bonus"] += ci_bonus
+                stats["total_cb_bonus"] += cb_bonus # --- ИЗМЕНЕНИЕ: Суммируем C_b
                 if best_move_bonus > 0:
                     stats["successful_best_moves"] += 1
 
@@ -393,13 +391,11 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
     if not user_to_update:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    # 1. Проверяем текущий пароль
     if not verify_password(request.current_password, user_to_update.hashed_password):
         raise HTTPException(status_code=400, detail="Неверный текущий пароль")
 
     token_needs_refresh = False
     
-    # 2. Обновляем никнейм, если он предоставлен
     if request.new_nickname and request.new_nickname != user_to_update.nickname:
         old_nickname = user_to_update.nickname
         new_nickname = request.new_nickname
@@ -411,20 +407,15 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
         user_to_update.nickname = new_nickname
         token_needs_refresh = True
 
-        # --- НАЧАЛО: Логика каскадного обновления ---
-        
-        # Обновление в таблице игр
         all_games = db.query(Game).all()
         for game in all_games:
             try:
                 game_data = json.loads(game.data)
                 is_game_updated = False
-                # Обновляем ник в списке игроков
                 for player in game_data.get("players", []):
                     if player.get("name") == old_nickname:
                         player["name"] = new_nickname
                         is_game_updated = True
-                # Обновляем ник судьи
                 if game_data.get("gameInfo", {}).get("judgeNickname") == old_nickname:
                     game_data["gameInfo"]["judgeNickname"] = new_nickname
                     is_game_updated = True
@@ -432,9 +423,8 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
                 if is_game_updated:
                     game.data = json.dumps(game_data, ensure_ascii=False)
             except (json.JSONDecodeError, TypeError):
-                continue # Пропускаем поврежденные записи
+                continue
 
-        # Обновление в сообщениях уведомлений (более эффективно через SQL)
         db.query(Notification).filter(
             Notification.message.contains(old_nickname)
         ).update(
@@ -442,10 +432,6 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
             synchronize_session=False
         )
         
-        # --- КОНЕЦ: Логика каскадного обновления ---
-
-
-    # 3. Обновляем пароль, если он предоставлен
     if request.new_password:
         user_to_update.hashed_password = get_password_hash(request.new_password)
 
@@ -454,7 +440,6 @@ async def update_credentials(request: UpdateCredentialsRequest, current_user: Us
 
     response_data = {"message": "Данные успешно обновлены"}
 
-    # 4. Если никнейм изменился, нужно сгенерировать новый токен
     if token_needs_refresh:
         new_token = create_access_token(
             data={"sub": user_to_update.nickname, "role": user_to_update.role, "id": user_to_update.id}

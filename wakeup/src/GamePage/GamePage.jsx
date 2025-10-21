@@ -186,18 +186,13 @@ const RoleDropdown = ({ value, onChange, roles, disabled }) => {
   );
 };
 
-const BadgeDropdown = ({ value, onChange, disabled }) => {
+const CustomDropdown = ({ value, onChange, options, disabled, label }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const options = [
-    { label: 'Красные', value: 'red' },
-    { label: 'Черные', value: 'black' },
-    { label: 'Ничья', value: 'drow' },
-  ];
-  const currentLabel = options.find((opt) => opt.value === value)?.label || 'Красные';
+  const currentLabel = options.find(opt => opt.value === value)?.label || options[0].label;
 
-  const handleSelect = (option) => {
+  const handleSelect = (optionValue) => {
     if (disabled) return;
-    onChange(option.value);
+    onChange(optionValue);
     setIsOpen(false);
   };
 
@@ -208,35 +203,21 @@ const BadgeDropdown = ({ value, onChange, disabled }) => {
         onClick={() => !disabled && setIsOpen(!isOpen)}
         style={{ userSelect: 'none', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
         tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setIsOpen(!isOpen);
-          }
-        }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-disabled={disabled}
-        aria-label="Выбор цвета бейджа"
+        aria-label={label}
       >
         {currentLabel}
         <span className={styles.dropdownArrow}>▼</span>
       </div>
-
       {isOpen && !disabled && (
         <div className={styles.roleOptions} role="listbox" tabIndex={-1}>
           {options.map((option) => (
             <div
               key={option.value}
               className={styles.roleOption}
-              onClick={() => handleSelect(option)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleSelect(option);
-                }
-              }}
+              onClick={() => handleSelect(option.value)}
               tabIndex={0}
               role="option"
               aria-selected={value === option.value}
@@ -250,6 +231,17 @@ const BadgeDropdown = ({ value, onChange, disabled }) => {
   );
 };
 
+
+const BadgeDropdown = ({ value, onChange, disabled }) => {
+  const options = [
+    { label: 'Красные', value: 'red' },
+    { label: 'Черные', value: 'black' },
+    { label: 'Ничья', value: 'drow' },
+  ];
+  return <CustomDropdown value={value} onChange={onChange} options={options} disabled={disabled} label="Выбор цвета бейджа" />;
+};
+
+
 /* ================
    ОСНОВНОЙ КОМПОНЕНТ
    ================ */
@@ -257,7 +249,7 @@ const BadgeDropdown = ({ value, onChange, disabled }) => {
 const Game = () => {
   const { gameId, eventId } = useParams();
   const navigate = useNavigate();
-  const { search } = useLocation(); // --- ИЗМЕНЕНИЕ: Получаем query-параметры
+  const { search } = useLocation();
   const [selectedVoteValue, setSelectedVoteValue] = useState(null);
   const [firstVoteValue, setFirstVoteValue] = useState(null);
   const [showSecondRow, setShowSecondRow] = useState(false);
@@ -270,7 +262,6 @@ const Game = () => {
   const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
   const isAdmin = user && user.role === 'admin';
   
-  // --- ИЗМЕНЕНИЕ: Определяем режим "только для чтения" ---
   const queryParams = new URLSearchParams(search);
   const mode = queryParams.get('mode');
   const isReadOnly = !isAdmin || mode === 'view';
@@ -278,7 +269,7 @@ const Game = () => {
   const [players, setPlayers] = useState(
     Array.from({ length: 10 }, (_, i) => ({
       id: i + 1,
-      userId: null, // ID пользователя из БД
+      userId: null,
       name: '',
       fouls: 0,
       best_move: '',
@@ -302,7 +293,6 @@ const Game = () => {
 
  const attemptConnectOBS = async (address, password) => {
   if (!address || !password) {
-    // Если поля пустые, отключаемся
     if (obsRef.current) {
       try {
         await obsRef.current.disconnect();
@@ -315,16 +305,13 @@ const Game = () => {
     return;
   }
 
-  // Отключаемся от предыдущего соединения, если оно существует
   if (obsRef.current) {
     try {
       await obsRef.current.disconnect();
     } catch (err) {
-      // Игнорируем ошибки отключения
     }
   }
 
-  // Убеждаемся, что адрес — полный WebSocket URL
   let fullAddress = address.trim();
   if (!fullAddress.startsWith('ws://') && !fullAddress.startsWith('wss://')) {
     fullAddress = 'ws://' + fullAddress;
@@ -338,7 +325,7 @@ const Game = () => {
     console.log("✅ Подключено к OBS:", fullAddress);
   } catch (err) {
     console.error("Ошибка подключения к OBS:", err);
-    obsRef.current = null; // Сбрасываем ref при ошибке
+    obsRef.current = null;
   }
 };
 
@@ -349,7 +336,6 @@ const Game = () => {
   }
 
   try {
-    // Если не подключено, пытаемся подключиться на основе введенных данных
     if (!obsRef.current.identified) {
       const address = obsAddress;
       const password = obsPassword;
@@ -367,8 +353,6 @@ const Game = () => {
       console.log("✅ Подключено к OBS для переключения сцены:", fullAddress);
     }
 
-    // Используем правильный метод и параметр для OBS Studio 31 (WebSocket 5.x)
-    // Параметр должен быть 'sceneName', а не 'scene-name'
     await obsRef.current.call('SetCurrentProgramScene', { sceneName });
     console.log(`✅ Сцена переключена на "${sceneName}"`);
   } catch (err) {
@@ -376,7 +360,6 @@ const Game = () => {
   }
 };
 
-  // Debounced подключение (чтобы не подключаться при каждом нажатии клавиши)
   useEffect(() => {
     if (connectToOBS.current) {
       clearTimeout(connectToOBS.current);
@@ -384,7 +367,7 @@ const Game = () => {
 
     connectToOBS.current = setTimeout(() => {
       attemptConnectOBS(obsAddress, obsPassword);
-    }, 500); // Debounce на 500ms
+    }, 500);
 
     return () => {
       if (connectToOBS.current) {
@@ -393,7 +376,6 @@ const Game = () => {
     };
   }, [obsAddress, obsPassword]);
 
-  // Cleanup при размонтировании компонента
   useEffect(() => {
     return () => {
       if (obsRef.current) {
@@ -422,6 +404,17 @@ const Game = () => {
   const [judgeNickname, setJudgeNickname] = useState('');
   const [location, setLocation] = useState('');
   const [tableNumber, setTableNumber] = useState('');
+  const [breakdownSource, setBreakdownSource] = useState('none');
+  const [breakdownPlayerNumber, setBreakdownPlayerNumber] = useState('');
+
+  // --- ИЗМЕНЕНИЕ: ГЛАВНЫЙ ФИКС ---
+  // Этот useEffect следит за выбором "Слома" и очищает номер игрока, если выбран "Нет слома".
+  useEffect(() => {
+    if (breakdownSource === 'none') {
+      setBreakdownPlayerNumber('');
+    }
+  }, [breakdownSource]);
+
 
   // показ ролей
   const [visibleRole, setVisibleRole] = useState(true)
@@ -447,8 +440,6 @@ const Game = () => {
   if (isReadOnly) return;
   const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
   const currentIndex = days.indexOf(currentDay);
-
-  // Теперь подключение к OBS происходит автоматически при изменении полей, так что здесь не нужно
 
   if (currentPhase === 'nominating') {
     setCurrentPhase('voting');
@@ -488,7 +479,6 @@ const handleCancelClear = () => {
 setShowConfirmModal(false);
 };
 
-  // Определение живых игроков (не ушли и не умерли)
   const getAlivePlayers = () => {
     const deadNumbers = new Set();
 
@@ -529,7 +519,6 @@ setShowConfirmModal(false);
     const onResize = () => recalcTabHeight();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useLayoutEffect(() => {
@@ -543,7 +532,7 @@ setShowConfirmModal(false);
 
     const dataToSave = {
       players,
-      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname, tableNumber },
+      gameInfo: { votingResults, shootingResults, donResults, sheriffResults, judgeNickname, tableNumber, breakdownSource, breakdownPlayerNumber },
       currentDay,
       currentPhase,
       badgeColor,
@@ -568,6 +557,8 @@ setShowConfirmModal(false);
     judgeNickname,
     location,
     tableNumber,
+    breakdownSource,
+    breakdownPlayerNumber,
     loading,
     isReadOnly
   ]);
@@ -587,9 +578,6 @@ setShowConfirmModal(false);
     }, 5000);
   };
 
-  /* ==========
-     ТАЙМЕР
-     ========== */
   useEffect(() => {
     let interval = null;
     if (isRunning) {
@@ -665,10 +653,6 @@ setShowConfirmModal(false);
     }
   };
 
-
-  /* =================
-     УПРАВЛЕНИЕ ФОРМОЙ
-     ================= */
   const handleNameChange = (id, value) =>
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, name: value } : p)));
   const incrementFouls = (id) => {
@@ -707,9 +691,6 @@ setShowConfirmModal(false);
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, jk: numValue } : p)));
   };
 
-  /* ============================
-     ВЫСТАВЛЕНИЕ/ГОЛОСОВАНИЕ
-     ============================ */
   const handlePlayerNumberClick = (playerId) => {
     if (isReadOnly) return;
     if (!votes.some((v) => v.playerId === playerId)) {
@@ -826,9 +807,6 @@ else saveResult(candidates.map((c) => c.playerId));
     setCurrentPhase('shooting');
   };
 
-  /* =========
-     ФАЗЫ НОЧИ
-     ========= */
   const handlePhaseButtonClick = (value, phase) => {
     if (isReadOnly) return;
     const result = value === 'miss' ? '-' : value.toString();
@@ -847,9 +825,6 @@ else saveResult(candidates.map((c) => c.playerId));
     }
   };
 
-  /* ==========================
-     ЗАГРУЗКА ДАННЫХ ИЗ СЕРВЕРА
-     ========================== */
   const bootstrapEmptyGame = () => {
     setPlayers(
       Array.from({ length: 10 }, (_, i) => ({
@@ -866,6 +841,8 @@ else saveResult(candidates.map((c) => c.playerId));
     setBadgeColor('red');
     setJudgeNickname(user?.nickname || '');
     setTableNumber('');
+    setBreakdownSource('none');
+    setBreakdownPlayerNumber('');
     if (user?.club === 'WakeUp | MIET') {
         setLocation('МИЭТ');
     } else if (user?.club === 'WakeUp | MIPT') {
@@ -887,8 +864,8 @@ else saveResult(candidates.map((c) => c.playerId));
           newPlayers[i] = {
             ...newPlayers[i],
             ...p,
-            id: i + 1, // Всегда используем номер слота как ID
-            userId: p.id, // ID пользователя из БД сохраняем отдельно
+            id: i + 1,
+            userId: p.id,
           };
         }
       });
@@ -915,6 +892,8 @@ else saveResult(candidates.map((c) => c.playerId));
         setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
         setLocation(data.location || '');
         setTableNumber(data.gameInfo.tableNumber || '');
+        setBreakdownSource(data.gameInfo.breakdownSource || 'none');
+        setBreakdownPlayerNumber(data.gameInfo.breakdownPlayerNumber || '');
         setLoading(false);
         console.log("Данные игры загружены из localStorage.");
         return;
@@ -942,6 +921,8 @@ else saveResult(candidates.map((c) => c.playerId));
         setSheriffResults(data.gameInfo.sheriffResults || {});
         setJudgeNickname(data.gameInfo.judgeNickname || user?.nickname || '');
         setTableNumber(data.gameInfo.tableNumber || '');
+        setBreakdownSource(data.gameInfo.breakdownSource || 'none');
+        setBreakdownPlayerNumber(data.gameInfo.breakdownPlayerNumber || '');
       }
       if (data.currentDay) setCurrentDay(data.currentDay);
       if (data.currentPhase) setCurrentPhase(data.currentPhase);
@@ -976,9 +957,6 @@ else saveResult(candidates.map((c) => c.playerId));
     console.log("Кэш страницы рейтинга очищен.");
   };
 
-  /* =======================
-     СОХРАНЕНИЕ НА СЕРВЕРЕ
-     ======================= */
   const handleSave = async () => {
     if (isReadOnly) {
       showMessage('Нельзя сохранить изменения в режиме просмотра.', true);
@@ -989,7 +967,7 @@ else saveResult(candidates.map((c) => c.playerId));
     const dataToSave = {
       gameId,
       eventId,
-      players: players.map(p => ({...p, id: p.userId || p.id })), // Отправляем обратно ID пользователя
+      players: players.map(p => ({...p, id: p.userId || p.id })),
       fouls: players.map(({ id, fouls }) => ({ playerId: id, fouls })),
       gameInfo: { 
         votingResults, 
@@ -998,6 +976,8 @@ else saveResult(candidates.map((c) => c.playerId));
         sheriffResults,
         judgeNickname,
         tableNumber: tableNumber ? parseInt(tableNumber, 10) : null,
+        breakdownSource,
+        breakdownPlayerNumber: breakdownPlayerNumber ? parseInt(breakdownPlayerNumber, 10) : null,
       },
       currentDay,
       currentPhase,
@@ -1042,9 +1022,6 @@ else saveResult(candidates.map((c) => c.playerId));
     }
   };
 
-  /* =========
-     РЕНДЕР
-     ========= */
   if (loading) {
     return <div>Загрузка данных игры...</div>;
   }
@@ -1078,13 +1055,11 @@ else saveResult(candidates.map((c) => c.playerId));
         {isAdmin && (
           <div className={styles.topControlsContainer}>
             <div className={styles.btnWrap}>
-              {/* === 1 РЯД === */}
               <BadgeDropdown
                 value={badgeColor}
                 onChange={setBadgeColor}
                 disabled={isPenaltyTime || isReadOnly}
               />
-
               <button
                 type="button"
                 onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
@@ -1155,6 +1130,29 @@ else saveResult(candidates.map((c) => c.playerId));
                   >
                     Виджет
                   </button>
+
+                  <div className={styles.breakdownControl}>
+                    <CustomDropdown
+                      value={breakdownSource}
+                      onChange={setBreakdownSource}
+                      options={[
+                        { label: 'Нет слома', value: 'none' },
+                        { label: 'От черных', value: 'black' },
+                        { label: 'От красных', value: 'red' },
+                      ]}
+                      disabled={isPenaltyTime || isReadOnly}
+                      label="Источник слома"
+                    />
+                    <span className={styles.breakdownLabel}>в</span>
+                    <input
+                      type="number"
+                      value={breakdownPlayerNumber}
+                      onChange={(e) => setBreakdownPlayerNumber(e.target.value)}
+                      placeholder="№"
+                      disabled={isPenaltyTime || isReadOnly || breakdownSource === 'none'}
+                      className={styles.breakdownInput}
+                    />
+                  </div>
 
                   <div className={styles.obsInputsContainer}>
                     <input

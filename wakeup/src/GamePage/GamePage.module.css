@@ -1,3 +1,4 @@
+
 /* =========================
    Общие стили
    ========================= */
@@ -78,6 +79,47 @@ body {
   background: #555;
   box-shadow: 0 0 0 2px rgba(255, 111, 0, 0.35);
 }
+
+/* --- ИЗМЕНЕНИЕ: Стили для блока управления сломом --- */
+.breakdownControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #444;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 4px 8px;
+  grid-column: span 2; /* Занимает две ячейки грида */
+}
+.breakdownControl .roleDropdown {
+  flex-grow: 1; /* Дропдаун занимает доступное место */
+}
+.breakdownControl .roleDisplay {
+  background: #333;
+  border-color: #444;
+  height: 30px;
+}
+.breakdownLabel {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+.breakdownInput {
+  width: 50px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #fff;
+  text-align: center;
+}
+.breakdownInput:focus {
+  outline: none;
+  border-color: #ff6f00;
+}
+/* --- Конец стилей для слома --- */
+
 
 /* RoleDropdown */
 .locationContainer .roleDropdown {

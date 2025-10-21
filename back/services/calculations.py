@@ -43,6 +43,10 @@ def calculate_ci_bonuses(games: List[Game]) -> dict:
             if not eliminated_player:
                 continue
 
+            # --- ИЗМЕНЕНИЕ: Если за эту игру был начислен C_b, полностью пропускаем ее для C_i ---
+            if eliminated_player.get("cb_bonus", 0) > 0:
+                continue
+
             player_name = eliminated_player.get("name")
             player_role = eliminated_player.get("role", "").lower()
             if not player_name or player_role in ["мафия", "дон"]:
