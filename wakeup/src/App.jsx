@@ -15,6 +15,7 @@ import PlayersTable from "./GamePage/GamePage.jsx";
 import PlayersListPage from "./PlayersListPage/PlayersListPage.jsx";
 import GameWidget from "./gameWidget/gameWidget.jsx";
 import NotificationsPage from "./NotificationsPage/NotificationsPage.jsx";
+import GameResultsTable from './resultWidget/resultWidget.jsx';
 
 // --- AuthContext ---
 export const AuthContext = createContext(null);
@@ -111,9 +112,10 @@ const footerData = {
 export function App() {
   const location = useLocation();
 
-  const hideNavbarAndFooter =
-    location.pathname.startsWith('/Event/') &&
-    location.pathname.endsWith('/gameWidget');
+ const hideNavbarAndFooter =
+  (location.pathname.startsWith('/Event/') && location.pathname.endsWith('/gameWidget')) ||
+  (location.pathname.startsWith('/Event/') && location.pathname.endsWith('/resultWidget'));
+
 
   useEffect(() => {
     document.title = "WakeUp Mafia";
@@ -133,6 +135,7 @@ export function App() {
           <Route path="/Event/:eventId" element={<Game />} />
           <Route path="/Event/:eventId/Game/:gameId" element={<PlayersTable />} />
           <Route path="/Event/:eventId/Game/:gameId/gameWidget" element={<GameWidget />} />
+          <Route path='/Event/:eventId/Game/:gameId/resultWidget' element={<GameResultsTable />} />
           <Route path="/profile/:profileId" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
