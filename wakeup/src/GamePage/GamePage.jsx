@@ -260,7 +260,7 @@ const Game = () => {
   const { search } = useLocation(); // --- ИЗМЕНЕНИЕ: Получаем query-параметры
   const [selectedVoteValue, setSelectedVoteValue] = useState(null);
   const [firstVoteValue, setFirstVoteValue] = useState(null);
-
+  const [showSecondRow, setShowSecondRow] = useState(false);
 
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -1075,84 +1075,112 @@ else saveResult(candidates.map((c) => c.playerId));
           {errorMessage}
         </div>
       )}
-      {isAdmin && (
-      <div className={styles.topControlsContainer}>
-        <div className={styles.btnWrap}>
-          <BadgeDropdown value={badgeColor} onChange={setBadgeColor} disabled={isPenaltyTime || isReadOnly} />
-          <button
-            type="button"
-            onClick={() => !isPenaltyTime && handleClearFormClick()}
-            className={styles.clearBtn}
-            disabled={isPenaltyTime || isReadOnly}
-          >
-            Очистить форму
-          </button>
-          <button
-            type="button"
-            onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
-            disabled={isPenaltyTime || isReadOnly}
-            className={styles.clearBtn}
-          >
-            {!visibleRole ? "Показать роли" : "Скрыть роль"}
-          </button>
-          <button
-            type='button'
-            className={styles.clearBtn}
-            onClick={() => navigate(`/Event/${eventId}/Game/${gameId}/gameWidget`)}
-            >
-              Виджет
-            </button>
-        </div>
         {isAdmin && (
-          <div className={styles.judgeAndLocationContainer}>
-            <div className={styles.judgeInputContainer}>
-              <SuggestionInput
-                value={judgeNickname}
-                onChange={setJudgeNickname}
-                placeholder="Судья"
+          <div className={styles.topControlsContainer}>
+            <div className={styles.btnWrap}>
+              {/* === 1 РЯД === */}
+              <BadgeDropdown
+                value={badgeColor}
+                onChange={setBadgeColor}
                 disabled={isPenaltyTime || isReadOnly}
-                className={styles.judgeInput}
               />
-            </div>
-            <div className={styles.judgeInputContainer}>
-              <input
-                type="number"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="Стол №"
+
+              <button
+                type="button"
+                onClick={() => !isPenaltyTime && setVisibleRole(!visibleRole)}
                 disabled={isPenaltyTime || isReadOnly}
-                className={styles.judgeInput}
-              />
-            </div>
-            <div className={styles.locationContainer}>
-                <RoleDropdown
-                    value={location || "Локация"}
-                    onChange={setLocation}
-                    roles={locations}
-                    disabled={isPenaltyTime || isReadOnly}
+                className={styles.clearBtn}
+              >
+                {!visibleRole ? "Показать роли" : "Скрыть роль"}
+              </button>
+
+              <div className={styles.judgeInputContainer}>
+                <SuggestionInput
+                  value={judgeNickname}
+                  onChange={setJudgeNickname}
+                  placeholder="Судья"
+                  disabled={isPenaltyTime || isReadOnly}
+                  className={styles.judgeInput}
                 />
-            </div>
-            <div className={styles.obsInputsContainer}>
-              <input
-                type="text"
-                value={obsAddress}
-                onChange={(e) => setObsAddress(e.target.value)}
-                placeholder="Адрес OBS (например, ws://127.0.0.1:4455)"
-                disabled={isPenaltyTime || isReadOnly}
-                className={styles.obsInput}
-              />
-              <input
-                type="password"
-                value={obsPassword}
-                onChange={(e) => setObsPassword(e.target.value)}
-                placeholder="Пароль OBS"
-                disabled={isPenaltyTime || isReadOnly}
-                className={styles.obsInput}
-              />
+              </div>
+
+              <div className={styles.locationContainer}>
+                <RoleDropdown
+                  value={location || "Локация"}
+                  onChange={setLocation}
+                  roles={locations}
+                  disabled={isPenaltyTime || isReadOnly}
+                />
+              </div>
+
+              <div className={styles.judgeInputContainer}>
+                <input
+                  type="number"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  placeholder="Стол №"
+                  disabled={isPenaltyTime || isReadOnly}
+                  className={styles.judgeInput}
+                />
+              </div>
+              
+              <button
+                    type="button"
+                    onClick={() => !isPenaltyTime && handleClearFormClick()}
+                    className={styles.clearBtn}
+                    disabled={isPenaltyTime || isReadOnly}
+                  >
+                    Очистить
+                  </button>
+
+              
+              <button
+                type="button"
+                onClick={() => setShowSecondRow((prev) => !prev)}
+                className={styles.clearBtn}
+              >
+             
+                {showSecondRow ? "Скрыть ряд" : "Показать ряд"}
+              </button>
+
+             
+              {showSecondRow && (
+                <>
+                  <button
+                    type="button"
+                    className={styles.clearBtn}
+                    onClick={() =>
+                      navigate(`/Event/${eventId}/Game/${gameId}/gameWidget`)
+                    }
+                  >
+                    Виджет
+                  </button>
+
+                  <div className={styles.obsInputsContainer}>
+                    <input
+                      type="text"
+                      value={obsAddress}
+                      onChange={(e) => setObsAddress(e.target.value)}
+                      placeholder="Адрес OBS (ws://127.0.0.1:4455)"
+                      disabled={isPenaltyTime || isReadOnly}
+                      className={styles.obsInput}
+                    />
+                    <input
+                      type="password"
+                      value={obsPassword}
+                      onChange={(e) => setObsPassword(e.target.value)}
+                      placeholder="Пароль OBS"
+                      disabled={isPenaltyTime || isReadOnly}
+                      className={styles.obsInput}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
-      </div>)}
+
+
 
       <div
         className={styles.gameWrapper}
@@ -1168,7 +1196,7 @@ else saveResult(candidates.map((c) => c.playerId));
               <th>Допы</th>
               <th>СК</th>
               <th>ЖК</th>
-              <th>Фолы</th>
+              {!isAdmin &&<th>Фолы</th>}
             </tr>
           </thead>
           <tbody>
@@ -1202,6 +1230,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     onChange={(value) => handleNameChange(player.id, value)}
                     placeholder={`Игрок ${player.id}`}
                     disabled={isPenaltyTime || isReadOnly}
+                    className={styles.nameInput}
                   />
                 </td>
 
@@ -1264,7 +1293,7 @@ else saveResult(candidates.map((c) => c.playerId));
                     aria-label={`ЖК игрока ${player.id}`}
                   />
                 </td>
-                <td>
+                {!isAdmin && (<td>
                   <input
                     type="number"
                     min="0"
@@ -1272,11 +1301,10 @@ else saveResult(candidates.map((c) => c.playerId));
                     step="1"
                     className={styles.numberInput}
                     value={player.fouls}
-                    onChange={(e) => !isPenaltyTime && handleJkChange(player.id, e.target.value)}
                     disabled={isPenaltyTime || isReadOnly}
-                    aria-label={`ЖК игрока ${player.id}`}
+                    aria-label={`Фолы игрока ${player.id}`}
                   />
-                </td>
+                </td>)}
               </tr>
             ))}
           </tbody>

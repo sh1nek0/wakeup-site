@@ -1,185 +1,243 @@
 /* =========================
    Общие стили
    ========================= */
-body{
-  margin:0;
-  padding:0;
-  font-family:'Arial',sans-serif;
-  background:#1f1f1f;
-  color:#fff;
-  line-height:1.6;
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background: transparent;
+  background-color: #1f1f1f;
+  color: #fff;
+  line-height: 1.6;
 }
 
-/* --- ИЗМЕНЕНИЯ: Стили для верхних контролов, судьи и локации --- */
+/* =========================
+   ВЕРХНИЙ БЛОК — 2 ряда по 4 элемента
+   ========================= */
 .topControlsContainer {
   max-width: 1200px;
   margin: 20px auto 0;
   padding: 0 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-}
-
-.btnWrap{
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, 150px);
+  grid-template-rows: repeat(2, auto);
   gap: 10px;
-  align-items: center;
+  align-items: stretch;
 }
 
-.judgeAndLocationContainer {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.judgeInputContainer {
-  position: relative;
-  width: 200px;
-}
-
-.locationContainer .roleDropdown {
-  width: 120px;
-}
-
-.judgeInput {
+/* Все элементы внутри блока */
+.topControlsContainer > * {
   width: 100%;
-  padding: 8px 12px !important;
-  font-size: 0.9rem !important;
-  font-weight: 600 !important;
-  background: #444 !important;
-  border: 1px solid #555 !important;
-  border-radius: 10px !important;
 }
 
-.judgeInput:focus {
-  background: #555 !important;
-  box-shadow: 0 0 0 2px rgba(255, 111, 0, .35) !important;
+/* Кнопки */
+.clearBtn {
+  background: #444;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 2px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  height: 38px;
+  width: 150px;
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ OBS --- */
+.clearBtn:hover {
+  background-color: #555;
+}
+
+/* Дропдаун и BadgeDropdown */
+.btnWrap,
+.judgeAndLocationContainer,
 .obsInputsContainer {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  all: unset;
+  display: contents; /* элементы в общий grid */
 }
 
+/* Инпуты */
+.judgeInput,
 .obsInput {
-  width: 200px;
-  padding: 8px 12px !important;
-  font-size: 0.9rem !important;
-  font-weight: 600 !important;
-  background: #444 !important;
-  border: 1px solid #555 !important;
-  border-radius: 10px !important;
-  color: #fff !important;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #444;
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: #fff;
   outline: none;
   transition: box-shadow 0.2s, background-color 0.2s;
+  height: 38px;
 }
 
+.judgeInput:focus,
 .obsInput:focus {
-  background: #555 !important;
-  box-shadow: 0 0 0 2px rgba(255, 111, 0, .35) !important;
+  background: #555;
+  box-shadow: 0 0 0 2px rgba(255, 111, 0, 0.35);
 }
-/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
 
+/* RoleDropdown */
+.locationContainer .roleDropdown {
+  width: 100%;
+}
+
+/* Адаптив */
+@media (max-width: 900px) {
+  .topControlsContainer {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .topControlsContainer {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* =========================
    Основной контейнер
    ========================= */
-.gameWrapper{
-  max-width:1200px;
-  margin:20px auto 50px;
-  padding:20px;
-  background:#1f1f1f;
-  border-radius:12px;
-  box-shadow:0 6px 18px rgba(0,0,0,.35);
-  display:flex;
-  gap:20px;
+.gameWrapper {
+  max-width: 1200px;
+  margin: 20px auto 50px;
+  padding: 20px;
+  background: #1f1f1f;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  display: flex;
+  gap: 20px;
   position: relative;
 }
 
 /* =========================
    Левая колонка — таблица игроков
    ========================= */
-.playersTable{
-  flex:1;
-  width:100%;
-  border-collapse:separate;
-  border-spacing:0;
-  background:#303030;
-  
-  box-shadow:0 6px 18px rgba(0,0,0,.45);
-  font-size:1rem;
-  color:#fff;
-  user-select:none;
-  display:table;
+.playersTable {
+  flex: 1;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #303030;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  font-size: 1rem;
+  color: #fff;
+  user-select: none;
+  display: table;
   min-height: 800px;
 }
-.playersTable thead{ border-radius:12px 12px 0 0; overflow:hidden; }
-.playersTable tbody{ border-radius:0 0 12px 12px; }
 
-.tableTitle{
-  font-size:1.8rem; font-weight:700; color:#fff; margin-bottom:15px; text-align:center;
+.playersTable thead {
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
 }
 
-.playersTable thead th{
-  background:#ff6f00;
-  color:#1f1f1f;
-  padding:12px 10px;
-  text-align:center;
-  font-weight:700;
-  font-size:1.1rem;
-  border-bottom:2px solid #444;
-  user-select:none;
+.playersTable tbody {
+  border-radius: 0 0 12px 12px;
 }
 
-.playersTable tbody tr{
-  background:transparent;
-  border-bottom:1px solid #444;
-  transition:background-color .3s;
-}
-.playersTable tbody tr:hover{ background:#2b2b2b; }
-
-.playersTable tbody td{
-  padding:6px 8px;
-  text-align:center;
-  vertical-align:middle;
-  color:#fff;
-  font-weight:600;
-  font-size:1rem;
-  border:none;
-  white-space:nowrap;
+.tableTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 15px;
+  text-align: center;
 }
 
-.numberCell{
-  font-weight:700;
-  color:#ff6f00;
-  padding-left:12px;
-  text-align:right;
-  user-select:none;
-  width:30px;
+.playersTable thead th {
+  background: #ff6f00;
+  color: #1f1f1f;
+  padding: 12px 10px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #444;
+  user-select: none;
+}
+
+.playersTable tbody tr {
+  background: transparent;
+  border-bottom: 1px solid #444;
+  transition: background-color .3s;
+}
+
+.playersTable tbody tr:hover {
+  background: #2b2b2b;
+}
+
+.playersTable tbody td {
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  white-space: nowrap;
+}
+
+.numberCell {
+  font-weight: 700;
+  color: #ff6f00;
+  padding-left: 12px;
+  text-align: right;
+  user-select: none;
+  width: 30px;
 }
 
 /* =========================
    Фолы в таблице
    ========================= */
-.foulsCell{
-  display:flex; align-items:center; justify-content:center; gap:6px; width:110px;
+.foulsCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 110px;
 }
-.foulBtn{
-  background:#ff6f00; border:none; color:#1f1f1f; font-weight:700; font-size:1.2rem;
-  width:28px; height:28px; border-radius:6px; cursor:pointer; user-select:none;
-  transition:filter .3s; display:flex; align-items:center; justify-content:center; padding:0; line-height:1;
-}
-.foulBtn:hover{ filter:brightness(1.05); }
 
-.foulsInput{
-  width:40px; text-align:center; font-weight:600; font-size:1rem; color:#fff;
-  background:#303030; border:1.5px solid #ff6f00; border-radius:6px; outline:none;
-  transition:box-shadow .2s, background-color .2s;
+.foulBtn {
+  background: #ff6f00;
+  border: none;
+  color: #1f1f1f;
+  font-weight: 700;
+  font-size: 1.2rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: filter .3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
 }
-.foulsInput:focus{ background:#2b2b2b; box-shadow:0 0 0 2px rgba(255,111,0,.35); }
+
+.foulBtn:hover {
+  filter: brightness(1.05);
+}
+
+.foulsInput {
+  width: 40px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #fff;
+  background: #303030;
+  border: 1.5px solid #ff6f00;
+  border-radius: 6px;
+  outline: none;
+  transition: box-shadow .2s, background-color .2s;
+}
+
+.foulsInput:focus {
+  background: #2b2b2b;
+  box-shadow: 0 0 0 2px rgba(255, 111, 0, .35);
+}
 
 /* =========================
    Поля ввода
@@ -206,7 +264,7 @@ body{
 /* =========================
    Роль (дропдаун)
    ========================= */
-.roleDropdown{ position:relative; width:100px; font-weight:600; font-size:1rem; color:#fff; user-select:none; margin:0 auto; }
+.roleDropdown{ position:relative; width:150px; font-weight:600; font-size:1rem; color:#fff; user-select:none; margin:0 auto; }
 .roleDisplay{
   background:#303030; border:1.5px solid #ff6f00; border-radius:6px; padding:4px 8px;
   cursor:pointer; display:flex; justify-content:space-between; align-items:center;
