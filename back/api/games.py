@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -254,6 +253,7 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
                     "judge_id": user_id_map.get(judge_nickname),
                     "location": data.get("location"),
                     "tableNumber": game_info.get("tableNumber"),
+                    "gameInfo": game_info,  # --- ИЗМЕНЕНИЕ: Добавляем gameInfo в ответ ---
                 })
         except (json.JSONDecodeError, TypeError):
             continue

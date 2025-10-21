@@ -1,12 +1,11 @@
-
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import styles from "./ProfilePage.module.css";
 import { AuthContext } from "../AuthContext";
 import placeholderAvatar from "../images/profile_photo/soon.png";
 import GameCard from "../components/GameCard/GameCard";
 
-const PlayerGames = ({ nickname, games, loading, error }) => {
+const PlayerGames = ({ nickname, games, loading, error, isAdmin, onDelete, onEdit }) => {
   const navigate = useNavigate();
 
   const handlePlayerClick = (playerId) => {
@@ -29,9 +28,9 @@ const PlayerGames = ({ nickname, games, loading, error }) => {
           key={game.id ?? `${nickname}-${index}`}
           game={game}
           gameNumber={totalGames - index}
-          isAdmin={false}
-          onDelete={() => {}}
-          onEdit={() => {}}
+          isAdmin={isAdmin}
+          onDelete={onDelete}
+          onEdit={onEdit}
           onPlayerClick={handlePlayerClick}
         />
       ))}
@@ -58,6 +57,7 @@ const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"]
 const ProfilePage = () => {
   const { user, token, login } = useContext(AuthContext) || {};
   const { profileId } = useParams();
+  const navigate = useNavigate();
 
   const targetUserId = profileId || user?.id;
   const isOwnProfile = useMemo(
@@ -108,6 +108,35 @@ const ProfilePage = () => {
   const [gamesLoading, setGamesLoading] = useState(true);
   const [gamesError, setGamesError] = useState(null);
 
+  const showMessage = (message, isError = false) => {
+    if (isError) {
+      setSaveError(message);
+    } else {
+      setSaveOk(true);
+      // You might want a separate state for success messages if they shouldn't clear saveError
+    }
+    setTimeout(() => {
+      setSaveError(null);
+      setSaveOk(false);
+    }, 4000);
+  };
+
+  const fetchGames = useCallback(async (nickname) => {
+    if (!nickname) return;
+    setGamesLoading(true);
+    setGamesError(null);
+    try {
+      const response = await fetch(`/api/getPlayerGames/${encodeURIComponent(nickname)}`);
+      if (!response.ok) throw new Error("Не удалось загрузить историю игр");
+      const data = await response.json();
+      setPlayerGames(Array.isArray(data?.games) ? data.games : []);
+    } catch (err) {
+      setGamesError(err.message);
+    } finally {
+      setGamesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setActiveTab("profile");
   }, [targetUserId]);
@@ -149,6 +178,9 @@ const ProfilePage = () => {
       }
       const data = await res.json();
       resetProfileData(data);
+      if (data.user?.nickname) {
+        fetchGames(data.user.nickname);
+      }
     } catch (e) {
       setLoadError(e.message);
     } finally {
@@ -158,28 +190,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     fetchProfile();
-  }, [targetUserId]);
-
-  useEffect(() => {
-    if (!profileData.nickname) return;
-
-    const fetchGames = async () => {
-      setGamesLoading(true);
-      setGamesError(null);
-      try {
-        const response = await fetch(`/api/getPlayerGames/${encodeURIComponent(profileData.nickname)}`);
-        if (!response.ok) throw new Error("Не удалось загрузить историю игр");
-        const data = await response.json();
-        setPlayerGames(Array.isArray(data?.games) ? data.games : []);
-      } catch (err) {
-        setGamesError(err.message);
-      } finally {
-        setGamesLoading(false);
-      }
-    };
-
-    fetchGames();
-  }, [profileData.nickname]);
+  }, [targetUserId, fetchGames]);
 
   const playerStats = useMemo(() => {
     const stats = {
@@ -284,7 +295,7 @@ const ProfilePage = () => {
     setSaving(true);
     setSaveError(null);
     setSaveOk(false);
-    window.location.reload();
+    
     try {
       const res = await fetch(`/api/updateProfile`, {
         method: "POST",
@@ -359,7 +370,7 @@ const ProfilePage = () => {
       setCredentials({ current_password: '', new_nickname: '', new_password: '', confirm_new_password: '' });
 
       if (data.new_token) {
-        login(data.new_token);
+        login(data.user, data.new_token); // Assuming backend sends user data on nickname change
         setTimeout(() => {
            window.location.reload();
         }, 1500);
@@ -467,6 +478,28 @@ const ProfilePage = () => {
     } finally {
       setIsDeletingAvatar(false);
     }
+  };
+
+  const handleEditGame = (gameId, eventId) => {
+    navigate(`/Event/${eventId || '1'}/Game/${gameId}`);
+  };
+
+  const handleDeleteGame = async (gameId) => {
+      if (!isAdmin || !window.confirm(`Вы уверены, что хотите удалить игру ${gameId}?`)) return;
+      try {
+          const res = await fetch(`/api/deleteGame/${gameId}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.detail || 'Ошибка удаления');
+          }
+          showMessage('Игра успешно удалена.');
+          fetchGames(profileData.nickname);
+      } catch (err) {
+          showMessage(err.message, true);
+      }
   };
 
   const photoSrc = avatarPreview || profileData.photoUrl || placeholderAvatar;
@@ -702,6 +735,9 @@ const ProfilePage = () => {
               games={playerGames}
               loading={gamesLoading}
               error={gamesError}
+              isAdmin={isAdmin}
+              onDelete={handleDeleteGame}
+              onEdit={handleEditGame}
             />
           )}
 
