@@ -177,7 +177,7 @@ async def handle_team_invite(
 
 @router.post("/events/{event_id}/register")
 async def register_for_event(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # ... (код без изменений)
+    
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено")

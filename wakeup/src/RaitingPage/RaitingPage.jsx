@@ -601,21 +601,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
     }
   };
 
-  const renderRoleStats = (wins, games, rolePlusArr) => {
-    const gamesCount = games || 0;
-    const winsCount = wins || 0;
-    const winPercent = gamesCount ? Math.round((winsCount / gamesCount) * 100) : 0;
-    const bonusSum = rolePlusArr?.reduce((a, b) => a + b, 0) || 0;
-    const bonusMax = rolePlusArr?.length ? Math.max(...rolePlusArr) : 0;
 
-    return (
-      <>
-        {winsCount} / {gamesCount} ({winPercent}%)
-        <br />
-        Доп: {bonusSum.toFixed(2)} Макс:&nbsp;{bonusMax.toFixed(2)}
-      </>
-    );
-  };
 
 return (
   <>
@@ -811,3 +797,6 @@ return (
 );
 
 }
+
+
+export {DetailedStatsTable}

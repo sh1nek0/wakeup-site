@@ -322,7 +322,7 @@
 /* Цвета по ролям */
 .roleCommon {
   color: #ffffff; /* белый / базовый */
-  min-width: 40px;
+  min-width: 42px;
 }
 
 .roleSheriff {

@@ -1,9 +1,9 @@
-
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
 import { AuthContext } from "../AuthContext";
-import { useLocation, useParams, useNavigate, NavLink } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import TournamentGames from "../components/TournamentGames/TournamentGames";
+import { DetailedStatsTable } from "../RaitingPage/RaitingPage";
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
@@ -43,32 +43,32 @@ export default function Game() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const [tournament, setTournament] = useState({});
+  // ------------------------------
+  // Event data
+  // ------------------------------
+  const [eventData, setEventData] = useState({});
   const [participants, setParticipants] = useState([]);
   const [teams, setTeams] = useState([]);
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
   const [userRegistrationStatus, setUserRegistrationStatus] = useState('none');
-  
+
   const [loading, setLoading] = useState(true);
 
   const [numRounds, setNumRounds] = useState(8);
   const [numTables, setNumTables] = useState(1);
   const [exclusionsText, setExclusionsText] = useState("");
 
-  
   const fetchEventData = async () => {
     if (!eventId) return;
     setLoading(true);
     try {
       const headers = { 'Cache-Control': 'no-cache' };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`/api/getEvent/${eventId}`, { headers });
-      if (!res.ok) throw new Error("Ошибка загрузки данных события");
+      if (!res.ok) throw new Error("Ошибка загрузки данных ивента");
       const data = await res.json();
-      
-      setTournament(data);
+
+      setEventData(data);
       setParticipants(data.participants || []);
       setTeams(data.teams || []);
       setPendingRegistrations(data.pending_registrations || []);
@@ -86,10 +86,10 @@ export default function Game() {
   }, [eventId, token]);
 
   const teamSize = useMemo(() => {
-    if (tournament.type === "pair") return 2;
-    if (tournament.type === "team") return 5;
+    if (eventData.type === "pair") return 2;
+    if (eventData.type === "team") return 5;
     return 1;
-  }, [tournament.type]);
+  }, [eventData.type]);
 
   const assignedIds = new Set(teams.flatMap((t) => t.members.map(m => m.id)));
   const freeParticipants = participants.filter((p) => !assignedIds.has(p.id));
@@ -105,10 +105,7 @@ export default function Game() {
 
   const createTeam = async () => {
     if (!canCreateTeam || !user) return;
-    if (!token) {
-      showMessage("Токен авторизации отсутствует", true);
-      return;
-    }
+    if (!token) return showMessage("Токен авторизации отсутствует", true);
     const membersWithCreator = [...new Set([...selectedIds, user.id])];
     const requestBody = { event_id: eventId, name: teamName.trim(), members: membersWithCreator };
     try {
@@ -118,9 +115,7 @@ export default function Game() {
         body: JSON.stringify(requestBody),
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Ошибка создания команды");
-      }
+      if (!response.ok) throw new Error(data.detail || "Ошибка создания команды");
       setTeamName("");
       setSelectedIds([]);
       showMessage(data.message);
@@ -139,9 +134,7 @@ export default function Game() {
         headers: { "Authorization": `Bearer ${token}` },
       });
       const data = await response.json();
-      if (!response.ok) {
-          throw new Error(data.detail || "Ошибка удаления");
-      }
+      if (!response.ok) throw new Error(data.detail || "Ошибка удаления");
       showMessage(data.message);
       fetchEventData();
     } catch (error) {
@@ -150,19 +143,14 @@ export default function Game() {
   };
 
   const handleRegister = async () => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
+    if (!isAuthenticated) return navigate('/login');
     try {
       const response = await fetch(`/api/events/${eventId}/register`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Ошибка регистрации");
-      }
+      if (!response.ok) throw new Error(data.detail || "Ошибка регистрации");
       showMessage(data.message);
       setUserRegistrationStatus('pending');
     } catch (error) {
@@ -179,16 +167,14 @@ export default function Game() {
         body: JSON.stringify({ action }),
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Ошибка при обработке заявки");
-      }
+      if (!response.ok) throw new Error(data.detail || "Ошибка при обработке заявки");
       showMessage(data.message);
       fetchEventData();
     } catch (error) {
       showMessage(`Ошибка: ${error.message}`, true);
     }
   };
-  
+
   const handleSetupGames = async () => {
     if (!isAdmin) return;
     try {
@@ -233,7 +219,7 @@ export default function Game() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Ошибка");
       showMessage(data.message);
-      setTournament(prev => ({ ...prev, games_are_hidden: data.games_are_hidden }));
+      setEventData(prev => ({ ...prev, games_are_hidden: data.games_are_hidden }));
     } catch (error) {
       showMessage(error.message, true);
     }
@@ -251,7 +237,7 @@ export default function Game() {
         throw new Error(errData.detail || 'Ошибка удаления');
       }
       showMessage('Игра успешно удалена.');
-      fetchEventData(); // Обновляем список игр
+      fetchEventData();
     } catch (err) {
       showMessage(err.message, true);
     }
@@ -269,12 +255,178 @@ export default function Game() {
     navigate(`/Event/${eventId}/Game/${gameId}`);
   };
 
+  // ------------------------------
+  // TEST DATA for tables (personal)
+  // ------------------------------
+  const pageSize = 10;
 
-  if (loading) {
-    return <div>Загрузка...</div>;
-  }
+  const personalData = useMemo(() => {
+    const base = [
+      {
+        id: 101, nickname: 'Fox', totalPoints: 47.8,
+        wins: { sheriff: 2, citizen: 3, mafia: 2, don: 1 },
+        gamesPlayed: { sheriff: 4, citizen: 6, mafia: 3, don: 2 },
+        total_sk_penalty: 1.2, total_jk_penalty: 0.5,
+        total_best_move_bonus: 3.0, total_ci_bonus: 2.5, total_cb_bonus: 1.0, bonuses: 6.5,
+        role_plus: { sheriff: [1.2, 0.8], citizen: [0.5, 0.5, 0.7], mafia: [1.0, 0.6], don: [1.5] }
+      },
+      {
+        id: 102, nickname: 'Raven', totalPoints: 52.1,
+        wins: { sheriff: 3, citizen: 2, mafia: 3, don: 0 },
+        gamesPlayed: { sheriff: 4, citizen: 4, mafia: 5, don: 1 },
+        total_sk_penalty: 0.8, total_jk_penalty: 0.4,
+        total_best_move_bonus: 2.0, total_ci_bonus: 3.1, total_cb_bonus: 0.7, bonuses: 5.8,
+        role_plus: { sheriff: [0.6, 0.9], citizen: [1.0], mafia: [0.5, 0.6, 0.4], don: [] }
+      },
+      {
+        id: 103, nickname: 'Blizzard', totalPoints: 40.3,
+        wins: { sheriff: 1, citizen: 2, mafia: 1, don: 1 },
+        gamesPlayed: { sheriff: 3, citizen: 5, mafia: 3, don: 2 },
+        total_sk_penalty: 0.0, total_jk_penalty: 1.0,
+        total_best_move_bonus: 2.2, total_ci_bonus: 1.4, total_cb_bonus: 0.3, bonuses: 3.9,
+        role_plus: { sheriff: [1.1], citizen: [0.5, 0.3], mafia: [0.4], don: [0.3] }
+      },
+    ];
+    const more = Array.from({ length: 9 }, (_, i) => ({
+      id: 200 + i,
+      nickname: `Player_${i + 1}`,
+      totalPoints: 30 + i,
+      wins: { sheriff: i % 3, citizen: (i+1) % 4, mafia: (i+2) % 3, don: i % 2 },
+      gamesPlayed: { sheriff: 2 + (i%3), citizen: 3 + (i%4), mafia: 2 + (i%3), don: 1 + (i%2) },
+      total_sk_penalty: (i%3) * 0.3,
+      total_jk_penalty: (i%2) * 0.2,
+      total_best_move_bonus: (i%4) * 0.5,
+      total_ci_bonus: (i%5) * 0.4,
+      total_cb_bonus: (i%3) * 0.25,
+      bonuses: Math.round((((i%4)*0.5 + (i%5)*0.4))*100)/100,
+      role_plus: {
+        sheriff: Array.from({ length: i%2 }, () => 0.5),
+        citizen: Array.from({ length: i%3 }, () => 0.3),
+        mafia: Array.from({ length: i%2 }, () => 0.4),
+        don: Array.from({ length: i%2 }, () => 0.6),
+      }
+    }));
+    return [...base, ...more];
+  }, []);
 
-  const isEventFull = tournament.participantsCount >= tournament.participantsLimit;
+  const personalTotalPages = Math.ceil(personalData.length / pageSize);
+  const [personalPage, setPersonalPage] = useState(1);
+  const personalPageData = useMemo(() => (
+    personalData.slice((personalPage - 1) * pageSize, personalPage * pageSize)
+  ), [personalData, personalPage]);
+
+  // ------------------------------
+  // TEAM AGGREGATION from personal stats
+  // ------------------------------
+  const aggregateMembersToTeam = (membersStats = [], teamName, teamId) => {
+    const zeroWins = { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
+
+    const sumField = (field) => membersStats.reduce((s, p) => s + Number(p?.[field] || 0), 0);
+
+    const sumDict = (key) => membersStats.reduce((acc, p) => {
+      const src = p?.[key] || {};
+      acc.sheriff += Number(src.sheriff || 0);
+      acc.citizen += Number(src.citizen || 0);
+      acc.mafia   += Number(src.mafia   || 0);
+      acc.don     += Number(src.don     || 0);
+      return acc;
+    }, { ...zeroWins });
+
+    const mergeRolePlus = () => {
+      const out = { sheriff: [], citizen: [], mafia: [], don: [] };
+      for (const p of membersStats) {
+        const rp = p?.role_plus || {};
+        out.sheriff.push(...(rp.sheriff || []));
+        out.citizen.push(...(rp.citizen || []));
+        out.mafia.push(...(rp.mafia || []));
+        out.don.push(...(rp.don || []));
+      }
+      return out;
+    };
+
+    return {
+      id: teamId ?? null,
+      nickname: teamName, // show team name in the table instead of player nick
+      totalPoints: sumField('totalPoints'),
+      wins: sumDict('wins'),
+      gamesPlayed: sumDict('gamesPlayed'),
+      total_sk_penalty: sumField('total_sk_penalty'),
+      total_jk_penalty: sumField('total_jk_penalty'),
+      total_best_move_bonus: sumField('total_best_move_bonus'),
+      total_ci_bonus: sumField('total_ci_bonus'),
+      total_cb_bonus: sumField('total_cb_bonus'),
+      bonuses: sumField('bonuses'),
+      role_plus: mergeRolePlus(),
+    };
+  };
+
+  // test team definitions mapping to personal ids
+  const testTeamDefs = useMemo(() => ([
+    { id: 501, name: 'FrostBite', memberIds: [101, 200, 201, 202] },
+    { id: 502, name: 'NightOwls', memberIds: [102, 203, 204] },
+    { id: 503, name: 'Aurora',    memberIds: [103, 205, 206, 207] },
+    { id: 504, name: 'StormPeak', memberIds: [208, 209] },
+  ]), []);
+
+  const personalIndex = useMemo(() => new Map(personalData.map(p => [p.id, p])), [personalData]);
+
+  const aggregatedTeamData = useMemo(() => {
+    return testTeamDefs.map(t => {
+      const membersStats = t.memberIds.map(id => personalIndex.get(id)).filter(Boolean);
+      return aggregateMembersToTeam(membersStats, t.name, t.id);
+    });
+  }, [testTeamDefs, personalIndex]);
+
+  const teamTotalPages = Math.ceil(aggregatedTeamData.length / pageSize);
+  const [teamPage, setTeamPage] = useState(1);
+  const teamPageData = useMemo(() => (
+    aggregatedTeamData.slice((teamPage - 1) * pageSize, teamPage * pageSize)
+  ), [aggregatedTeamData, teamPage]);
+
+  // ------------------------------
+  // Nominations (test)
+  // ------------------------------
+  const personalNominations = [
+    {
+      id: 'n1', title: 'Лучший ход (ЛХ)',
+      winners: [{ id: 101, name: 'Fox', value: '+1.5' }],
+      description: 'Самое сильное действие, приведшее к победе мирных.'
+    },
+    {
+      id: 'n2', title: 'Лучший шериф',
+      winners: [{ id: 102, name: 'Raven', value: 'ср. бонус 0.9' }],
+      description: 'Стабильная реализация роли шерифа за ивент.'
+    },
+    {
+      id: 'n3', title: 'MVP ивента',
+      winners: [{ id: 103, name: 'Blizzard', value: 'Σ 40.3' }],
+      description: 'Максимальный суммарный вклад в победы.'
+    },
+  ];
+
+  const teamNominations = [
+    {
+      id: 'tn1', title: 'Лучшая командная игра',
+      winners: [{ id: 501, name: 'FrostBite', value: 'Σ 123.4' }],
+      description: 'Самая слаженная и результативная командная работа.'
+    },
+    {
+      id: 'tn2', title: 'Самая дисциплинированная',
+      winners: [{ id: 502, name: 'NightOwls', value: 'минимум штрафов' }],
+      description: 'Минимум фолов и конфликтов, чёткая коммуникация.'
+    },
+  ];
+
+  // ------------------------------
+  // Tabs UI
+  // ------------------------------
+  const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
+  const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
+const [activeTab, setActiveTab] = useState('solo');
+
+  if (loading) return <div>Загрузка...</div>;
+
+  const isEventFull = eventData.participantsCount >= eventData.participantsLimit;
   let regButtonText = "Зарегистрироваться";
   let isRegButtonDisabled = false;
 
@@ -302,30 +454,31 @@ export default function Game() {
     <section className={styles.pageWrap}>
       {successMessage && <div className={styles.notificationSuccess}>{successMessage}</div>}
       {errorMessage && <div className={styles.notificationError}>{errorMessage}</div>}
-      
+
       <header className={styles.header}>
-        <h1 className={styles.title}>{tournament.title}</h1>
+        <h1 className={styles.title}>{eventData.title}</h1>
       </header>
+
       <div className={styles.topGrid}>
         <div className={styles.infoGrid}>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Даты проведения</div>
-            <div className={styles.value}>{tournament.dates}</div>
+            <div className={styles.value}>{eventData.dates}</div>
           </div>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Место</div>
-            <div className={styles.value}>{tournament.location}</div>
+            <div className={styles.value}>{eventData.location}</div>
           </div>
           <div className={styles.infoCard}>
-            <div className={styles.caption}>Тип турнира</div>
+            <div className={styles.caption}>Тип ивента</div>
             <div className={styles.value}>
-              {tournament.type === "solo" ? "Личный" : tournament.type === "pair" ? "Парный" : "Командный"}
+              {typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный"}
             </div>
           </div>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Участники</div>
             <div className={styles.value}>
-              {tournament.participantsCount} из {tournament.participantsLimit}
+              {eventData.participantsCount} из {eventData.participantsLimit}
             </div>
           </div>
           <button
@@ -339,23 +492,23 @@ export default function Game() {
 
         <aside className={styles.rightCol}>
           <div className={styles.personCard}>
-            <img src={tournament.gs?.avatar || stubAvatar} alt={tournament.gs?.name} className={styles.avatar} />
+            <img src={eventData.gs?.avatar || stubAvatar} alt={eventData.gs?.name} className={styles.avatar} />
             <div className={styles.personMeta}>
-              <div className={styles.personName}>{tournament.gs?.name}</div>
-              <div className={styles.personRole}>{tournament.gs?.role}</div>
+              <div className={styles.personName}>{eventData.gs?.name}</div>
+              <div className={styles.personRole}>{eventData.gs?.role}</div>
             </div>
           </div>
           <div className={styles.personCard}>
-            <img src={tournament.org?.avatar || stubAvatar} alt={tournament.org?.name} className={styles.avatar} />
+            <img src={eventData.org?.avatar || stubAvatar} alt={eventData.org?.name} className={styles.avatar} />
             <div className={styles.personMeta}>
-              <div className={styles.personName}>{tournament.org?.name}</div>
-              <div className={styles.personRole}>{tournament.org?.role}</div>
+              <div className={styles.personName}>{eventData.org?.name}</div>
+              <div className={styles.personRole}>{eventData.org?.role}</div>
             </div>
           </div>
           <div className={styles.feeCard}>
             <div className={styles.caption}>Стоимость участия</div>
             <div className={styles.fee}>
-              {tournament.fee?.toLocaleString()} {tournament.currency}
+              {eventData.fee?.toLocaleString()} {eventData.currency}
             </div>
             <button
               type="button"
@@ -392,18 +545,18 @@ export default function Game() {
               <button onClick={handleGenerateSeating} className={styles.primaryBtn}>Сгенерировать рассадку</button>
               <button onClick={handleCreateSingleGame} className={styles.secondaryBtn}>Создать отдельную игру</button>
               <button onClick={handleToggleVisibility} className={styles.secondaryBtn}>
-                {tournament.games_are_hidden ? "Показать игры" : "Скрыть игры"}
+                {eventData.games_are_hidden ? "Показать игры" : "Скрыть игры"}
               </button>
             </div>
           </div>
         </section>
       )}
 
-      {(isAdmin || !tournament.games_are_hidden) && tournament.games && tournament.games.length > 0 && (
+      {(isAdmin || !eventData.games_are_hidden) && eventData.games && eventData.games.length > 0 && (
         <section className={styles.gamesSection}>
-          <h2 className={styles.h2}>Игры турнира</h2>
+          <h2 className={styles.h2}>Игры ивента</h2>
           <TournamentGames
-            games={tournament.games}
+            games={eventData.games}
             isAdmin={isAdmin}
             onDelete={handleDeleteGame}
             onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
@@ -411,7 +564,6 @@ export default function Game() {
           />
         </section>
       )}
-
 
       {isAdmin && pendingRegistrations.length > 0 && (
         <section className={styles.adminSection}>
@@ -450,15 +602,145 @@ export default function Game() {
         )}
       </section>
 
-      {(tournament.type === "pair" || tournament.type === "team") && userRegistrationStatus === 'approved' && (
+      {/* Tabs for standings & nominations */}
+      <section className={styles.tabsWrap}>
+        <nav className={styles.tabsNav} aria-label="Панель вкладок зачёта и номинаций">
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'solo' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('solo')}
+            aria-selected={activeTab === 'solo'}
+            role="tab"
+          >
+            Личный зачёт
+          </button>
+
+          {showTeamTabs && (
+            <button
+              type="button"
+              className={`${styles.tabBtn} ${activeTab === 'team' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('team')}
+              aria-selected={activeTab === 'team'}
+              role="tab"
+            >
+              Командный зачёт
+            </button>
+          )}
+
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'nomsSolo' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('nomsSolo')}
+            aria-selected={activeTab === 'nomsSolo'}
+            role="tab"
+          >
+            Номинации (личные)
+          </button>
+
+          {showTeamTabs && (
+            <button
+              type="button"
+              className={`${styles.tabBtn} ${activeTab === 'nomsTeam' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('nomsTeam')}
+              aria-selected={activeTab === 'nomsTeam'}
+              role="tab"
+            >
+              Номинации (командные)
+            </button>
+          )}
+        </nav>
+
+        {/* Panels */}
+        {activeTab === 'solo' && (
+          <div className={styles.tabPanel} role="tabpanel">
+            <h2 className={styles.h2}>Личный зачёт</h2>
+            <DetailedStatsTable
+              data={personalPageData}
+              currentPage={personalPage}
+              totalPages={personalTotalPages}
+              onPageChange={setPersonalPage}
+              user={user}
+            />
+          </div>
+        )}
+
+        {activeTab === 'team' && showTeamTabs && (
+          <div className={styles.tabPanel} role="tabpanel">
+            <h2 className={styles.h2}>Командный зачёт</h2>
+            <DetailedStatsTable
+              data={teamPageData}
+              currentPage={teamPage}
+              totalPages={teamTotalPages}
+              onPageChange={setTeamPage}
+              user={user}
+            />
+          </div>
+        )}
+
+        {activeTab === 'nomsSolo' && (
+          <div className={styles.tabPanel} role="tabpanel">
+            <h2 className={styles.h2}>Номинации — личные</h2>
+            <div className={styles.nominationsGrid}>
+              {personalNominations.map((n) => (
+                <div key={n.id} className={styles.nominationCard}>
+                  <div className={styles.nominationTitle}>{n.title}</div>
+                  <div className={styles.nominationWinners}>
+                    {n.winners.map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        className={styles.winnerLink}
+                        onClick={() => navigate(`/profile/${w.id}`)}
+                        title={w.name}
+                      >
+                        {w.name} {w.value ? <span className={styles.winnerValue}>({w.value})</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.nominationDesc}>{n.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'nomsTeam' && showTeamTabs && (
+          <div className={styles.tabPanel} role="tabpanel">
+            <h2 className={styles.h2}>Номинации — командные</h2>
+            <div className={styles.nominationsGrid}>
+              {teamNominations.map((n) => (
+                <div key={n.id} className={styles.nominationCard}>
+                  <div className={styles.nominationTitle}>{n.title}</div>
+                  <div className={styles.nominationWinners}>
+                    {n.winners.map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        className={styles.winnerLink}
+                        onClick={() => navigate(`/team/${w.id}`)}
+                        title={w.name}
+                      >
+                        {w.name} {w.value ? <span className={styles.winnerValue}>({w.value})</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.nominationDesc}>{n.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {(typeNormalized === "pair" || typeNormalized === "team") && userRegistrationStatus === 'approved' && (
         <section className={styles.teamsWrap}>
           <h2 className={styles.h2}>
-            {tournament.type === "pair" ? "Пары" : "Команды"}
+            {typeNormalized === "pair" ? "Пары" : "Команды"}
           </h2>
           <div className={styles.teamForm}>
             <div className={styles.formRow}>
               <label className={styles.formLabel}>
-                Название {tournament.type === "pair" ? "пары" : "команды"}
+                Название {typeNormalized === "pair" ? "пары" : "команды"}
               </label>
               <input
                 className={styles.input}
@@ -470,7 +752,7 @@ export default function Game() {
             <div className={styles.formRow}>
               <div className={styles.formLabel}>
                 Пригласить участников ({selectedIds.length}
-                {tournament.type === "pair" ? "/1" : `/${teamSize - 1}`})
+                {typeNormalized === "pair" ? "/1" : `/${teamSize - 1}`})
               </div>
               <div className={styles.membersPool}>
                 {user && freeParticipants.filter(p => p.id !== user.id).length === 0 && (
@@ -497,13 +779,13 @@ export default function Game() {
               disabled={!canCreateTeam}
               onClick={createTeam}
             >
-              Создать {tournament.type === "pair" ? "пару" : "команду"}
+              Создать {typeNormalized === "pair" ? "пару" : "команду"}
             </button>
           </div>
           <div className={styles.teamsList}>
             {teams.length === 0 ? (
               <div className={styles.emptyHint}>
-                {tournament.type === "pair" ? "Пока нет созданных пар." : "Пока нет созданных команд."}
+                {typeNormalized === "pair" ? "Пока нет созданных пар." : "Пока нет созданных команд."}
               </div>
             ) : (
               teams.map((t) => (
@@ -525,11 +807,31 @@ export default function Game() {
                     ))}
                   </div>
                 </div>
-              ))
-            )}
+              )))}
+            
           </div>
         </section>
       )}
     </section>
   );
 }
+
+/* --------------------------------------------------------
+  MINIMAL CSS additions for tabs/awards (add to Event.module.css)
+-----------------------------------------------------------
+.tabsWrap { margin-top: 24px; }
+.tabsNav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabBtn { padding: 8px 12px; border-radius: 10px; border: 1px solid #3a3a3a; background: #1f1f1f; cursor: pointer; }
+.tabBtn:hover { background: #2a2a2a; }
+.tabActive { background: #ff6f00; color: #111; border-color: #ff6f00; }
+.tabPanel { border: 1px solid #323232; border-radius: 12px; padding: 12px; background: #161616; }
+
+.nominationsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.nominationCard { border: 1px solid #323232; border-radius: 12px; padding: 12px; background: #1a1a1a; }
+.nominationTitle { font-weight: 600; margin-bottom: 8px; }
+.nominationWinners { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.winnerLink { background: none; border: none; color: #ffb36b; cursor: pointer; padding: 0; }
+.winnerLink:hover { text-decoration: underline; }
+.winnerValue { opacity: 0.9; }
+.nominationDesc { color: #bdbdbd; font-size: 0.95rem; }
+*/
