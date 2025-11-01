@@ -21,7 +21,7 @@ export default function RatingPage() {
   const itemsPerPage = 10;
 
   const [gamesCurrentPage, setGamesCurrentPage] = useState(1);
-  const gamesPerPage = 9;
+  const gamesPerPage = 10;
 
   const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
   const detailedStatsItemsPerPage = 10;
