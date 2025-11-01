@@ -589,6 +589,18 @@ const [activeTab, setActiveTab] = useState('player');
             Участники
           </button>
 
+          {(typeNormalized === "pair" || typeNormalized === "team") && (
+            <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'team' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('team')}
+            aria-selected={activeTab === 'team'}
+            role="tab"
+          >
+            {typeNormalized === "pair" ? "Пары" : "Команды"}
+          </button>
+          )}
+
 
 
           <button
@@ -617,9 +629,9 @@ const [activeTab, setActiveTab] = useState('player');
           {showTeamTabs && (
             <button
               type="button"
-              className={`${styles.tabBtn} ${activeTab === 'team' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('team')}
-              aria-selected={activeTab === 'team'}
+              className={`${styles.tabBtn} ${activeTab === 'teamStat' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('teamStat')}
+              aria-selected={activeTab === 'teamStat'}
               role="tab"
             >
               Командный зачёт
@@ -698,7 +710,7 @@ const [activeTab, setActiveTab] = useState('player');
           </div>
         )}
 
-        {activeTab === 'team' && showTeamTabs && (
+        {activeTab === 'teamStat' && showTeamTabs && (
           <div className={styles.tabPanel} role="tabpanel">
             <h2 className={styles.h2}>Командный зачёт</h2>
             <DetailedStatsTable
@@ -766,7 +778,7 @@ const [activeTab, setActiveTab] = useState('player');
         )}
       </section>
 
-      {(typeNormalized === "pair" || typeNormalized === "team") && (userRegistrationStatus === 'approved' || isAdmin) && (
+      {activeTab === 'team' &&(typeNormalized === "pair" || typeNormalized === "team") && (userRegistrationStatus === 'approved' || isAdmin) && (
         <section className={styles.teamsWrap}>
           <h2 className={styles.h2}>
             {typeNormalized === "pair" ? "Пары" : "Команды"}
