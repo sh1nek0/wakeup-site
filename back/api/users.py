@@ -247,8 +247,8 @@ async def get_detailed_stats(
                         "total_sk_penalty": 0.0,
                         "total_jk_penalty": 0.0,
                         "total_best_move_bonus": 0.0,
-                        "total_ci_bonus": 0.0,
                         "total_cb_bonus": 0.0,
+                        "total_ci_bonus": 0.0,  # Заглушка как 0
                         "bonuses": 0.0,
                         "pu": 0  # Добавлено для подсчета ПУ (первый убитый ночью)
                     }
@@ -273,7 +273,6 @@ async def get_detailed_stats(
                 s["total_best_move_bonus"] += best_move_bonus
                 s["total_cb_bonus"] += cb_bonus
                 s["bonuses"] += plus + best_move_bonus + cb_bonus
-                s["total_ci_bonus"] += plus
 
             # --- ОБНОВЛЕННАЯ ЛОГИКА ПОДСЧЕТА ПУ: shootingResults как dict ---
             game_info = game_data.get("gameInfo", {})
@@ -320,8 +319,8 @@ async def get_detailed_stats(
             "total_sk_penalty": stats["total_sk_penalty"],
             "total_jk_penalty": stats["total_jk_penalty"],
             "total_best_move_bonus": stats["total_best_move_bonus"],
-            "total_ci_bonus": stats["total_ci_bonus"],
             "total_cb_bonus": stats["total_cb_bonus"],
+            "total_ci_bonus": stats["total_ci_bonus"],  # Заглушка как 0
             "bonuses": stats["bonuses"],
             "pu": stats["pu"]  # Добавлено для ПУ
         }
@@ -347,7 +346,6 @@ async def get_detailed_stats(
         "total_count": total_count,
         "average_points": average_points
     }
-
 
 
 
