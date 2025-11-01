@@ -117,6 +117,7 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
 async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
     return get_player_suggestions_logic(query, db)
 
+
 @router.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"), offset: int = Query(0, description="Смещение для пагинации"), db: Session = Depends(get_db)):
     logger = logging.getLogger("uvicorn.error")
@@ -173,19 +174,20 @@ async def get_rating(limit: int = Query(10, description="Количество э
     rating.sort(key=lambda x: x["rating_score"], reverse=True)
     return {"players": rating[offset: offset + limit], "total_count": len(rating)}
 
+
 @router.get("/getDetailedStats")
 async def get_detailed_stats(
-    limit: int = Query(200, description="Количество игроков на странице"),
+    limit: int = Query(1000, description="Количество игроков на странице"),
     offset: int = Query(0, description="Смещение для пагинации игроков"),
     event_id: Optional[str] = Query(None, description="ID события для фильтрации"),
     db: Session = Depends(get_db)
 ):
-    # Эта функция больше не используется фронтендом для основной статистики,
-    # но оставляем ее на случай, если она нужна где-то еще, и исправляем аналогично.
-    # Если она не нужна, ее можно будет удалить.
+    import json
+    from sqlalchemy import or_
+
     users = db.query(User).all()
-    user_map = {p.nickname: p for p in users}
-    
+    user_map = {u.nickname: u for u in users if u.nickname}
+
     games_query = db.query(Game)
     if event_id and event_id != 'all':
         games_query = games_query.filter(Game.event_id == event_id)
@@ -193,61 +195,121 @@ async def get_detailed_stats(
         games_query = games_query.filter(or_(Game.event_id.is_(None), Game.event_id == '1'))
 
     games = games_query.order_by(Game.created_at.asc()).all()
-    
-    # --- ИЗМЕНЕНИЕ: Используем новую централизованную функцию ---
-    all_points = calculate_all_game_points(games)
-    
+
     player_stats = {}
+
+    role_map = {
+        "мирный": "citizen",
+        "шериф": "sheriff",
+        "мафия": "mafia",
+        "дон": "don"
+    }
+
     for game in games:
         try:
             game_data = json.loads(game.data)
-            badge_color = game_data.get("badgeColor", "")
             players = game_data.get("players", [])
+            badge_color = (game_data.get("badgeColor") or "").strip().lower()
 
-            for player in players:
-                name = player.get("name")
-                if not name or not name.strip(): continue
-                
-                final_points = all_points.get(name, {}).get(game.gameId, 0)
+            peaceful_win = badge_color == "red"
+
+            # теперь уникальность по имени + роли
+            processed_players = set()
+
+            for p in players:
+                name = p.get("name")
+                raw_role = (p.get("role") or "").lower().strip()
+                if not name or not name.strip():
+                    continue
+                role = role_map.get(raw_role)
+                if not role:
+                    continue
+
+                key = (name.strip().lower(), role)
+                if key in processed_players:
+                    continue  # уже учтён в этой игре
+                processed_players.add(key)
+
+                plus = float(p.get("plus", 0))
+                sk = float(p.get("sk", 0))
+                jk = float(p.get("jk", 0))
+                cb_bonus = float(p.get("cb_bonus", 0))
+                best_move_bonus = float(p.get("best_move_bonus", 0))
+                total_sum = float(p.get("sum", 0))
 
                 if name not in player_stats:
                     player_stats[name] = {
-                        "totalPoints": 0, "gamesPlayedCount": 0
-                        # Можно добавить другие агрегированные статистики при необходимости
+                        "totalPoints": 0.0,
+                        "wins": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0, "total": 0},
+                        "gamesPlayed": {"sheriff": 0, "citizen": 0, "mafia": 0, "don": 0, "total": 0},
+                        "role_plus": {"sheriff": [], "citizen": [], "mafia": [], "don": []},
+                        "total_sk_penalty": 0.0,
+                        "total_jk_penalty": 0.0,
+                        "total_best_move_bonus": 0.0,
+                        "total_ci_bonus": 0.0,
+                        "total_cb_bonus": 0.0,
+                        "bonuses": 0.0
                     }
 
-                stats = player_stats[name]
-                stats["totalPoints"] += final_points
-                stats["gamesPlayedCount"] += 1
-                # Логика для wins, gamesPlayed по ролям и т.д. может быть добавлена сюда,
-                # если эта функция действительно нужна. Для /getRating она не требуется.
+                s = player_stats[name]
+                s["totalPoints"] += total_sum
+                s["gamesPlayed"]["total"] += 1
+                s["gamesPlayed"][role] += 1
+                s["role_plus"][role].append(plus)
 
-        except (json.JSONDecodeError, TypeError):
+                # победа по цвету бейджа
+                if peaceful_win and role in ("citizen", "sheriff"):
+                    s["wins"][role] += 1
+                    s["wins"]["total"] += 1
+                elif not peaceful_win and role in ("mafia", "don"):
+                    s["wins"][role] += 1
+                    s["wins"]["total"] += 1
+
+                # штрафы и бонусы
+                s["total_sk_penalty"] += sk
+                s["total_jk_penalty"] += jk
+                s["total_best_move_bonus"] += best_move_bonus
+                s["total_cb_bonus"] += cb_bonus
+                s["bonuses"] += plus + best_move_bonus + cb_bonus
+                s["total_ci_bonus"] += plus
+
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"[WARN] Ошибка обработки игры: {e}")
             continue
 
     players_list = []
     for name, stats in player_stats.items():
         user_obj = user_map.get(name)
-        player_data = {
+        players_list.append({
             "id": user_obj.id if user_obj else None,
             "nickname": name,
             "club": user_obj.club if user_obj else None,
-            "totalPoints": stats["totalPoints"]
-            # ... другие поля
-        }
-        players_list.append(player_data)
+            "totalPoints": stats["totalPoints"],
+            "wins": stats["wins"],
+            "gamesPlayed": stats["gamesPlayed"],
+            "role_plus": stats["role_plus"],
+            "total_sk_penalty": stats["total_sk_penalty"],
+            "total_jk_penalty": stats["total_jk_penalty"],
+            "total_best_move_bonus": stats["total_best_move_bonus"],
+            "total_ci_bonus": stats["total_ci_bonus"],
+            "total_cb_bonus": stats["total_cb_bonus"],
+            "bonuses": stats["bonuses"]
+        })
 
     players_list.sort(key=lambda x: x["totalPoints"], reverse=True)
 
     total_count = len(players_list)
     paginated_players = players_list[offset:offset + limit]
-    average_points = sum(p["totalPoints"] for p in players_list) / total_count if total_count > 0 else 0
+    average_points = (
+        sum(p["totalPoints"] for p in players_list) / total_count if total_count > 0 else 0
+    )
 
     return {
         "players": paginated_players,
         "total_count": total_count,
         "average_points": average_points
     }
+
 
 @router.post("/profile/avatar", response_model=AvatarUploadResponse)
 async def upload_avatar(userId: str = Form(...), avatar: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -68,7 +68,7 @@ async def manage_registration_logic(registration_id: str, action: str, current_u
     return {"message": f"Заявка успешно обработана: {action}"}
 
 async def manage_team_invite_logic(team_id: str, action: str, current_user: User, db: Session):
-    # ... (код без изменений)
+
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(status_code=404, detail="Команда не найдена")
