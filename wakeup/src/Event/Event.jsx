@@ -552,18 +552,7 @@ const [activeTab, setActiveTab] = useState('player');
         </section>
       )}
 
-      {(isAdmin || !eventData.games_are_hidden) && eventData.games && eventData.games.length > 0 && (
-        <section className={styles.gamesSection}>
-          <h2 className={styles.h2}>Игры ивента</h2>
-          <TournamentGames
-            games={eventData.games}
-            isAdmin={isAdmin}
-            onDelete={handleDeleteGame}
-            onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
-            onPlayerClick={(playerId) => navigate(`/profile/${playerId}`)}
-          />
-        </section>
-      )}
+
 
       {isAdmin && pendingRegistrations.length > 0 && (
         <section className={styles.adminSection}>
@@ -599,6 +588,19 @@ const [activeTab, setActiveTab] = useState('player');
           >
             Участники
           </button>
+
+
+
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'games' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('games')}
+            aria-selected={activeTab === 'games'}
+            role="tab"
+          >
+            Игры
+          </button>
+
 
           <button
             type="button"
@@ -667,6 +669,20 @@ const [activeTab, setActiveTab] = useState('player');
         )}
       </section>
         )}
+
+
+        {activeTab==="games" && (isAdmin || !eventData.games_are_hidden) && eventData.games && eventData.games.length > 0 && (
+        <section className={styles.gamesSection}>
+          <h2 className={styles.h2}>Игры ивента</h2>
+          <TournamentGames
+            games={eventData.games}
+            isAdmin={isAdmin}
+            onDelete={handleDeleteGame}
+            onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
+            onPlayerClick={(playerId) => navigate(`/profile/${playerId}`)}
+          />
+        </section>
+      )}
 
         {/* Panels */}
         {activeTab === 'solo' && (
@@ -750,7 +766,7 @@ const [activeTab, setActiveTab] = useState('player');
         )}
       </section>
 
-      {(typeNormalized === "pair" || typeNormalized === "team") && userRegistrationStatus === 'approved' && (
+      {(typeNormalized === "pair" || typeNormalized === "team") && (userRegistrationStatus === 'approved' || isAdmin) && (
         <section className={styles.teamsWrap}>
           <h2 className={styles.h2}>
             {typeNormalized === "pair" ? "Пары" : "Команды"}
