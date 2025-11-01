@@ -422,7 +422,7 @@ export default function Game() {
   // ------------------------------
   const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
   const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
-const [activeTab, setActiveTab] = useState('solo');
+const [activeTab, setActiveTab] = useState('player');
 
   if (loading) return <div>Загрузка...</div>;
 
