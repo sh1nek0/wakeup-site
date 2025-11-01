@@ -634,13 +634,18 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
     );
   };
 
+  // Проверяем, есть ли рейтинг у игроков (для условного отображения колонки)
+  const hasRating = data && data.length > 0 && data[0].rating_score !== undefined;
+
   return (
     <>
       <div className={styles.tableWrapper}>
         <table className={styles.detailedStatsTable}>
           <thead>
             <tr>
-              <th>#</th><th>Игрок</th><th>Σ</th><th>ПУ</th><th>СК</th><th>ЖК</th><th>ЛХ</th><th>Ci</th><th>C_b</th><th>Допы</th><th>−</th>
+              <th>#</th><th>Игрок</th>
+              {hasRating && <th>p.</th>}  {/* Условно показываем колонку Рейтинг */}
+              <th>Σ</th><th>ПУ</th><th>СК</th><th>ЖК</th><th>ЛХ</th><th>Ci</th><th>C_b</th><th>Допы</th><th>−</th>
               <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCommon}`}>Общая</th>
               <th colSpan="3" className={`${styles.roleHeader} ${styles.roleSheriff}`}>Шериф</th>
               <th colSpan="3" className={`${styles.roleHeader} ${styles.roleCitizen}`}>Мирн.</th>
@@ -649,7 +654,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
             </tr>
 
             <tr className={styles.subHeaderRow}>
-              <th colSpan="11"></th>
+              <th colSpan={hasRating ? "12" : "11"}></th>  {/* colSpan "12" если рейтинг есть, иначе "11" */}
               <th className={styles.roleCommon}>П/И</th>
               <th className={styles.roleCommon}>Ср</th>
               <th className={styles.roleCommon}>МАКС</th>
@@ -698,6 +703,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                           : p.nickname}
                       </span>
                     </td>
+                    {hasRating && <td>{(parseFloat(p.rating_score) || 0).toFixed(2)}</td>}  {/* Условно показываем ячейку Рейтинг */}
                     <td>{(parseFloat(p.totalPoints) || 0).toFixed(2)}</td>
                     <td>{totalWins}</td>
                     <td>{(parseFloat(p.total_sk_penalty) || 0).toFixed(2)}</td>

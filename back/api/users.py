@@ -184,6 +184,7 @@ async def get_detailed_stats(
 ):
     import json
     from sqlalchemy import or_
+    import math  # Добавлено для math.sqrt
 
     users = db.query(User).all()
     user_map = {u.nickname: u for u in users if u.nickname}
@@ -280,7 +281,9 @@ async def get_detailed_stats(
     players_list = []
     for name, stats in player_stats.items():
         user_obj = user_map.get(name)
-        players_list.append({
+        total_games = stats["gamesPlayed"]["total"]
+        rating_score = stats["totalPoints"] / math.sqrt(total_games) if total_games > 0 else 0.0
+        player_dict = {
             "id": user_obj.id if user_obj else None,
             "nickname": name,
             "club": user_obj.club if user_obj else None,
@@ -294,9 +297,17 @@ async def get_detailed_stats(
             "total_ci_bonus": stats["total_ci_bonus"],
             "total_cb_bonus": stats["total_cb_bonus"],
             "bonuses": stats["bonuses"]
-        })
+        }
+        # Добавляем rating_score только если event_id is None или '1'
+        if event_id is None or event_id == '1':
+            player_dict["rating_score"] = rating_score
+        players_list.append(player_dict)
 
-    players_list.sort(key=lambda x: x["totalPoints"], reverse=True)
+    # Сортировка: если rating_score присутствует (у первого игрока), сортируем по нему, иначе по totalPoints
+    if players_list and players_list[0].get("rating_score") is not None:
+        players_list.sort(key=lambda x: x["rating_score"], reverse=True)
+    else:
+        players_list.sort(key=lambda x: x["totalPoints"], reverse=True)
 
     total_count = len(players_list)
     paginated_players = players_list[offset:offset + limit]
