@@ -419,6 +419,22 @@
   margin-top: 36px;
 }
 
+.tabsWrap { margin-top: 24px; }
+.tabsNav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabBtn { padding: 8px 12px;  border: 1px solid #3a3a3a; background: #1f1f1f; cursor: pointer; }
+.tabBtn:hover { background: #2a2a2a; }
+.tabActive { background: #ff6f00; color: #111; border-color: #ff6f00; }
+
+.nominationsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.nominationCard { border: 1px solid #323232; border-radius: 12px; padding: 12px; background: #1a1a1a; }
+.nominationTitle { font-weight: 600; margin-bottom: 8px; }
+.nominationWinners { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.winnerLink { background: none; border: none; color: #ffb36b; cursor: pointer; padding: 0; }
+.winnerLink:hover { text-decoration: underline; }
+.winnerValue { opacity: 0.9; }
+.nominationDesc { color: #bdbdbd; font-size: 0.95rem; }
+
+
 /* =============== адаптив =============== */
 @media (max-width: 1024px) {
   .topGrid { grid-template-columns: 1fr; }

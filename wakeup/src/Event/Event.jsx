@@ -585,26 +585,21 @@ const [activeTab, setActiveTab] = useState('solo');
         </section>
       )}
 
-      <section className={styles.qualifiedWrap}>
-        <h2 className={styles.h2}>Участники</h2>
-        {participants.length === 0 ? (
-          <div className={styles.emptyHint}>Пока нет подтвержденных участников.</div>
-        ) : (
-          <div className={styles.qualifiedGrid}>
-            {participants.map((p) => (
-              <div className={styles.qualifiedCard} key={p.id}>
-                <img src={p.avatar || stubAvatar} className={styles.qualifiedAvatar} alt={p.nick} />
-                <div className={styles.qualifiedNick}>{p.nick}</div>
-                <div className={styles.qualifiedFrom}>{p.club || "—"}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+    
 
       {/* Tabs for standings & nominations */}
       <section className={styles.tabsWrap}>
         <nav className={styles.tabsNav} aria-label="Панель вкладок зачёта и номинаций">
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'player' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('player')}
+            aria-selected={activeTab === 'player'}
+            role="tab"
+          >
+            Участники
+          </button>
+
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'solo' ? styles.tabActive : ''}`}
@@ -614,6 +609,8 @@ const [activeTab, setActiveTab] = useState('solo');
           >
             Личный зачёт
           </button>
+
+
 
           {showTeamTabs && (
             <button
@@ -649,6 +646,27 @@ const [activeTab, setActiveTab] = useState('solo');
             </button>
           )}
         </nav>
+
+
+
+        {activeTab==="player" && (
+          <section className={styles.qualifiedWrap}>
+        <h2 className={styles.h2}>Участники</h2>
+        {participants.length === 0 ? (
+          <div className={styles.emptyHint}>Пока нет подтвержденных участников.</div>
+        ) : (
+          <div className={styles.qualifiedGrid}>
+            {participants.map((p) => (
+              <div className={styles.qualifiedCard} key={p.id}>
+                <img src={p.avatar || stubAvatar} className={styles.qualifiedAvatar} alt={p.nick} />
+                <div className={styles.qualifiedNick}>{p.nick}</div>
+                <div className={styles.qualifiedFrom}>{p.club || "—"}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+        )}
 
         {/* Panels */}
         {activeTab === 'solo' && (
@@ -816,22 +834,3 @@ const [activeTab, setActiveTab] = useState('solo');
   );
 }
 
-/* --------------------------------------------------------
-  MINIMAL CSS additions for tabs/awards (add to Event.module.css)
------------------------------------------------------------
-.tabsWrap { margin-top: 24px; }
-.tabsNav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.tabBtn { padding: 8px 12px; border-radius: 10px; border: 1px solid #3a3a3a; background: #1f1f1f; cursor: pointer; }
-.tabBtn:hover { background: #2a2a2a; }
-.tabActive { background: #ff6f00; color: #111; border-color: #ff6f00; }
-.tabPanel { border: 1px solid #323232; border-radius: 12px; padding: 12px; background: #161616; }
-
-.nominationsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.nominationCard { border: 1px solid #323232; border-radius: 12px; padding: 12px; background: #1a1a1a; }
-.nominationTitle { font-weight: 600; margin-bottom: 8px; }
-.nominationWinners { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.winnerLink { background: none; border: none; color: #ffb36b; cursor: pointer; padding: 0; }
-.winnerLink:hover { text-decoration: underline; }
-.winnerValue { opacity: 0.9; }
-.nominationDesc { color: #bdbdbd; font-size: 0.95rem; }
-*/

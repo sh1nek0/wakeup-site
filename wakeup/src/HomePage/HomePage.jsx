@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from "react";
+import React, { useState, useRef, useEffect, useContext, useMemo } from "react";
 import styles from "./HomePage.module.css";
 import { NavLink, useNavigate } from "react-router-dom";
 import { AuthContext } from "../AuthContext";
@@ -21,12 +21,12 @@ import sherifImg from "../images/sherif.png";
 import mirImg from "../images/mir.png";
 import donImg from "../images/don.png";
 import CCC_prew from "../EventPrew/CCC-prew.png";
-import Junior_prew from "../EventPrew/Junior.png"
-import Dec_prew from "../EventPrew/Dec-main.png"
+import Junior_prew from "../EventPrew/Junior.png";
+import Dec_prew from "../EventPrew/Dec-main.png";
 
 
 // Статические данные для UI (картинки, описания). Ссылки будут обновлены динамически.
-const staticTournaments = [
+const staticTournamentsData = [
   { id:2, title: "Cyber Couple Cup", desc: "Парный турнир с трехлетней историей проводимый в честь вечной дружбы и сотрудничества между Физтехом и МИЭТом", color: "#1f1f1f", img: CCC_prew, btn_text:"Зарегистрироваться", btn_to:"#" },
   { id:3, title: "WakeUp.Junior", desc: "Первый шанс для молодых игроков в мафию почувстовать на себе дух соревнования и получить турьерный опыт", color: "#110C07", img: Junior_prew, btn_text:"Скоро регистрация", btn_to:"#"  },
   { id:4, title: "Тематический", desc: "Стилистический турнир в личном зачете, погружающий в атмосферу выбранной темы", color: "#181312ff", img: rockcupImg, btn_text: "Скоро регистрация", btn_to:"#"   },
@@ -34,7 +34,7 @@ const staticTournaments = [
   { id:6, title: "Break the Silence", desc: "главный турнир года, попасть в который смогут только лучшие игроки сезона", color: "#272232ff", img: btsImg, btn_text:"Подробнее", btn_to:"/BTS"   }
 ];
 
-const roles = [
+const rolesData = [
   { title: "Мафия", desc: "Вы — Мафия. Ваша цель: оставаться незамеченной днём и убирать игроков ночью. Держите легенду, говорите уверенно.", img: mafImg },
   { title: "Шериф", desc: "Вы — Шериф. Каждую ночь проверяете одного игрока. Ведите дискуссию и защищайте мирных.", img: sherifImg },
   { title: "Мирный житель", desc: "Вы — Мирный Житель. Сила — логика и наблюдательность. Доверяйте интуиции, но проверяйте фактами.", img: mirImg },
@@ -44,6 +44,10 @@ const roles = [
 const HomePage = () => {
   const { isAuthenticated, user, token, login } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // ✅ Оборачиваем статические массивы в useMemo
+  const staticTournaments = useMemo(() => staticTournamentsData, []);
+  const roles = useMemo(() => rolesData, []);
 
   // Состояния для каруселей
   const [tournaments, setTournaments] = useState(staticTournaments);
@@ -93,7 +97,7 @@ const HomePage = () => {
     };
 
     fetchAndMergeTournaments();
-  }, []); // Пустой массив зависимостей означает, что эффект выполнится один раз при монтировании
+  }, [staticTournaments]); // ✅ добавили зависимость от useMemo массива
 
 
   // --- УЛУЧШЕННЫЙ ЭФФЕКТ ДЛЯ КАРУСЕЛИ ТУРНИРОВ (СВАЙПЫ + ЛОКАЛЬНЫЙ СКРОЛЛ) ---
@@ -142,11 +146,15 @@ const HomePage = () => {
   }, [activeTournament, tournaments.length]);
 
 
-  const computeTranslateX = (index) => {
-    const CARD_W = 200; // Из CSS
-    const GAP = 24;
-    return -index * (CARD_W + GAP);
-  };
+  // ✅ мемоизированная функция расчета сдвига
+  const computeTranslateX = useMemo(() => {
+    return (index) => {
+      const CARD_W = 200; // Из CSS
+      const GAP = 24;
+      return -index * (CARD_W + GAP);
+    };
+  }, []);
+
 
   // --- УЛУЧШЕННЫЙ ЭФФЕКТ ДЛЯ КАРУСЕЛИ РОЛЕЙ (СВАЙПЫ + ЛОКАЛЬНЫЙ СКРОЛЛ) ---
   useEffect(() => {
@@ -197,7 +205,7 @@ const HomePage = () => {
       stage.removeEventListener('touchstart', handleTouchStart);
       stage.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [activeRole]);
+  }, [activeRole, roles.length]);
 
   // Обработчики для каруселей
   const goToTournament = (index) => {
@@ -255,8 +263,6 @@ const HomePage = () => {
         </div>
       )}
 
-      {/* <div className={styles["unsupported-message"]}>Разрешение не поддерживается. Используйте экран шириной не менее 1000px в альбомной ориентации.</div>
-       */}
       {/* Фоновое изображение */}
       <div className={styles["background-numberone"]}>
         <img src={background1} alt="" />
@@ -299,7 +305,7 @@ const HomePage = () => {
       </div>
 
       {/* Контент-бокс два: клубы и правила */}
-      <div className={styles["content-box-two"]}>
+            <div className={styles["content-box-two"]}>
         <div className={styles["club-title"]}>
           <h4>СТУДЕНЧЕСКИЕ ОБЪЕДИНЕНИЯ</h4>
         </div>
@@ -358,7 +364,6 @@ const HomePage = () => {
       <div className={styles["circle-grad2"]}></div>
       <div className={styles["circle-grad3"]}></div>
 
-
 {/* Карусель турниров */}
 <div className={styles["content-box-three"]} id="box1" style={{ background: tournaments.length > 0 ? tournaments[activeTournament].color : '#1f1f1f' }}>
   <div className={styles["title-tournament"]}>Турниры</div>
@@ -403,9 +408,6 @@ const HomePage = () => {
   </div>
 </div>
 <div className={styles.line}></div>
-
-
-
 
       {/* Фоновое изображение 4 */}
       <div className={styles["background-numberfour"]}>
