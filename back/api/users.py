@@ -249,7 +249,8 @@ async def get_detailed_stats(
                         "total_best_move_bonus": 0.0,
                         "total_ci_bonus": 0.0,
                         "total_cb_bonus": 0.0,
-                        "bonuses": 0.0
+                        "bonuses": 0.0,
+                        "pu": 0  # Добавлено для подсчета ПУ (первый убитый ночью)
                     }
 
                 s = player_stats[name]
@@ -274,6 +275,31 @@ async def get_detailed_stats(
                 s["bonuses"] += plus + best_move_bonus + cb_bonus
                 s["total_ci_bonus"] += plus
 
+            # --- ОБНОВЛЕННАЯ ЛОГИКА ПОДСЧЕТА ПУ: shootingResults как dict ---
+            game_info = game_data.get("gameInfo", {})
+            shooting_results = game_info.get("shootingResults", {})
+            if isinstance(shooting_results, dict) and shooting_results:
+                # Сортировка ключей по номеру дня (формат "Д.X")
+                sorted_days = sorted(
+                    shooting_results.keys(),
+                    key=lambda x: int(x.split('.')[1]) if '.' in x and x.split('.')[1].isdigit() else 0
+                )
+                if sorted_days:
+                    first_day = sorted_days[0]
+                    result = shooting_results[first_day].get('result')
+                    if result:
+                        try:
+                            first_killed_id = int(result)  # result — строка ID, например "5"
+                            # Найти имя игрока по ID
+                            for p in players:
+                                if p.get("id") == first_killed_id:
+                                    name = p.get("name")
+                                    if name and name in player_stats:
+                                        player_stats[name]["pu"] += 1
+                                    break
+                        except (ValueError, TypeError):
+                            pass  # Игнорируем некорректные данные
+
         except (json.JSONDecodeError, TypeError) as e:
             print(f"[WARN] Ошибка обработки игры: {e}")
             continue
@@ -296,7 +322,8 @@ async def get_detailed_stats(
             "total_best_move_bonus": stats["total_best_move_bonus"],
             "total_ci_bonus": stats["total_ci_bonus"],
             "total_cb_bonus": stats["total_cb_bonus"],
-            "bonuses": stats["bonuses"]
+            "bonuses": stats["bonuses"],
+            "pu": stats["pu"]  # Добавлено для ПУ
         }
         # Добавляем rating_score только если event_id is None или '1'
         if event_id is None or event_id == '1':
@@ -320,6 +347,9 @@ async def get_detailed_stats(
         "total_count": total_count,
         "average_points": average_points
     }
+
+
+
 
 
 @router.post("/profile/avatar", response_model=AvatarUploadResponse)

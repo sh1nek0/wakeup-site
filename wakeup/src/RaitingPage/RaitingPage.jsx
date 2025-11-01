@@ -694,7 +694,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                     <td>{rank}</td>
                     <td>
                       <span
-                        className={p.clickableName}
+                        className={styles.clickableName}
                         onClick={() => handlePlayerClick(p.id)}
                         title={p.nickname}
                       >
@@ -705,7 +705,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
                     </td>
                     {hasRating && <td>{(parseFloat(p.rating_score) || 0).toFixed(2)}</td>}  {/* Условно показываем ячейку Рейтинг */}
                     <td>{(parseFloat(p.totalPoints) || 0).toFixed(2)}</td>
-                    <td>{totalWins}</td>
+                    <td>{p.pu || 0}</td>  {/* Изменено: отображаем ПУ вместо totalWins */}
                     <td>{(parseFloat(p.total_sk_penalty) || 0).toFixed(2)}</td>
                     <td>{(parseFloat(p.total_jk_penalty) || 0).toFixed(2)}</td>
                     <td>{(parseFloat(p.total_best_move_bonus) || 0).toFixed(2)}</td>
@@ -806,6 +806,7 @@ function DetailedStatsTable({ data, currentPage, totalPages, onPageChange, user 
     </>
   );
 }
+
 
 
 
