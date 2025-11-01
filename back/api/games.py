@@ -8,7 +8,7 @@ import math
 from core.security import get_current_user, get_db
 from db.models import Game, User
 from schemas.main import SaveGameData
-from services.calculations import calculate_ci_bonuses, calculate_dynamic_penalties, parse_best_move
+from services.calculations import calculate_all_game_points, parse_best_move # --- ИЗМЕНЕНИЕ ---
 
 router = APIRouter()
 
@@ -24,10 +24,9 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     elif data.badgeColor == "black":
         winning_roles = ["мафия", "дон"]
 
-    # --- ИЗМЕНЕНИЕ: Логика полностью опирается на breakdownPlayerNumber ---
     game_info = data.gameInfo
     breakdown_source = game_info.get("breakdownSource", "none")
-    breakdown_player_number = game_info.get("breakdownPlayerNumber") # Это ID игрока, в которого сломали
+    breakdown_player_number = game_info.get("breakdownPlayerNumber")
 
     for player in data.players:
         role = player.get("role", "").lower()
@@ -36,7 +35,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         best_move_bonus = 0
         cb_bonus = 0
 
-        # Является ли этот игрок "сломанным"
         is_broken_player = (
             breakdown_source != 'none' and
             breakdown_player_number is not None and
@@ -63,7 +61,6 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
             elif role in ["мафия", "дон"]:
                 cb_bonus = 0.5
         
-        # Логика для C_i (игроки с ЛХ, которые не являются "сломанными")
         elif best_move_string and not is_broken_player:
             if role in ["мирный", "шериф"]:
                 best_move_numbers = parse_best_move(best_move_string)
@@ -150,20 +147,14 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
     else:
         base_query = base_query.filter(or_(Game.event_id.is_(None), Game.event_id == '1'))
 
-
     all_games_for_calc = base_query.order_by(Game.created_at.asc()).all()
     
-    played_games_for_calc = []
-    for game in all_games_for_calc:
-        try:
-            data = json.loads(game.data)
-            if data.get("badgeColor"):
-                played_games_for_calc.append(game)
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-    ci_bonuses = calculate_ci_bonuses(played_games_for_calc)
-    dynamic_penalties = calculate_dynamic_penalties(played_games_for_calc)
+    played_games_for_calc = [
+        game for game in all_games_for_calc if json.loads(game.data).get("badgeColor")
+    ]
+    
+    # --- ИЗМЕНЕНИЕ: Используем новую централизованную функцию ---
+    all_points = calculate_all_game_points(played_games_for_calc)
 
     total_count = len(played_games_for_calc)
     paginated_games = sorted(played_games_for_calc, key=lambda g: g.created_at, reverse=True)[offset:offset+limit]
@@ -176,12 +167,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         processed_players = []
         for p in players:
             name = p.get("name")
-            base_sum = p.get("sum", 0)
-            ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
-            penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
-            jk_penalty = penalties.get('jk_penalty', 0)
-            sk_penalty = penalties.get('sk_penalty', 0)
-            final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
+            final_points = all_points.get(name, {}).get(game.gameId, 0)
             processed_players.append({
                 "id": user_id_map.get(name), 
                 "name": name,
@@ -213,8 +199,9 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
     user_id_map = {user.nickname: user.id for user in all_users}
 
     all_games_for_calc = db.query(Game).filter(or_(Game.event_id.is_(None), Game.event_id == '1')).order_by(Game.created_at.asc()).all()
-    ci_bonuses = calculate_ci_bonuses(all_games_for_calc)
-    dynamic_penalties = calculate_dynamic_penalties(all_games_for_calc)
+    
+    # --- ИЗМЕНЕНИЕ: Используем новую централизованную функцию ---
+    all_points = calculate_all_game_points(all_games_for_calc)
 
     player_games_list = []
     sorted_games = sorted(all_games_for_calc, key=lambda g: g.created_at, reverse=True)
@@ -227,12 +214,7 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
                 processed_players = []
                 for p in players:
                     name = p.get("name")
-                    base_sum = p.get("sum", 0)
-                    ci_bonus = ci_bonuses.get(name, {}).get(game.gameId, 0)
-                    penalties = dynamic_penalties.get(name, {}).get(game.gameId, {})
-                    jk_penalty = penalties.get('jk_penalty', 0)
-                    sk_penalty = penalties.get('sk_penalty', 0)
-                    final_points = base_sum + ci_bonus - jk_penalty - sk_penalty
+                    final_points = all_points.get(name, {}).get(game.gameId, 0)
                     processed_players.append({
                         "id": user_id_map.get(name),
                         "name": name,
@@ -253,7 +235,7 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
                     "judge_id": user_id_map.get(judge_nickname),
                     "location": data.get("location"),
                     "tableNumber": game_info.get("tableNumber"),
-                    "gameInfo": game_info,  # --- ИЗМЕНЕНИЕ: Добавляем gameInfo в ответ ---
+                    "gameInfo": game_info,
                 })
         except (json.JSONDecodeError, TypeError):
             continue
