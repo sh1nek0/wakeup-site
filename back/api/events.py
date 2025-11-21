@@ -426,6 +426,23 @@ import random
 from fastapi import HTTPException
 from sqlalchemy.orm import selectinload
 
+import re
+import json
+import random
+from math import floor, ceil
+
+from fastapi import HTTPException
+from sqlalchemy.orm import selectinload
+from typing import List, Dict, Tuple
+
+# Попытка импортировать pulp — если нет, будет fallback
+try:
+    import pulp
+    HAS_PULP = True
+except Exception:
+    HAS_PULP = False
+
+
 @router.post("/events/{event_id}/generate_seating")
 async def generate_event_seating(
     event_id: str,
@@ -433,9 +450,11 @@ async def generate_event_seating(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # --- проверка прав ---
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Только администраторы могут генерировать рассадку.")
 
+    # --- загрузка сущностей ---
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено.")
@@ -451,36 +470,39 @@ async def generate_event_seating(
     if not pairs:
         raise HTTPException(status_code=400, detail="Нет подтвержденных пар.")
 
+    # сохраняем исключения
     event.seating_exclusions = request.exclusions_text
     db.commit()
 
-    # --- определение числа столов ---
-    num_tables = len(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId))
-    if num_tables < 2:
-        raise HTTPException(status_code=400, detail="Для парного турнира требуется минимум 2 стола.")
+    # --- вычисляем столы и раунды ---
+    table_ids = sorted(list(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId)))
+    if not table_ids:
+        raise HTTPException(status_code=400, detail="Не удалось определить столы из gameId.")
+    num_tables = len(table_ids)
 
-    # --- определение числа раундов ---
     max_round_num = 0
     for g in games:
         match = re.search(r'_r(\d+)', g.gameId)
         if match:
             max_round_num = max(max_round_num, int(match.group(1)))
-    num_rounds = max_round_num
 
+    num_rounds = max_round_num
     if num_rounds == 0:
         if len(games) % num_tables == 0:
             num_rounds = len(games) // num_tables
         else:
-            raise HTTPException(status_code=400, detail="Не удалось определить количество раундов.")
+            raise HTTPException(status_code=400, detail="Не удалось определить количество раундов из gameId.")
 
-    # --- players ---
-    players = []
-    teams_dict = {}
+    if num_tables < 2:
+        raise HTTPException(status_code=400, detail="Для парного турнира требуется минимум 2 стола.")
 
+    # --- разворачиваем пары в игроков ---
+    players: List[Dict] = []
+    teams_dict: Dict[str, List[Dict]] = {}
     for team in pairs:
         try:
             members = json.loads(team.members)
-        except:
+        except Exception:
             raise HTTPException(status_code=400, detail=f"Невалидный JSON в members для команды {team.id}")
 
         if len(members) != 2:
@@ -488,7 +510,6 @@ async def generate_event_seating(
 
         p1 = {"id": members[0]["user_id"], "team_id": team.id}
         p2 = {"id": members[1]["user_id"], "team_id": team.id}
-
         teams_dict[team.id] = [p1, p2]
         players.append(p1)
         players.append(p2)
@@ -496,176 +517,317 @@ async def generate_event_seating(
     total_players = len(players)
     capacity = num_tables * 10
     if total_players > capacity:
-        raise HTTPException(status_code=400, detail=f"Число игроков {total_players} превышает вместимость {capacity}")
+        raise HTTPException(status_code=400, detail=f"Число игроков ({total_players}) превышает вместимость столов ({capacity}).")
 
-    # --- мапа пользователей ---
-    db_users = db.query(User).filter(User.id.in_([p["id"] for p in players])).all()
+    # --- загрузка пользователей в память для быстрого доступа ---
+    user_ids = [p["id"] for p in players]
+    db_users = db.query(User).filter(User.id.in_(user_ids)).all()
     user_map = {u.id: u for u in db_users}
 
-    # --------------------------------------------------------------------
-    # 🎯 НОВАЯ ЧАСТЬ: целевые посещения (каждый игрок посетит каждый стол)
-    # --------------------------------------------------------------------
-
+    # --- целевые посещения (floor/ceil) для каждого игрока на каждый стол ---
     base = num_rounds // num_tables
     extra = num_rounds % num_tables
-
-    # target_counts[player_id][table_index]
-    target_counts = {}
+    # target_min[p][t], target_max[p][t]
+    target_min = {}
+    target_max = {}
     for p in players:
         pid = p["id"]
-        target_counts[pid] = {}
+        target_min[pid] = {}
+        target_max[pid] = {}
         for t in range(num_tables):
-            target_counts[pid][t] = base + (1 if t < extra else 0)
+            # распределяем остаток extra по первым столам
+            ideal = base + (1 if t < extra else 0)
+            # делаем маленькое окно: [ideal-1, ideal+1], но не ниже 0
+            # для жёсткой версии используем точное ideal, но это иногда даёт несовместимость,
+            # поэтому позволяем +-1, но минимально 0 и максимально num_rounds
+            low = max(0, ideal - 1)
+            high = min(num_rounds, ideal + 1)
+            target_min[pid][t] = low
+            target_max[pid][t] = high
 
-    # счетчик фактических посещений
-    player_counts = {p["id"]: {t: 0 for t in range(num_tables)} for p in players}
+    # --- Попытаемся решить ILP (если доступен pulp) ---
+    solution = None  # будет dict (pid -> {r -> table_index})
+    if HAS_PULP:
+        try:
+            # создаём LpProblem
+            prob = pulp.LpProblem("seating", pulp.LpMinimize)
 
-    # visited для разнообразия
-    visited = {p["id"]: set() for p in players}
-
-    all_round_tables = []
-
-    # =====================================================
-    #                 ОСНОВНОЙ ЦИКЛ ПО РАУНДАМ
-    # =====================================================
-    for r in range(1, num_rounds + 1):
-
-        team_ids = list(teams_dict.keys())
-        random.Random(1000 + r).shuffle(team_ids)
-
-        tables = [[] for _ in range(num_tables)]
-
-        # --- для каждой пары ---
-        for team_id in team_ids:
-            a, b = teams_dict[team_id]
-            a_id, b_id = a["id"], b["id"]
-
-            # ---------------------------------------------
-            # 1) Выбор стола для A по принципу:
-            #    - стол еще не заполнен
-            #    - player_counts < target_counts
-            #    - не сидел здесь слишком часто
-            # ---------------------------------------------
-            def best_table_for_player(pid):
-                candidates = []
+            # переменные x_pid_t_r ∈ {0,1}
+            x_vars = {}
+            for p in players:
+                pid = p["id"]
                 for t in range(num_tables):
-                    if len(tables[t]) >= 10:
-                        continue
-                    if player_counts[pid][t] >= target_counts[pid][t]:
-                        continue
-                    candidates.append(t)
+                    for r in range(num_rounds):
+                        name = f"x_{pid}_{t}_{r}"
+                        x_vars[(pid, t, r)] = pulp.LpVariable(name, cat="Binary")
 
-                # если идеальных нет — оставляем только столы с местом
-                if not candidates:
-                    candidates = [t for t in range(num_tables) if len(tables[t]) < 10]
-                    if not candidates:
-                        return None
+            # каждый игрок в каждом раунде ровно в одном столе
+            for p in players:
+                pid = p["id"]
+                for r in range(num_rounds):
+                    prob.addConstraint(
+                        pulp.lpSum(x_vars[(pid, t, r)] for t in range(num_tables)) == 1,
+                        name=f"player_{pid}_round_{r}_one_table"
+                    )
 
-                # выбираем наименее посещённый стол + баланс людей
-                return min(candidates, key=lambda t: (player_counts[pid][t], len(tables[t])))
+            # для каждого стола и раунда — не более 10 реальных игроков
+            for t in range(num_tables):
+                for r in range(num_rounds):
+                    prob.addConstraint(
+                        pulp.lpSum(x_vars[(p["id"], t, r)] for p in players) <= 10,
+                        name=f"table_{t}_round_{r}_cap"
+                    )
 
-            t1 = best_table_for_player(a_id)
-            if t1 is None:
-                raise HTTPException(status_code=500, detail="Не удалось посадить игрока A")
-
-            tables[t1].append(a)
-            visited[a_id].add(t1)
-            player_counts[a_id][t1] += 1
-
-            # ---------------------------------------------
-            # 2) Выбор стола для B (обязательно != t1)
-            # ---------------------------------------------
-            def best_table_for_player_B(pid, forbidden):
-                candidates = []
+            # пары не сидят вместе: для каждой пары, таблицы и раунда — сумма <=1
+            for team_id, members in teams_dict.items():
+                a_id = members[0]["id"]
+                b_id = members[1]["id"]
                 for t in range(num_tables):
-                    if t == forbidden:
-                        continue
-                    if len(tables[t]) >= 10:
-                        continue
-                    if player_counts[pid][t] >= target_counts[pid][t]:
-                        continue
-                    candidates.append(t)
+                    for r in range(num_rounds):
+                        prob.addConstraint(
+                            x_vars[(a_id, t, r)] + x_vars[(b_id, t, r)] <= 1,
+                            name=f"pair_{team_id}_t{t}_r{r}"
+                        )
 
-                if not candidates:
-                    candidates = [t for t in range(num_tables) if t != forbidden and len(tables[t]) < 10]
-                    if not candidates:
-                        return None
+            # ограничения на суммарные посещения (персональные цели)
+            # используем target_min/target_max
+            for p in players:
+                pid = p["id"]
+                for t in range(num_tables):
+                    prob.addConstraint(
+                        pulp.lpSum(x_vars[(pid, t, r)] for r in range(num_rounds)) >= target_min[pid][t],
+                        name=f"min_visits_{pid}_t{t}"
+                    )
+                    prob.addConstraint(
+                        pulp.lpSum(x_vars[(pid, t, r)] for r in range(num_rounds)) <= target_max[pid][t],
+                        name=f"max_visits_{pid}_t{t}"
+                    )
 
-                return min(candidates, key=lambda t: (player_counts[pid][t], len(tables[t])))
+            # Целевая функция: минимизировать суммарное отклонение от идеала (чтобы отдавать предпочтение ближе к ideal)
+            # Сначала подготавливаем идеал
+            ideal_counts = {}
+            for p in players:
+                pid = p["id"]
+                ideal_counts[pid] = {}
+                for t in range(num_tables):
+                    ideal = base + (1 if t < extra else 0)
+                    ideal_counts[pid][t] = ideal
 
-            t2 = best_table_for_player_B(b_id, forbidden=t1)
+            # вводим вспомогательные непрерывные переменные dev_pos, dev_neg для абсолютной разницы
+            dev_vars = {}
+            for p in players:
+                pid = p["id"]
+                for t in range(num_tables):
+                    name_pos = f"devpos_{pid}_{t}"
+                    name_neg = f"devneg_{pid}_{t}"
+                    dev_vars[(pid, t, "pos")] = pulp.LpVariable(name_pos, lowBound=0, cat="Integer")
+                    dev_vars[(pid, t, "neg")] = pulp.LpVariable(name_neg, lowBound=0, cat="Integer")
+                    # связать с суммой x
+                    prob.addConstraint(
+                        pulp.lpSum(x_vars[(pid, t, r)] for r in range(num_rounds)) - ideal_counts[pid][t]
+                        == dev_vars[(pid, t, "pos")] - dev_vars[(pid, t, "neg")],
+                        name=f"dev_balance_{pid}_{t}"
+                    )
 
-            # если не получилось — откатываем А
-            if t2 is None:
-                # удаляем A
-                tables[t1].pop()
-                player_counts[a_id][t1] -= 1
-                visited[a_id].discard(t1)
+            # теперь целевая функция: минимизировать сум(dev_pos + dev_neg)
+            prob += pulp.lpSum(dev_vars[(pid, t, k)] for (pid, t, k) in dev_vars)
 
-                # ищем альтернативный стол для A
-                alt_t1 = best_table_for_player(a_id)
-                if alt_t1 is None:
-                    raise HTTPException(status_code=500, detail="Не удалось пересадить A")
+            # решаем
+            solver = pulp.PULP_CBC_CMD(msg=False, timeLimit=120)  # ограничим время 120s
+            result_status = prob.solve(solver)
 
-                tables[alt_t1].append(a)
-                visited[a_id].add(alt_t1)
-                player_counts[a_id][alt_t1] += 1
+            if pulp.LpStatus[result_status] != "Optimal" and pulp.LpStatus[result_status] != "Not Solved" and pulp.LpStatus[result_status] != "Integer Feasible":
+                # если не нашлось хорошего решения — упадём в fallback
+                raise Exception(f"ILP status: {pulp.LpStatus[result_status]}")
 
-                t2 = best_table_for_player_B(b_id, forbidden=alt_t1)
+            # собираем решение
+            solution = {}
+            for p in players:
+                pid = p["id"]
+                solution[pid] = {}
+                for r in range(num_rounds):
+                    assigned = None
+                    for t in range(num_tables):
+                        val = pulp.value(x_vars[(pid, t, r)])
+                        if val is not None and round(val) == 1:
+                            assigned = t
+                            break
+                    if assigned is None:
+                        # если что-то пошло не так — попадание в fallback
+                        raise Exception(f"No table assigned for player {pid} round {r}")
+                    solution[pid][r] = assigned
+
+        except Exception as e:
+            # ILP не сработал — пометим и пойдем в fallback
+            solution = None
+            # (не бросаем, просто логично перейти к fallback)
+            # В реальном приложении можно логировать e
+            # print("ILP failed:", e)
+    # --- конец попытки ILP ---
+
+    # --- FALLBACK (жадный детерминированный алгоритм), если ILP не дал solution ---
+    if solution is None:
+        # Построим персональные расписания для каждого игрока: циклический список столов длины num_rounds,
+        # в котором каждый стол встречается примерно ideal раз. Затем будем устраивать раунд за раундом,
+        # пытаясь выполнять эти личные назначения и мягко откатывая при конфликтах.
+        personal_schedule: Dict[str, List[int]] = {}
+        for p in players:
+            pid = p["id"]
+            # формируем базовый список с ideal counts
+            ideal = [base + (1 if t < extra else 0) for t in range(num_tables)]
+            slots = []
+            for t, cnt in enumerate(ideal):
+                slots += [t] * cnt
+            # если длина меньше num_rounds (из-за округлений) — докидываем случайные
+            while len(slots) < num_rounds:
+                slots.append(random.randrange(num_tables))
+            # если длиннее (маловероятно) — обрезаем
+            slots = slots[:num_rounds]
+            random.Random(hash(pid) & 0xffffffff).shuffle(slots)
+            personal_schedule[pid] = slots
+
+        # теперь по раундам пытаемся "собирать" столы, учитывая парное ограничение
+        all_round_tables = []
+        # init counters
+        player_counts = {p["id"]: {t: 0 for t in range(num_tables)} for p in players}
+
+        for r in range(num_rounds):
+            tables = [[] for _ in range(num_tables)]
+            # пройдём пары в случайном порядке, но детерминированно по раунду
+            team_ids = list(teams_dict.keys())
+            random.Random(10000 + r).shuffle(team_ids)
+            for team_id in team_ids:
+                a, b = teams_dict[team_id]
+                aid, bid = a["id"], b["id"]
+
+                # предпочтительные столы из персонального расписания
+                pref_a = personal_schedule[aid][r]
+                pref_b = personal_schedule[bid][r]
+
+                # функция выбора столов: сначала попытка на предпочтение, затем поиск любого с местом и не равным партнёру
+                def pick_for_player(pid, forbidden_table=None):
+                    # 1) предпочтительный, если есть место and not forbidden
+                    pref = personal_schedule[pid][r]
+                    if pref != forbidden_table and len(tables[pref]) < 10:
+                        return pref
+                    # 2) любой стол, где player hasn't exceeded ideal more than +1 and has space and != forbidden
+                    for t in range(num_tables):
+                        if t == forbidden_table:
+                            continue
+                        if len(tables[t]) >= 10:
+                            continue
+                        return t
+                    # 3) если ничего — возвращаем None
+                    return None
+
+                t1 = pick_for_player(aid, forbidden_table=None)
+                if t1 is None:
+                    raise HTTPException(status_code=500, detail=f"Не удалось посадить игрока {aid} в раунде {r+1} (fallback).")
+
+                tables[t1].append(a)
+                player_counts[aid][t1] += 1
+
+                # для b — исключаем t1
+                t2 = pick_for_player(bid, forbidden_table=t1)
                 if t2 is None:
-                    raise HTTPException(status_code=500, detail="Не удалось посадить B в другой стол.")
+                    # попытаемся переразместить a на другой стол, чтобы освободить место
+                    alt_found = False
+                    for alt_t in range(num_tables):
+                        if alt_t == t1:
+                            continue
+                        if len(tables[alt_t]) < 10:
+                            # можно перебросить a сюда, если это не повредит (мы просто переносим)
+                            tables[t1].pop()  # убрать a
+                            player_counts[aid][t1] -= 1
+                            tables[alt_t].append(a)
+                            player_counts[aid][alt_t] += 1
+                            t1 = alt_t
+                            alt_found = True
+                            break
+                    if alt_found:
+                        # теперь попробуем взять место для b
+                        t2 = pick_for_player(bid, forbidden_table=t1)
+                    if t2 is None:
+                        # как крайняя мера — найдём любой стол != t1 даже если переполнение (нежелательно)
+                        other = [tt for tt in range(num_tables) if tt != t1]
+                        if not other:
+                            raise HTTPException(status_code=500, detail="Не удалось разделить пару (fallback critical).")
+                        t2 = min(other, key=lambda tt: len(tables[tt]))
+                        if len(tables[t2]) >= 10:
+                            # если и тут нет места — это критическая ошибка (должно быть покрыто capacity проверкой выше)
+                            raise HTTPException(status_code=500, detail="Нет свободного места для посадки B (fallback).")
 
-            tables[t2].append(b)
-            visited[b_id].add(t2)
-            player_counts[b_id][t2] += 1
+                tables[t2].append(b)
+                player_counts[bid][t2] += 1
 
-        # --- плейсхолдеры ---
-        for t in range(num_tables):
-            while len(tables[t]) < 10:
-                placeholder_id = f"placeholder_r{r}_t{t+1}_{len(tables[t])+1}"
-                tables[t].append({"id": placeholder_id, "team_id": None})
+            # докидываем placeholders до ровно 10
+            for t in range(num_tables):
+                while len(tables[t]) < 10:
+                    placeholder_id = f"placeholder_r{r+1}_t{t+1}_{len(tables[t])+1}"
+                    tables[t].append({"id": placeholder_id, "team_id": None})
 
-        all_round_tables.append(tables)
+            all_round_tables.append(tables)
 
-    # =====================================================
-    #       СОХРАНЕНИЕ В БАЗУ (games[].data.players)
-    # =====================================================
+        # сформирован результат в all_round_tables
+    else:
+        # если ILP дал solution → переводим в all_round_tables
+        # solution[pid][r] = t
+        all_round_tables = []
+        # prepare map from pid to player object
+        player_obj_map = {p["id"]: p for p in players}
+        for r in range(num_rounds):
+            tables = [[] for _ in range(num_tables)]
+            for p in players:
+                pid = p["id"]
+                t = solution[pid][r]
+                tables[t].append(player_obj_map[pid])
+            # doc: возможно столы <10, докинем placeholders
+            for t in range(num_tables):
+                while len(tables[t]) < 10:
+                    placeholder_id = f"placeholder_r{r+1}_t{t+1}_{len(tables[t])+1}"
+                    tables[t].append({"id": placeholder_id, "team_id": None})
+            all_round_tables.append(tables)
 
+    # --- запись в games[].data ---
     game_map = {g.gameId: g for g in games}
-
     for r in range(1, num_rounds + 1):
-        for t in range(1, num_tables + 1):
-            gid = f"{event_id}_r{r}_t{t}"
-            game = game_map.get(gid)
+        for t_index, table_label in enumerate(table_ids, start=1):
+            game_id = f"{event_id}_r{r}_t{table_label}"
+            game = game_map.get(game_id)
             if not game:
+                # если game не найден — пропускаем
                 continue
-
-            table = all_round_tables[r-1][t-1]
-
-            result_players = []
-            for p in table:
-                if p["team_id"] is None:
-                    result_players.append({
-                        "id": p["id"], "name": "",
-                        "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0,
+            table_players = all_round_tables[r-1][t_index-1]
+            players_for_game = []
+            for p in table_players:
+                if p.get("team_id") is None:
+                    players_for_game.append({
+                        "id": p["id"],
+                        "name": "",
+                        "role": "мирный",
+                        "plus": 2.5,
+                        "sk": 0,
+                        "jk": 0,
                         "best_move": ""
                     })
                 else:
                     u = user_map.get(p["id"])
-                    result_players.append({
+                    players_for_game.append({
                         "id": p["id"],
                         "name": u.nickname if u else "",
-                        "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0,
+                        "role": "мирный",
+                        "plus": 2.5,
+                        "sk": 0,
+                        "jk": 0,
                         "best_move": ""
                     })
-
             data = json.loads(game.data) if game.data else {}
-            data["players"] = result_players
+            data["players"] = players_for_game
             game.data = json.dumps(data, ensure_ascii=False)
 
     db.commit()
+    return {"message": "Рассадка с ILP/fallback успешно сгенерирована и сохранена."}
 
-    return {"message": "Рассадка успешно сгенерирована с учётом равномерного посещения столов."}
 @router.post("/events/{event_id}/toggle_visibility")
 async def toggle_games_visibility(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "admin":
