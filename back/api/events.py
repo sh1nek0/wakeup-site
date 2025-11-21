@@ -420,7 +420,12 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
 
 @router.post("/events/{event_id}/generate_seating")
-async def generate_event_seating(event_id: str, request: GenerateSeatingRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def generate_event_seating(
+    event_id: str,
+    request: GenerateSeatingRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Только администраторы могут генерировать рассадку.")
 
@@ -432,69 +437,136 @@ async def generate_event_seating(event_id: str, request: GenerateSeatingRequest,
     if not games:
         raise HTTPException(status_code=400, detail="Сначала необходимо создать сетку игр.")
 
-    if event.type in ["pair", "team"]:
-        entities = db.query(Team).filter(Team.event_id == event_id, Team.status == "approved").all()
-    else: # solo
-        registrations = db.query(Registration).options(selectinload(Registration.user)).filter(Registration.event_id == event_id, Registration.status == "approved").all()
-        entities = [reg.user for reg in registrations]
+    # Загружаем пары
+    if event.type == "pair":
+        teams = db.query(Team).filter(
+            Team.event_id == event_id,
+            Team.status == "approved"
+        ).all()
 
-    if not entities:
-        raise HTTPException(status_code=400, detail="Нет подтвержденных участников или команд для рассадки.")
+        if not teams:
+            raise HTTPException(status_code=400, detail="Нет подтвержденных пар.")
 
+    else:
+        raise HTTPException(status_code=400, detail="Этот эндпоинт работает только для парных турниров.")
+
+    # Сохраняем исключения
     event.seating_exclusions = request.exclusions_text
     db.commit()
-    
-    num_tables = len(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId))
-    if num_tables == 0:
-        raise HTTPException(status_code=400, detail="Не удалось определить количество столов из ID игр.")
 
+    # Количество столов
+    num_tables = len(set(g.gameId.split("_t")[1] for g in games if "_t" in g.gameId))
+    if num_tables == 0:
+        raise HTTPException(status_code=400, detail="Не удалось определить количество столов.")
+
+    # Количество раундов
     max_round_num = 0
     for g in games:
-        match = re.search(r'_r(\d+)', g.gameId)
+        match = re.search(r"_r(\d+)", g.gameId)
         if match:
             max_round_num = max(max_round_num, int(match.group(1)))
-    
+
     num_rounds = max_round_num
     if num_rounds == 0 and num_tables > 0:
         num_rounds = len(games) // num_tables
-    
     if num_rounds == 0:
-        raise HTTPException(status_code=400, detail="Не удалось определить количество раундов из ID игр.")
-    
+        raise HTTPException(status_code=400, detail="Не удалось определить количество раундов.")
+
+    # --- РАСПАКОВЫВАЕМ ПАРЫ В СПИСОК ИГРОКОВ ---
+
+    players = []  # [{ id, team_id }]
+    for team_obj in teams:
+        members = json.loads(team_obj.members)
+        for m in members:
+            players.append({
+                "id": m["user_id"],
+                "team_id": team_obj.id
+            })
+
+    # Группировка по парам
+    teams_dict = {}
+    for p in players:
+        teams_dict.setdefault(p["team_id"], []).append(p)
+
+    # Проверка: в паре всегда 2 игрока
+    for team_id, members in teams_dict.items():
+        if len(members) != 2:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Пара {team_id} имеет {len(members)} игроков — должно быть ровно 2."
+            )
+
+    # Проверка возможности рассадки: столов >= 2
+    if num_tables < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Для парного турнира должно быть как минимум 2 стола."
+        )
+
+    # --- РАСПРЕДЕЛЕНИЕ ПО СТОЛАМ ---
+
+    # Инициируем столы: [[] , [], ...]
+    tables = [[] for _ in range(num_tables)]
+
+    # Раскладываем пары по кругу, чтобы члены пары оказались за разными столами
+    table_index = 0
+    for team_id, members in teams_dict.items():
+        random.shuffle(members)  # случайный порядок внутри пары
+
+        for player in members:
+            tables[table_index].append(player)
+            table_index = (table_index + 1) % num_tables
+
+    # Наполняем столы до 10 игроков placeholders
+    for i in range(num_tables):
+        while len(tables[i]) < 10:
+            placeholder_id = f"placeholder_{len(tables[i]) + 1}"
+            tables[i].append({"id": placeholder_id, "team_id": None})
+
+    # --- ЗАПИСЬ В ИГРЫ ---
+
     for r in range(1, num_rounds + 1):
-        random.shuffle(entities)
-        
+        random.shuffle(players)  # перемешиваем пары по раундам? → можно убрать если надо фиксированно
+
         for t in range(1, num_tables + 1):
             game_id = f"{event_id}_r{r}_t{t}"
             game = next((g for g in games if g.gameId == game_id), None)
-            if not game: continue
+            if not game:
+                continue
 
-            start_index = (t - 1) * 10
-            end_index = start_index + 10
-            table_entities = entities[start_index:end_index]
+            table_entities = tables[t - 1]
 
             players_for_game = []
-            if event.type == "solo":
-                players_for_game = [{"id": p.id, "name": p.nickname, "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0, "best_move": ""} for p in table_entities]
-            else: # team or pair
-                for team_obj in table_entities:
-                    members = json.loads(team_obj.members)
-                    user_ids = [m['user_id'] for m in members]
-                    users = db.query(User).filter(User.id.in_(user_ids)).all()
-                    user_map = {u.id: u.nickname for u in users}
-                    for member in members:
-                        players_for_game.append({"id": member['user_id'], "name": user_map.get(member['user_id'], "???"), "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0, "best_move": ""})
-            
-            while len(players_for_game) < 10:
-                players_for_game.append({"id": f"placeholder_{len(players_for_game)+1}", "name": "", "role": "мирный", "plus": 2.5, "sk": 0, "jk": 0, "best_move": ""})
+            for p in table_entities:
+                if p["team_id"] is None:
+                    players_for_game.append({
+                        "id": p["id"],
+                        "name": "",
+                        "role": "мирный",
+                        "plus": 2.5,
+                        "sk": 0,
+                        "jk": 0,
+                        "best_move": ""
+                    })
+                    continue
+
+                user = db.query(User).filter(User.id == p["id"]).first()
+                players_for_game.append({
+                    "id": user.id,
+                    "name": user.nickname,
+                    "role": "мирный",
+                    "plus": 2.5,
+                    "sk": 0,
+                    "jk": 0,
+                    "best_move": ""
+                })
 
             game_data = json.loads(game.data) if game.data else {}
-            game_data['players'] = players_for_game
+            game_data["players"] = players_for_game
             game.data = json.dumps(game_data, ensure_ascii=False)
 
     db.commit()
-    return {"message": "Расадка успешно сгенерирована и сохранена."}
-
+    return {"message": "Рассадка успешно сгенерирована и сохранена."}
 
 @router.post("/events/{event_id}/toggle_visibility")
 async def toggle_games_visibility(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
