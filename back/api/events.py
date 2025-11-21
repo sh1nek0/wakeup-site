@@ -450,9 +450,9 @@ async def generate_event_seating(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # -------------------------
-    # 1) Авторизация и загрузка
-    # -------------------------
+    # ============================================================
+    # 0. Авторизация и загрузка данных
+    # ============================================================
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Только администраторы могут генерировать рассадку.")
 
@@ -465,26 +465,24 @@ async def generate_event_seating(
         raise HTTPException(status_code=400, detail="Сначала необходимо создать сетку игр.")
 
     if event.type != "pair":
-        raise HTTPException(status_code=400, detail="Этот эндпоинт поддерживает только парные турниры (pair).")
+        raise HTTPException(status_code=400, detail="Этот эндпоинт поддерживает только парные турниры.")
 
     pairs = db.query(Team).filter(Team.event_id == event_id, Team.status == "approved").all()
     if not pairs:
         raise HTTPException(status_code=400, detail="Нет подтвержденных пар.")
 
-    # сохраняем текст исключений
+    # сохраняем exclusions
     event.seating_exclusions = request.exclusions_text
     db.commit()
 
-    # -------------------------
-    # 2) считываем метаданные
-    # -------------------------
-    # table ids извлекаем из gameId (они могут быть метками, поэтому храним порядок)
+    # ============================================================
+    # 1. Определяем количество столов и раундов
+    # ============================================================
     table_labels = sorted(list(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId)))
     if not table_labels:
         raise HTTPException(status_code=400, detail="Не удалось определить метки столов из gameId.")
     num_tables = len(table_labels)
 
-    # number of rounds
     max_round_num = 0
     for g in games:
         m = re.search(r'_r(\d+)', g.gameId)
@@ -496,27 +494,29 @@ async def generate_event_seating(
         if len(games) % num_tables == 0:
             num_rounds = len(games) // num_tables
         else:
-            raise HTTPException(status_code=400, detail="Не удалось определить количество раундов из gameId.")
+            raise HTTPException(status_code=400, detail="Не удалось определить количество раундов.")
 
     if num_tables < 2:
         raise HTTPException(status_code=400, detail="Для парного турнира требуется минимум 2 стола.")
 
-    # -------------------------
-    # 3) разворачиваем пары в игроков
-    # -------------------------
-    players = []  # list of player dicts {"id","team_id"}
-    teams_dict = {}  # team_id -> [p1, p2]
+    # ============================================================
+    # 2. Разворачиваем пары в игроков
+    # ============================================================
+    players = []
+    teams_dict = {}  # teamId → [p1, p2]
+
     for team in pairs:
         try:
             members = json.loads(team.members)
-        except Exception:
-            raise HTTPException(status_code=400, detail=f"Невалидный JSON members в команде {team.id}")
+        except:
+            raise HTTPException(status_code=400, detail=f"Невалидный JSON у команды {team.id}")
 
         if len(members) != 2:
-            raise HTTPException(status_code=400, detail=f"Пара {team.id} должна содержать ровно 2 игрока.")
+            raise HTTPException(status_code=400, detail=f"Пара {team.id} должна иметь ровно 2 игроков.")
 
         p1 = {"id": members[0]["user_id"], "team_id": team.id}
         p2 = {"id": members[1]["user_id"], "team_id": team.id}
+
         teams_dict[team.id] = [p1, p2]
         players.append(p1)
         players.append(p2)
@@ -526,185 +526,147 @@ async def generate_event_seating(
     if total_players > capacity:
         raise HTTPException(
             status_code=400,
-            detail=f"Число игроков ({total_players}) превышает общую вместимость столов ({capacity})."
+            detail=f"Игроков ({total_players}) больше чем вместимость ({capacity})."
         )
 
-    # загружаем пользователей (никнеймы) одним запросом
     user_ids = [p["id"] for p in players]
     db_users = db.query(User).filter(User.id.in_(user_ids)).all()
     user_map = {u.id: u for u in db_users}
 
-    # -------------------------
-    # 4) подготовка персональных очередей слотов (позиции 0..9)
-    #    если num_rounds >= 10, кажый игрок покроет все слоты
-    # -------------------------
-    player_slot_queue = {}  # pid -> list of preferred slot indices length num_rounds
+    # ============================================================
+    # 3. Персональные очереди позиций (slots)
+    # ============================================================
+    player_slot_queue = {}
     for p in players:
         pid = p["id"]
-        base_slots = list(range(10))  # 0..9
-        # чтобы не быть одинаковыми у всех — делаем псевдослучайную перестановку зависящую от pid
+        base = list(range(10))  # 0..9
         rnd = random.Random(hash(pid) & 0xffffffff)
-        rnd.shuffle(base_slots)
+        rnd.shuffle(base)
+
         slots = []
-        # расширяем циклически до num_rounds
         while len(slots) < num_rounds:
-            slots.extend(base_slots)
+            slots.extend(base)
         slots = slots[:num_rounds]
         player_slot_queue[pid] = slots
 
-    # -------------------------
-    # 5) основной цикл по раундам:
-    #    - для каждого раунда выбираем для каждой пары две разные таблицы
-    #    - критерий выбора: наличие свободных слотов (len < 10), приоритет столам, где игрок ещё не сидел,
-    #      и минимальная текущая загрузка (балансировка)
-    # -------------------------
-    # visited_tables[player_id] = set of table indices they've sat at (helps diversify)
-    visited_tables = {p["id"]: set() for p in players}
+    # ============================================================
+    # 4. master_seed → чтобы каждая генерация была уникальной
+    # ============================================================
+    master_seed = random.randrange(1_000_000_000)
 
-    all_round_tables = []  # для каждого раунда: list[t] -> list of player dicts assigned to that table (unordered)
+    # ============================================================
+    # 5. Основной цикл: распределение по столам
+    # ============================================================
+    visited_tables = {p["id"]: set() for p in players}
+    all_round_tables = []
+
     team_ids = list(teams_dict.keys())
 
     for r in range(num_rounds):
-        # детерминированная пермутация пар по раунду
-        rnd = random.Random(1000 + r)
+        rnd = random.Random(master_seed + 777 * (r + 1))
         rnd.shuffle(team_ids)
 
-        tables = [[] for _ in range(num_tables)]  # will hold player dicts
+        tables = [[] for _ in range(num_tables)]
         table_counts = [0] * num_tables
 
-        # Для каждой пары — выбираем пару таблиц (t1 != t2)
         for tid in team_ids:
             a, b = teams_dict[tid]
             aid, bid = a["id"], b["id"]
 
-            # Соберём все возмож пары таблиц, где есть место
-            possible_pairs = []
+            possible = []
             for t1 in range(num_tables):
                 if table_counts[t1] >= 10:
                     continue
                 for t2 in range(num_tables):
-                    if t2 == t1:
+                    if t1 == t2:
                         continue
                     if table_counts[t2] >= 10:
                         continue
-                    possible_pairs.append((t1, t2))
+                    possible.append((t1, t2))
 
-            if not possible_pairs:
-                # это не должно случиться, так как проверили capacity выше
-                raise HTTPException(status_code=500, detail=f"Нет доступных двух различных столов для пары {tid} в раунде {r+1}.")
+            if not possible:
+                raise HTTPException(status_code=500, detail=f"Не удается найти 2 разных стола для пары {tid}")
 
-            # Оцениваем кандидатов. Счёт = (load_t1 + load_t2) + w1*visited_penalty_a + w2*visited_penalty_b
-            # visited_penalty = 0 если игрок ещё не сидел за этим столом (хочу новые столы), иначе 1
-            # Также учитываем предпочтительный приоритет: если игрок ещё не сидел за столом, уменьшаем score
             best_pair = None
             best_score = None
-            for (t1, t2) in possible_pairs:
+
+            for (t1, t2) in possible:
                 load = table_counts[t1] + table_counts[t2]
                 visited_penalty = 0
                 visited_penalty += (1 if t1 in visited_tables[aid] else 0)
                 visited_penalty += (1 if t2 in visited_tables[bid] else 0)
-                # небольшая случайная дробь, чтобы избегать одних и тех же выборов при равенстве
-                tie_break = rnd.random() * 0.0001
-                score = load + 2 * visited_penalty + tie_break
+                tie = rnd.random() * 0.0001
+                score = load + visited_penalty * 2 + tie
+
                 if best_score is None or score < best_score:
                     best_score = score
                     best_pair = (t1, t2)
 
-            # назначаем
-            chosen_t1, chosen_t2 = best_pair
-            tables[chosen_t1].append(a)
-            tables[chosen_t2].append(b)
-            table_counts[chosen_t1] += 1
-            table_counts[chosen_t2] += 1
-            visited_tables[aid].add(chosen_t1)
-            visited_tables[bid].add(chosen_t2)
+            t1, t2 = best_pair
+            tables[t1].append(a)
+            tables[t2].append(b)
+            table_counts[t1] += 1
+            table_counts[t2] += 1
+            visited_tables[aid].add(t1)
+            visited_tables[bid].add(t2)
 
-        # После распределения пар, докидываем placeholders до 10 и назначаем слоты (позиции)
-        # Для корректной позиции нам нужен массив длиной 10 per table.
-        final_tables_with_slots = []
+        # ============================================================
+        # 6. Распределение игроков по слотам 1..10
+        # ============================================================
+        final_tables = []
 
-        for t_index in range(num_tables):
-            assigned = tables[t_index]  # list of player dicts (real only)
-            # ensure not more than 10 real players (shouldn't happen)
-            if len(assigned) > 10:
-                # если вдруг >10 — обрезаем лишних (редкий fallback). Лучше логировать.
-                assigned = assigned[:10]
+        for t_i in range(num_tables):
+            assigned = tables[t_i]
 
-            # create empty slots list
             slots = [None] * 10
+            rnd_slots = random.Random(master_seed + 9999 + r * 31 + t_i)
+            shuffled = assigned[:]
+            rnd_slots.shuffle(shuffled)
 
-            # First pass: try to place real players into their preferred slot for this round
-            # collect real players
-            real_players = assigned.copy()
-            rnd = random.Random(2000 + r + t_index)
-            rnd.shuffle(real_players)  # small shuffle so order isn't deterministic in collision resolution
-
-            for p in real_players:
+            for p in shuffled:
                 pid = p["id"]
-                preferred_slot = player_slot_queue[pid][r]  # 0..9
-                # if preferred slot free, take it
-                if slots[preferred_slot] is None:
-                    slots[preferred_slot] = p
+                pref = player_slot_queue[pid][r]
+
+                if slots[pref] is None:
+                    slots[pref] = p
                 else:
-                    # try to find nearest free slot (linear scan)
                     placed = False
-                    # first try forward
-                    for off in range(1, 10):
-                        s = (preferred_slot + off) % 10
-                        if slots[s] is None:
-                            slots[s] = p
+                    for k in range(10):
+                        if slots[k] is None:
+                            slots[k] = p
                             placed = True
                             break
                     if not placed:
-                        # try backward (shouldn't be necessary)
-                        for off in range(1, 10):
-                            s = (preferred_slot - off) % 10
-                            if slots[s] is None:
-                                slots[s] = p
-                                placed = True
-                                break
-                    if not placed:
-                        # as extreme fallback, find any free slot
-                        for s in range(10):
-                            if slots[s] is None:
-                                slots[s] = p
-                                placed = True
-                                break
-                    # placed guaranteed because capacity checked
-            # Second pass: fill remaining slots with placeholders
+                        raise HTTPException(status_code=500, detail="Слот не найден, что невозможно.")
+
             for s in range(10):
                 if slots[s] is None:
-                    placeholder_id = f"placeholder_r{r+1}_t{t_index+1}_{s+1}"
-                    slots[s] = {"id": placeholder_id, "team_id": None}
+                    slots[s] = {"id": f"placeholder_r{r+1}_t{t_i+1}_{s+1}", "team_id": None}
 
-            final_tables_with_slots.append(slots)
+            final_tables.append(slots)
 
-        # final verification: every table must have 10 slots
-        for t_idx, sl in enumerate(final_tables_with_slots):
-            if len(sl) != 10:
-                raise HTTPException(status_code=500, detail=f"После формирования стол {t_idx+1} имеет {len(sl)} слотов (ожидалось 10).")
+        all_round_tables.append(final_tables)
 
-        all_round_tables.append(final_tables_with_slots)
-
-    # -------------------------
-    # 6) записываем в games[].data
-    # -------------------------
+    # ============================================================
+    # 7. Запись в game.data
+    # ============================================================
     game_map = {g.gameId: g for g in games}
 
     for r in range(1, num_rounds + 1):
         round_tables = all_round_tables[r - 1]
-        for t_i, label in enumerate(table_labels, start=1):
+
+        for idx, label in enumerate(table_labels):
             game_id = f"{event_id}_r{r}_t{label}"
             game = game_map.get(game_id)
             if not game:
-                # если нет такой игры — пропускаем
                 continue
 
-            table_slots = round_tables[t_i - 1]
-            players_for_game = []
-            for p in table_slots:
+            slots = round_tables[idx]
+
+            players_list = []
+            for p in slots:
                 if p.get("team_id") is None:
-                    players_for_game.append({
+                    players_list.append({
                         "id": p["id"],
                         "name": "",
                         "role": "мирный",
@@ -715,7 +677,7 @@ async def generate_event_seating(
                     })
                 else:
                     user = user_map.get(p["id"])
-                    players_for_game.append({
+                    players_list.append({
                         "id": p["id"],
                         "name": user.nickname if user else "",
                         "role": "мирный",
@@ -725,12 +687,14 @@ async def generate_event_seating(
                         "best_move": ""
                     })
 
-            game_data = json.loads(game.data) if game.data else {}
-            game_data["players"] = players_for_game
-            game.data = json.dumps(game_data, ensure_ascii=False)
+            data = json.loads(game.data) if game.data else {}
+            data["players"] = players_list
+            game.data = json.dumps(data, ensure_ascii=False)
 
     db.commit()
-    return {"message": "Рассадка успешно сгенерирована: пары разделены, слоты распределены по очередям."}
+    return {"message": "Рассадка успешно сгенерирована."}
+
+
 
 @router.post("/events/{event_id}/toggle_visibility")
 async def toggle_games_visibility(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
