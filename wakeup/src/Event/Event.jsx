@@ -201,7 +201,7 @@ export default function Game() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ exclusions_text: exclusionsText }),
       });
-      console.log(exclusionsText)
+      
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Ошибка генерации рассадки");
       showMessage(data.message);
@@ -697,6 +697,8 @@ const [activeTab, setActiveTab] = useState('player');
           />
         </section>
       )}
+
+      {console.log(eventData.games)}
 
         {/* Panels */}
         {activeTab === 'solo' && (
