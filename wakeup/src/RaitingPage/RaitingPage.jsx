@@ -705,13 +705,13 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
               <button
                 key={page}
                 onClick={() => onPageChange(page)}
-                className={page === currentPage ? styles.pageActive : ''}
+                className={page === currentPage ? styles.pageActive : styles.pageBtn}
               >
                 {page}
               </button>
             );
           })}
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>›</button>
+          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={styles.pageBtn}>›</button>
         </nav>
       )}
     </div>

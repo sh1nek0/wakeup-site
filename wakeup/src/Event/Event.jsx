@@ -159,6 +159,14 @@ export default function Game() {
     }
   };
 
+  const roleToRussian = {
+  sheriff: "Шериф",
+  citizen: "Мирный",
+  mafia: "Мафия",
+  don: "Дон",
+};
+
+
   const handleManageRegistration = async (registrationId, action) => {
     if (!isAdmin) return;
     try {
@@ -266,7 +274,7 @@ export default function Game() {
     if (!eventData?.games) return [];
     return buildPlayersStats(eventData.games);
   }, [eventData]);
-  {console.log(playersStats)}
+  {console.log(eventData.games)}
 
 
   const personalTotalPages = useMemo(() => Math.ceil(playersStats.length / pageSize), [playersStats, pageSize]);
@@ -728,7 +736,6 @@ const overallNomination = useMemo(() => {
 
 
 
-       {console.log(aggregatedTeamData)}
         {activeTab === 'teamStat' && showTeamTabs && (
           <div className={styles.tabPanel} role="tabpanel">
             <h2 className={styles.h2}>Командный зачёт</h2>
@@ -742,48 +749,66 @@ const overallNomination = useMemo(() => {
           </div>
         )}
 
-        {activeTab === 'nomsSolo' && (
-          <div className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Номинации </h2>
-            <div className={styles.nominationsGrid}>
-                {/* Номинации по ролям */}
-                {roleNominations.map(n => (
-                  <div key={n.role} className={styles.nominationCard}>
-                    <div className={styles.nominationTitle}>Лучший {n.role}</div>
-                    <div className={styles.nominationWinners}>
-                      {n.winner && (
-                        <button
-                          type="button"
-                          className={styles.winnerLink}
-                          onClick={() => navigate(`/profile/${n.winner.id}`)}
-                          title={n.winner.name}
-                        >
-                          {n.winner.name} <span className={styles.winnerValue}>({n.winner.value})</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
 
-                {/* Общая номинация */}
-                {overallNomination && (
-                  <div className={styles.nominationCard}>
-                    <div className={styles.nominationTitle}>MVP</div>
-                    <div className={styles.nominationWinners}>
-                      <button
-                        type="button"
-                        className={styles.winnerLink}
-                        onClick={() => navigate(`/profile/${overallNomination.id}`)}
-                        title={overallNomination.name}
-                      >
-                        {overallNomination.name} <span className={styles.winnerValue}>({overallNomination.value})</span>
-                      </button>
-                    </div>
-                  </div>
+{activeTab === 'nomsSolo' && (
+  <div className={styles.tabPanel} role="tabpanel">
+    <h2 className={styles.h2}>Номинации</h2>
+
+    {/* Маппер ролей */}
+    {(() => {
+      const roleNames = {
+        sheriff: "Шериф",
+        citizen: "Мирный",
+        mafia: "Черный",
+        don: "Дон",
+      };
+
+      return (
+        <div className={styles.nominationsGrid}>
+          {/* Номинации по ролям */}
+          {roleNominations.map(n => (
+            <div key={n.role} className={styles.nominationCard}>
+              <div className={styles.nominationTitle}>
+                Лучший {roleNames[n.role] || n.role}
+              </div>
+              <div className={styles.nominationWinners}>
+                {n.winner && (
+                  <button
+                    type="button"
+                    className={styles.winnerLink}
+                    onClick={() => navigate(`/profile/${n.winner.id}`)}
+                    title={n.winner.name}
+                  >
+                    {n.winner.name}{" "}
+                    <span className={styles.winnerValue}>({n.winner.value})</span>
+                  </button>
                 )}
               </div>
-          </div>
-        )}
+            </div>
+          ))}
+
+          {/* MVP */}
+          {overallNomination && (
+            <div className={styles.nominationCard}>
+              <div className={styles.nominationTitle}>MVP</div>
+              <div className={styles.nominationWinners}>
+                <button
+                  type="button"
+                  className={styles.winnerLink}
+                  onClick={() => navigate(`/profile/${overallNomination.id}`)}
+                  title={overallNomination.name}
+                >
+                  {overallNomination.name}{" "}
+                  <span className={styles.winnerValue}>({overallNomination.value})</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    })()}
+  </div>
+)}
 
 
       </section>

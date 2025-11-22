@@ -376,11 +376,12 @@
   display:flex; justify-content:center; align-items:center; gap:10px; margin-top:18px;
 }
 .pageBtn{
-  background:#252525; color:#EDEDED; border:2px solid #3A3A3A;
-  padding:8px 12px; cursor:pointer; font-size:16px; user-select:none;
+  background-color: #4a4a4a;  border:2px solid #3A3A3A;
+  padding: 1px 5px; cursor:pointer; font-size:16px; user-select:none;
   border-radius:0; transition:border-color .2s, transform .12s;
+  margin: 1px;
 }
-.pageBtn:hover, .pageActive{ border-color:#FF7A1A; transform:translateY(-1px); }
+.pageBtn:hover, .pageActive{ border-color:#FF7A1A ;background-color: #4a4a4a;   }
 .pageArrow{ font-weight:800; }
 .pageBtn:disabled{ opacity:.45; cursor:not-allowed; }
 
