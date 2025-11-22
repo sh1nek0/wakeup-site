@@ -271,9 +271,10 @@ export default function Game() {
 
   // ------------------------------
   const playersStats = useMemo(() => {
-    if (!eventData?.games) return [];
-    return buildPlayersStats(eventData.games);
-  }, [eventData]);
+  if (!eventData?.games) return [];
+  return buildPlayersStats(eventData.games)
+    .sort((a, b) => b.totalPoints - a.totalPoints); // ⬅ сортировка
+}, [eventData]);
   {console.log(eventData.games)}
 
 
@@ -335,13 +336,12 @@ export default function Game() {
 const aggregatedTeamData = useMemo(() => {
   if (!teams || !playersStats) return [];
 
-  // Индекс игроков по имени
   const playerIndexByName = new Map(
     playersStats.map(p => [p.name.toLowerCase().trim(), p])
   );
 
-  return teams.map(team => {
-    // Получаем статистику членов команды по имени
+  // ⬅️ ШАГ 1 — сначала формируем массив без возврата
+  const data = teams.map(team => {
     const membersStats = (team.members || [])
       .map(m => m.nick ? playerIndexByName.get(m.nick.toLowerCase().trim()) : null)
       .filter(Boolean);
@@ -383,10 +383,17 @@ const aggregatedTeamData = useMemo(() => {
       role_plus: mergeRolePlus(),
       totalCi: sumField("totalCi") || 0,
       totalCb: sumField("totalCb") || 0,
-      membersStats, // уже массив
+      membersStats,
     };
   });
+
+  // ⬅️ ШАГ 2 — сортировка
+  data.sort((a, b) => b.totalPoints - a.totalPoints);
+
+  // ⬅️ ШАГ 3 — возвращаем отсортированный массив
+  return data;
 }, [teams, playersStats]);
+
 
 
 // ------------------------------
