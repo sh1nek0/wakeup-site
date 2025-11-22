@@ -24,10 +24,26 @@ export default function GameResultsTable() {
 
   // === Автообновление localStorage ===
   useEffect(() => {
-    const pathParts = window.location.pathname.split("/");
-    const event = pathParts.find((p) => /^\d+$/.test(p));
-    const game = pathParts.find((p) => p.startsWith("game_"));
-    if (!event || !game) return;
+const pathParts = window.location.pathname.split("/").filter(Boolean);
+
+let event = null;
+let game = null;
+
+// EVENT ID
+event =
+  pathParts.find((p) => /^event_[A-Za-z0-9]+$/.test(p)) ||
+  pathParts.find((p) => /^\d+$/.test(p));
+
+// GAME ID
+game =
+  pathParts.find((p) => /^game_[A-Za-z0-9_]+$/.test(p)) ||
+  pathParts.find((p) => /^event_[A-Za-z0-9]+_[A-Za-z0-9_]+$/.test(p));
+
+if (!event || !game) {
+  console.error("Не удалось определить event/game", { event, game, pathParts });
+  return;
+}
+
     const storageKey = `gameData-${event}-${game}`;
     storageKeyRef.current = storageKey;
 

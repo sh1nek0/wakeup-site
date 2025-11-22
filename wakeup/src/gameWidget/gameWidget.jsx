@@ -115,35 +115,55 @@ const GameWidget = () => {
   const [photos, setPhotos] = useState({}); // Добавлено для хранения фото по nickname
   const storageKeyRef = useRef(null);
 
-  useEffect(() => {
-    const pathParts = window.location.pathname.split("/");
-    const event = pathParts.find((p) => /^\d+$/.test(p));
-    const game = pathParts.find((p) => p.startsWith("game_"));
-    if (!event || !game) return;
-    const storageKey = `gameData-${event}-${game}`;
-    storageKeyRef.current = storageKey;
+useEffect(() => {
+  const pathParts = window.location.pathname.split("/").filter(Boolean);
 
-    const load = () => {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw);
-        setGameData((prev) =>
-          JSON.stringify(prev) !== JSON.stringify(parsed) ? parsed : prev
-        );
-      } catch (err) {
-        console.error("Ошибка парсинга localStorage:", err);
-      }
-    };
+  let event = null;
+  let game = null;
 
-    load();
-    window.addEventListener("storage", load);
-    const interval = setInterval(load, 2000);
-    return () => {
-      window.removeEventListener("storage", load);
-      clearInterval(interval);
-    };
-  }, []);
+  // --- EVENT ---
+  // event_xxxxx  или просто число
+  event =
+    pathParts.find((p) => /^event_[A-Za-z0-9]+$/.test(p)) ||
+    pathParts.find((p) => /^\d+$/.test(p));
+
+  // --- GAME ---
+  // 1) game_XXXX
+  // 2) event_XXXX_YYYY  (расширенная форма — это ИГРА)
+  game =
+    pathParts.find((p) => /^game_[A-Za-z0-9_]+$/.test(p)) ||
+    pathParts.find((p) => /^event_[A-Za-z0-9]+_[A-Za-z0-9_]+$/.test(p));
+
+  if (!event || !game) {
+    console.error("Не удалось определить event/game", { event, game, pathParts });
+    return;
+  }
+
+  storageKeyRef.current = `gameData-${event}-${game}`;
+  const storageKey = storageKeyRef.current;
+
+  const load = () => {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      setGameData(parsed);
+    } catch (err) {
+      console.error("Ошибка парсинга localStorage:", err);
+    }
+  };
+
+  load();
+  window.addEventListener("storage", load);
+  const interval = setInterval(load, 2000);
+
+  return () => {
+    window.removeEventListener("storage", load);
+    clearInterval(interval);
+  };
+}, []);
+
+
 
   // Добавлено: загрузка фото по nickname
   useEffect(() => {
