@@ -4,6 +4,7 @@ import { AuthContext } from "../AuthContext";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import TournamentGames from "../components/TournamentGames/TournamentGames";
 import { DetailedStatsTable } from "../RaitingPage/RaitingPage";
+import buildPlayersStats from "../components/Build";
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
@@ -192,7 +193,6 @@ export default function Game() {
     }
   };
 
-  
   const handleGenerateSeating = async () => {
     if (!isAdmin) return;
     try {
@@ -201,7 +201,6 @@ export default function Game() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ exclusions_text: exclusionsText }),
       });
-      
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Ошибка генерации рассадки");
       showMessage(data.message);
@@ -262,69 +261,28 @@ export default function Game() {
   // ------------------------------
   const pageSize = 10;
 
-  const personalData = useMemo(() => {
-    const base = [
-      {
-        id: 101, nickname: 'Fox', totalPoints: 47.8,
-        wins: { sheriff: 2, citizen: 3, mafia: 2, don: 1 },
-        gamesPlayed: { sheriff: 4, citizen: 6, mafia: 3, don: 2 },
-        total_sk_penalty: 1.2, total_jk_penalty: 0.5,
-        total_best_move_bonus: 3.0, total_ci_bonus: 2.5, total_cb_bonus: 1.0, bonuses: 6.5,
-        role_plus: { sheriff: [1.2, 0.8], citizen: [0.5, 0.5, 0.7], mafia: [1.0, 0.6], don: [1.5] }
-      },
-      {
-        id: 102, nickname: 'Raven', totalPoints: 52.1,
-        wins: { sheriff: 3, citizen: 2, mafia: 3, don: 0 },
-        gamesPlayed: { sheriff: 4, citizen: 4, mafia: 5, don: 1 },
-        total_sk_penalty: 0.8, total_jk_penalty: 0.4,
-        total_best_move_bonus: 2.0, total_ci_bonus: 3.1, total_cb_bonus: 0.7, bonuses: 5.8,
-        role_plus: { sheriff: [0.6, 0.9], citizen: [1.0], mafia: [0.5, 0.6, 0.4], don: [] }
-      },
-      {
-        id: 103, nickname: 'Blizzard', totalPoints: 40.3,
-        wins: { sheriff: 1, citizen: 2, mafia: 1, don: 1 },
-        gamesPlayed: { sheriff: 3, citizen: 5, mafia: 3, don: 2 },
-        total_sk_penalty: 0.0, total_jk_penalty: 1.0,
-        total_best_move_bonus: 2.2, total_ci_bonus: 1.4, total_cb_bonus: 0.3, bonuses: 3.9,
-        role_plus: { sheriff: [1.1], citizen: [0.5, 0.3], mafia: [0.4], don: [0.3] }
-      },
-    ];
-    const more = Array.from({ length: 9 }, (_, i) => ({
-      id: 200 + i,
-      nickname: `Player_${i + 1}`,
-      totalPoints: 30 + i,
-      wins: { sheriff: i % 3, citizen: (i+1) % 4, mafia: (i+2) % 3, don: i % 2 },
-      gamesPlayed: { sheriff: 2 + (i%3), citizen: 3 + (i%4), mafia: 2 + (i%3), don: 1 + (i%2) },
-      total_sk_penalty: (i%3) * 0.3,
-      total_jk_penalty: (i%2) * 0.2,
-      total_best_move_bonus: (i%4) * 0.5,
-      total_ci_bonus: (i%5) * 0.4,
-      total_cb_bonus: (i%3) * 0.25,
-      bonuses: Math.round((((i%4)*0.5 + (i%5)*0.4))*100)/100,
-      role_plus: {
-        sheriff: Array.from({ length: i%2 }, () => 0.5),
-        citizen: Array.from({ length: i%3 }, () => 0.3),
-        mafia: Array.from({ length: i%2 }, () => 0.4),
-        don: Array.from({ length: i%2 }, () => 0.6),
-      }
-    }));
-    return [...base, ...more];
-  }, []);
+  // ------------------------------
+  const playersStats = useMemo(() => {
+    if (!eventData?.games) return [];
+    return buildPlayersStats(eventData.games);
+  }, [eventData]);
+  {console.log(playersStats)}
 
-  const personalTotalPages = Math.ceil(personalData.length / pageSize);
+
+  const personalTotalPages = useMemo(() => Math.ceil(playersStats.length / pageSize), [playersStats, pageSize]);
   const [personalPage, setPersonalPage] = useState(1);
-  const personalPageData = useMemo(() => (
-    personalData.slice((personalPage - 1) * pageSize, personalPage * pageSize)
-  ), [personalData, personalPage]);
+  const personalPageData = useMemo(() => {
+    const start = (personalPage - 1) * pageSize;
+    const end = personalPage * pageSize;
+    return playersStats.slice(start, end);
+  }, [playersStats, personalPage, pageSize]);
 
   // ------------------------------
-  // TEAM AGGREGATION from personal stats
+  // Командная агрегация
   // ------------------------------
   const aggregateMembersToTeam = (membersStats = [], teamName, teamId) => {
     const zeroWins = { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
-
     const sumField = (field) => membersStats.reduce((s, p) => s + Number(p?.[field] || 0), 0);
-
     const sumDict = (key) => membersStats.reduce((acc, p) => {
       const src = p?.[key] || {};
       acc.sheriff += Number(src.sheriff || 0);
@@ -333,51 +291,145 @@ export default function Game() {
       acc.don     += Number(src.don     || 0);
       return acc;
     }, { ...zeroWins });
+    const mergeRolePlus = () => {
+      const out = { sheriff: [], citizen: [], mafia: [], don: [] };
+      for (const p of membersStats) {
+        const rp = p?.role_plus || {};
+        for (const role of ["sheriff", "citizen", "mafia", "don"]) {
+          out[role].push(...(rp[role] || []));
+        }
+      }
+      return out;
+    };
+    return {
+      id: teamId ?? null,
+      nickname: teamName,
+      totalPoints: sumField('totalPoints'),
+      wins: sumDict('wins'),
+      gamesPlayed: sumDict('gamesPlayed'),
+      total_sk_penalty: sumField('sk'),
+      total_jk_penalty: sumField('jk'),
+      total_best_move_bonus: sumField('plus'),
+      role_plus: mergeRolePlus(),
+    };
+  };
+
+  const personalIndex = useMemo(() => {
+    const map = new Map();
+    for (const p of playersStats) {
+      map.set(p.name, p);
+    }
+    return map;
+  }, [playersStats]);
+
+
+
+const aggregatedTeamData = useMemo(() => {
+  if (!teams || !playersStats) return [];
+
+  // Индекс игроков по имени
+  const playerIndexByName = new Map(
+    playersStats.map(p => [p.name.toLowerCase().trim(), p])
+  );
+
+  return teams.map(team => {
+    // Получаем статистику членов команды по имени
+    const membersStats = (team.members || [])
+      .map(m => m.nick ? playerIndexByName.get(m.nick.toLowerCase().trim()) : null)
+      .filter(Boolean);
+
+    const zeroWins = { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
+
+    const sumField = (field) =>
+      membersStats.reduce((s, p) => s + Number(p?.[field] || 0), 0);
+
+    const sumDict = (key) =>
+      membersStats.reduce((acc, p) => {
+        const src = p?.[key] || {};
+        for (const role of ["sheriff", "citizen", "mafia", "don"]) {
+          acc[role] += Number(src[role] || 0);
+        }
+        return acc;
+      }, { ...zeroWins });
 
     const mergeRolePlus = () => {
       const out = { sheriff: [], citizen: [], mafia: [], don: [] };
       for (const p of membersStats) {
         const rp = p?.role_plus || {};
-        out.sheriff.push(...(rp.sheriff || []));
-        out.citizen.push(...(rp.citizen || []));
-        out.mafia.push(...(rp.mafia || []));
-        out.don.push(...(rp.don || []));
+        for (const role of ["sheriff", "citizen", "mafia", "don"]) {
+          out[role].push(...(rp[role] || []));
+        }
       }
       return out;
     };
 
     return {
-      id: teamId ?? null,
-      nickname: teamName, // show team name in the table instead of player nick
-      totalPoints: sumField('totalPoints'),
-      wins: sumDict('wins'),
-      gamesPlayed: sumDict('gamesPlayed'),
-      total_sk_penalty: sumField('total_sk_penalty'),
-      total_jk_penalty: sumField('total_jk_penalty'),
-      total_best_move_bonus: sumField('total_best_move_bonus'),
-      total_ci_bonus: sumField('total_ci_bonus'),
-      total_cb_bonus: sumField('total_cb_bonus'),
-      bonuses: sumField('bonuses'),
+      id: team.id,
+      nickname: team.name || "Без имени",
+      totalPoints: sumField("totalPoints"),
+      wins: sumDict("wins"),
+      gamesPlayed: sumDict("gamesPlayed"),
+      total_sk_penalty: sumField("sk"),
+      total_jk_penalty: sumField("jk"),
+      total_ppk_penalty: sumField("plus"),
       role_plus: mergeRolePlus(),
+      totalCi: sumField("totalCi") || 0,
+      totalCb: sumField("totalCb") || 0,
+      membersStats, // уже массив
     };
-  };
+  });
+}, [teams, playersStats]);
 
-  // test team definitions mapping to personal ids
-  const testTeamDefs = useMemo(() => ([
-    { id: 501, name: 'FrostBite', memberIds: [101, 200, 201, 202] },
-    { id: 502, name: 'NightOwls', memberIds: [102, 203, 204] },
-    { id: 503, name: 'Aurora',    memberIds: [103, 205, 206, 207] },
-    { id: 504, name: 'StormPeak', memberIds: [208, 209] },
-  ]), []);
 
-  const personalIndex = useMemo(() => new Map(personalData.map(p => [p.id, p])), [personalData]);
+// ------------------------------
+// Лучшая номинация по ролям
+// ------------------------------
+const roleNominations = useMemo(() => {
+  if (!playersStats || playersStats.length === 0) return [];
 
-  const aggregatedTeamData = useMemo(() => {
-    return testTeamDefs.map(t => {
-      const membersStats = t.memberIds.map(id => personalIndex.get(id)).filter(Boolean);
-      return aggregateMembersToTeam(membersStats, t.name, t.id);
-    });
-  }, [testTeamDefs, personalIndex]);
+  const roles = ["sheriff", "citizen", "mafia", "don"];
+  return roles.map(role => {
+    let bestPlayer = null;
+    let bestScore = -Infinity;
+
+    for (const p of playersStats) {
+      const roleGames = p.gamesPlayed?.[role] || 0;
+      const roleBonus = (p.role_plus?.[role] || []).reduce((a,b)=>a+b, 0);
+      const score = roleBonus - 2.5 * roleGames;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestPlayer = { id: p.id, name: p.name, value: score.toFixed(1) };
+      }
+    }
+
+    return { role, winner: bestPlayer };
+  });
+}, [playersStats]);
+
+// ------------------------------
+// Лучшая общая номинация
+// ------------------------------
+const overallNomination = useMemo(() => {
+  if (!playersStats || playersStats.length === 0) return null;
+
+  let bestPlayer = null;
+  let bestScore = -Infinity;
+
+  for (const p of playersStats) {
+    const totalGames = Object.values(p.gamesPlayed || {}).reduce((a,b)=>a+b,0);
+    const totalBonus = Object.values(p.role_plus || {}).flat().reduce((a,b)=>a+b,0);
+    const score = totalBonus - 2.5 * totalGames;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestPlayer = { id: p.id, name: p.name, value: score.toFixed(1) };
+    }
+  }
+
+  return bestPlayer;
+}, [playersStats]);
+
 
   const teamTotalPages = Math.ceil(aggregatedTeamData.length / pageSize);
   const [teamPage, setTeamPage] = useState(1);
@@ -386,45 +438,16 @@ export default function Game() {
   ), [aggregatedTeamData, teamPage]);
 
   // ------------------------------
-  // Nominations (test)
+  // Заглушки для номинаций
   // ------------------------------
-  const personalNominations = [
-    {
-      id: 'n1', title: 'Лучший ход (ЛХ)',
-      winners: [{ id: 101, name: 'Fox', value: '+1.5' }],
-      description: 'Самое сильное действие, приведшее к победе мирных.'
-    },
-    {
-      id: 'n2', title: 'Лучший шериф',
-      winners: [{ id: 102, name: 'Raven', value: 'ср. бонус 0.9' }],
-      description: 'Стабильная реализация роли шерифа за ивент.'
-    },
-    {
-      id: 'n3', title: 'MVP ивента',
-      winners: [{ id: 103, name: 'Blizzard', value: 'Σ 40.3' }],
-      description: 'Максимальный суммарный вклад в победы.'
-    },
-  ];
+ 
 
-  const teamNominations = [
-    {
-      id: 'tn1', title: 'Лучшая командная игра',
-      winners: [{ id: 501, name: 'FrostBite', value: 'Σ 123.4' }],
-      description: 'Самая слаженная и результативная командная работа.'
-    },
-    {
-      id: 'tn2', title: 'Самая дисциплинированная',
-      winners: [{ id: 502, name: 'NightOwls', value: 'минимум штрафов' }],
-      description: 'Минимум фолов и конфликтов, чёткая коммуникация.'
-    },
-  ];
 
-  // ------------------------------
-  // Tabs UI
+
   // ------------------------------
   const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
   const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
-const [activeTab, setActiveTab] = useState('player');
+  const [activeTab, setActiveTab] = useState('player');
 
   if (loading) return <div>Загрузка...</div>;
 
@@ -647,20 +670,10 @@ const [activeTab, setActiveTab] = useState('player');
             aria-selected={activeTab === 'nomsSolo'}
             role="tab"
           >
-            Номинации (личные)
+            Номинации 
           </button>
 
-          {showTeamTabs && (
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${activeTab === 'nomsTeam' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('nomsTeam')}
-              aria-selected={activeTab === 'nomsTeam'}
-              role="tab"
-            >
-              Номинации (командные)
-            </button>
-          )}
+          
         </nav>
 
 
@@ -698,8 +711,7 @@ const [activeTab, setActiveTab] = useState('player');
         </section>
       )}
 
-      {console.log(eventData.games)}
-
+      
         {/* Panels */}
         {activeTab === 'solo' && (
           <div className={styles.tabPanel} role="tabpanel">
@@ -714,13 +726,16 @@ const [activeTab, setActiveTab] = useState('player');
           </div>
         )}
 
+
+
+       {console.log(aggregatedTeamData)}
         {activeTab === 'teamStat' && showTeamTabs && (
           <div className={styles.tabPanel} role="tabpanel">
             <h2 className={styles.h2}>Командный зачёт</h2>
             <DetailedStatsTable
-              data={teamPageData}
+              data={aggregatedTeamData.slice((teamPage-1)*pageSize, teamPage*pageSize)}
               currentPage={teamPage}
-              totalPages={teamTotalPages}
+              totalPages={Math.ceil(aggregatedTeamData.length / pageSize)}
               onPageChange={setTeamPage}
               user={user}
             />
@@ -729,57 +744,48 @@ const [activeTab, setActiveTab] = useState('player');
 
         {activeTab === 'nomsSolo' && (
           <div className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Номинации — личные</h2>
+            <h2 className={styles.h2}>Номинации </h2>
             <div className={styles.nominationsGrid}>
-              {personalNominations.map((n) => (
-                <div key={n.id} className={styles.nominationCard}>
-                  <div className={styles.nominationTitle}>{n.title}</div>
-                  <div className={styles.nominationWinners}>
-                    {n.winners.map((w) => (
+                {/* Номинации по ролям */}
+                {roleNominations.map(n => (
+                  <div key={n.role} className={styles.nominationCard}>
+                    <div className={styles.nominationTitle}>Лучший {n.role}</div>
+                    <div className={styles.nominationWinners}>
+                      {n.winner && (
+                        <button
+                          type="button"
+                          className={styles.winnerLink}
+                          onClick={() => navigate(`/profile/${n.winner.id}`)}
+                          title={n.winner.name}
+                        >
+                          {n.winner.name} <span className={styles.winnerValue}>({n.winner.value})</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Общая номинация */}
+                {overallNomination && (
+                  <div className={styles.nominationCard}>
+                    <div className={styles.nominationTitle}>MVP</div>
+                    <div className={styles.nominationWinners}>
                       <button
-                        key={w.id}
                         type="button"
                         className={styles.winnerLink}
-                        onClick={() => navigate(`/profile/${w.id}`)}
-                        title={w.name}
+                        onClick={() => navigate(`/profile/${overallNomination.id}`)}
+                        title={overallNomination.name}
                       >
-                        {w.name} {w.value ? <span className={styles.winnerValue}>({w.value})</span> : null}
+                        {overallNomination.name} <span className={styles.winnerValue}>({overallNomination.value})</span>
                       </button>
-                    ))}
+                    </div>
                   </div>
-                  <div className={styles.nominationDesc}>{n.description}</div>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
           </div>
         )}
 
-        {activeTab === 'nomsTeam' && showTeamTabs && (
-          <div className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Номинации — командные</h2>
-            <div className={styles.nominationsGrid}>
-              {teamNominations.map((n) => (
-                <div key={n.id} className={styles.nominationCard}>
-                  <div className={styles.nominationTitle}>{n.title}</div>
-                  <div className={styles.nominationWinners}>
-                    {n.winners.map((w) => (
-                      <button
-                        key={w.id}
-                        type="button"
-                        className={styles.winnerLink}
-                        onClick={() => navigate(`/team/${w.id}`)}
-                        title={w.name}
-                      >
-                        {w.name} {w.value ? <span className={styles.winnerValue}>({w.value})</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                  <div className={styles.nominationDesc}>{n.description}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
       </section>
 
       {activeTab === 'team' &&(typeNormalized === "pair" || typeNormalized === "team") && (userRegistrationStatus === 'approved' || isAdmin) && (
