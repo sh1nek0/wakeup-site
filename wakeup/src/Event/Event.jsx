@@ -275,7 +275,7 @@ export default function Game() {
   return buildPlayersStats(eventData.games)
     .sort((a, b) => b.totalPoints - a.totalPoints); // ⬅ сортировка
 }, [eventData]);
-  {console.log(eventData.games)}
+  {console.log(playersStats)}
 
 
   const personalTotalPages = useMemo(() => Math.ceil(playersStats.length / pageSize), [playersStats, pageSize]);
@@ -729,17 +729,17 @@ const overallNomination = useMemo(() => {
       
         {/* Panels */}
         {activeTab === 'solo' && (
-          <div className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Личный зачёт</h2>
-            <DetailedStatsTable
-              data={personalPageData}
-              currentPage={personalPage}
-              totalPages={personalTotalPages}
-              onPageChange={setPersonalPage}
-              user={user}
-            />
-          </div>
-        )}
+  <div className={styles.tabPanel} role="tabpanel">
+    <h2 className={styles.h2}>Личный зачёт</h2>
+    <DetailedStatsTable
+      data={personalPageData.slice((personalPage - 1) * pageSize, personalPage * pageSize)}
+      currentPage={personalPage}
+      totalPages={Math.ceil(personalPageData.length / pageSize)}
+      onPageChange={setPersonalPage}
+      user={user}
+    />
+  </div>
+)}
 
 
 

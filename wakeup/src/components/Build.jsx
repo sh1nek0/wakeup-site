@@ -54,7 +54,7 @@ export default function buildPlayersStats(games = []) {
 
   for (const game of sortedGames) {
     if (!game) continue;
-    if (game.badgeColor == null) continue; // только игры с бейджем
+    if (game.badgeColor == "drow" || null) continue; // только игры с бейджем
 
     const players = Array.isArray(game.players) ? game.players : [];
 
@@ -105,9 +105,6 @@ export default function buildPlayersStats(games = []) {
 
       // общие числовые поля (если есть)
       stats.totalPoints += Number(player.sum ?? 0);
-      stats.sk += Number(player.sk ?? 0);
-      stats.jk += Number(player.jk ?? 0);
-      stats.plus += Number(player.plus ?? 0);
 
       // Нормализуем роль (рус/англ)
       const role = player.role ? normalizeRole(player.role) : null;
@@ -124,6 +121,11 @@ export default function buildPlayersStats(games = []) {
       // Рассчёт best_move_bonus и cb_bonus
       let best_move_bonus = 0;
       let cb_bonus = 0;
+      // Рассчёт best_move_bonus и cb_bonus;
+
+// 👉 Теперь подменяем, если в объекте игрока уже переданы готовые бонусы
+if (player.best_move_bonus != null) best_move_bonus = Number(player.best_move_bonus);
+if (player.cb_bonus != null) cb_bonus = Number(player.cb_bonus);
 
       // helper: получить роль по номеру/идентификатору из playerRolesById
       const roleOfNum = (num) => {
@@ -210,6 +212,7 @@ export default function buildPlayersStats(games = []) {
 
       stats.totalCi += ci_bonus;
       stats.totalCb += cb_bonus;
+      stats.best_move_bonus=best_move_bonus
 
       // если есть роль — обновляем role-статистику
       if (role) {
