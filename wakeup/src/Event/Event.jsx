@@ -59,6 +59,91 @@ export default function Game() {
   const [numTables, setNumTables] = useState(1);
   const [exclusionsText, setExclusionsText] = useState("");
 
+  // ------------------------------
+  // Редактирование события
+  // ------------------------------
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedEvent, setEditedEvent] = useState({});
+
+  const startEditing = () => {
+    setEditedEvent({ ...eventData });
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditedEvent({});
+  };
+
+  const updateEditedField = (field, value) => {
+    setEditedEvent(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addDate = () => {
+    setEditedEvent(prev => ({
+      ...prev,
+      dates: [...(prev.dates || []), new Date().toISOString().split('T')[0]] // Добавляем сегодняшнюю дату как строку
+    }));
+  };
+
+  const removeDate = (index) => {
+    setEditedEvent(prev => ({
+      ...prev,
+      dates: prev.dates.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateDate = (index, value) => {
+    setEditedEvent(prev => ({
+      ...prev,
+      dates: prev.dates.map((d, i) => (i === index ? value : d))
+    }));
+  };
+
+  const saveEvent = async () => {
+    if (!isAdmin || !token) return;
+    // Простая валидация
+    if (!editedEvent.title?.trim()) return showMessage("Название события обязательно", true);
+    if (editedEvent.participants_limit <= 0) return showMessage("Лимит участников должен быть > 0", true);
+
+    try {
+      const response = await fetch(`/api/event/${eventId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          title: editedEvent.title,
+          dates: editedEvent.dates, // Массив строк ISO
+          location: editedEvent.location,
+          type: editedEvent.type,
+          participants_limit: editedEvent.participants_limit,
+          fee: editedEvent.fee,
+          currency: editedEvent.currency,
+          gs_name: editedEvent.gs?.name || "",
+          gs_role: editedEvent.gs?.role || "",
+          gs_avatar: editedEvent.gs?.avatar || "",
+          org_name: editedEvent.org?.name || "",
+          org_role: editedEvent.org?.role || "",
+          org_avatar: editedEvent.org?.avatar || "",
+          games_are_hidden: editedEvent.games_are_hidden,
+          seating_exclusions: exclusionsText, // Используем exclusionsText
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Ошибка сохранения");
+      setEventData(data.event);
+      setIsEditing(false);
+      showMessage(data.message);
+    } catch (error) {
+      showMessage(`Ошибка: ${error.message}`, true);
+    }
+  };
+
+  // Форматирование дат для отображения
+  const formatDates = (dates) => {
+    if (!dates || dates.length === 0) return "Не указаны";
+    return dates.map(d => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d))).join(', ');
+  };
+
   const fetchEventData = async () => {
     if (!eventId) return;
     setLoading(true);
@@ -160,12 +245,11 @@ export default function Game() {
   };
 
   const roleToRussian = {
-  sheriff: "Шериф",
-  citizen: "Мирный",
-  mafia: "Мафия",
-  don: "Дон",
-};
-
+    sheriff: "Шериф",
+    citizen: "Мирный",
+    mafia: "Мафия",
+    don: "Дон",
+  };
 
   const handleManageRegistration = async (registrationId, action) => {
     if (!isAdmin) return;
@@ -271,12 +355,11 @@ export default function Game() {
 
   // ------------------------------
   const playersStats = useMemo(() => {
-  if (!eventData?.games) return [];
-  return buildPlayersStats(eventData.games)
-    .sort((a, b) => b.totalPoints - a.totalPoints); // ⬅ сортировка
-}, [eventData]);
+    if (!eventData?.games) return [];
+    return buildPlayersStats(eventData.games)
+      .sort((a, b) => b.totalPoints - a.totalPoints); // ⬅ сортировка
+  }, [eventData]);
   {console.log(playersStats)}
-
 
   const personalTotalPages = useMemo(() => Math.ceil(playersStats.length / pageSize), [playersStats, pageSize]);
   const [personalPage, setPersonalPage] = useState(1);
@@ -331,86 +414,106 @@ export default function Game() {
     return map;
   }, [playersStats]);
 
+  const aggregatedTeamData = useMemo(() => {
+    if (!teams || !playersStats) return [];
 
+    const playerIndexByName = new Map(
+      playersStats.map(p => [p.name.toLowerCase().trim(), p])
+    );
 
-const aggregatedTeamData = useMemo(() => {
-  if (!teams || !playersStats) return [];
+    // ⬅️ ШАГ 1 — сначала формируем массив без возврата
+    const data = teams.map(team => {
+      const membersStats = (team.members || [])
+        .map(m => m.nick ? playerIndexByName.get(m.nick.toLowerCase().trim()) : null)
+        .filter(Boolean);
 
-  const playerIndexByName = new Map(
-    playersStats.map(p => [p.name.toLowerCase().trim(), p])
-  );
+      const zeroWins = { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
 
-  // ⬅️ ШАГ 1 — сначала формируем массив без возврата
-  const data = teams.map(team => {
-    const membersStats = (team.members || [])
-      .map(m => m.nick ? playerIndexByName.get(m.nick.toLowerCase().trim()) : null)
-      .filter(Boolean);
+      const sumField = (field) =>
+        membersStats.reduce((s, p) => s + Number(p?.[field] || 0), 0);
 
-    const zeroWins = { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
+      const sumDict = (key) =>
+        membersStats.reduce((acc, p) => {
+          const src = p?.[key] || {};
+          for (const role of ["sheriff", "citizen", "mafia", "don"]) {
+            acc[role] += Number(src[role] || 0);
+          }
+          return acc;
+        }, { ...zeroWins });
 
-    const sumField = (field) =>
-      membersStats.reduce((s, p) => s + Number(p?.[field] || 0), 0);
-
-    const sumDict = (key) =>
-      membersStats.reduce((acc, p) => {
-        const src = p?.[key] || {};
-        for (const role of ["sheriff", "citizen", "mafia", "don"]) {
-          acc[role] += Number(src[role] || 0);
+      const mergeRolePlus = () => {
+        const out = { sheriff: [], citizen: [], mafia: [], don: [] };
+        for (const p of membersStats) {
+          const rp = p?.role_plus || {};
+          for (const role of ["sheriff", "citizen", "mafia", "don"]) {
+            out[role].push(...(rp[role] || []));
+          }
         }
-        return acc;
-      }, { ...zeroWins });
+        return out;
+      };
 
-    const mergeRolePlus = () => {
-      const out = { sheriff: [], citizen: [], mafia: [], don: [] };
-      for (const p of membersStats) {
-        const rp = p?.role_plus || {};
-        for (const role of ["sheriff", "citizen", "mafia", "don"]) {
-          out[role].push(...(rp[role] || []));
+      return {
+        id: team.id,
+        nickname: team.name || "Без имени",
+        totalPoints: sumField("totalPoints"),
+        wins: sumDict("wins"),
+        gamesPlayed: sumDict("gamesPlayed"),
+        total_sk_penalty: sumField("sk"),
+        total_jk_penalty: sumField("jk"),
+        total_ppk_penalty: sumField("plus"),
+        role_plus: mergeRolePlus(),
+        totalCi: sumField("totalCi") || 0,
+        totalCb: sumField("totalCb") || 0,
+        membersStats,
+      };
+    });
+
+    // ⬅️ ШАГ 2 — сортировка
+    data.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    // ⬅️ ШАГ 3 — возвращаем отсортированный массив
+    return data;
+  }, [teams, playersStats]);
+
+  // ------------------------------
+  // Лучшая номинация по ролям
+  // ------------------------------
+  const roleNominations = useMemo(() => {
+    if (!playersStats || playersStats.length === 0) return [];
+
+    const roles = ["sheriff", "citizen", "mafia", "don"];
+    return roles.map(role => {
+      let bestPlayer = null;
+      let bestScore = -Infinity;
+
+      for (const p of playersStats) {
+        const roleGames = p.gamesPlayed?.[role] || 0;
+        const roleBonus = (p.role_plus?.[role] || []).reduce((a,b)=>a+b, 0);
+        const score = roleBonus - 2.5 * roleGames;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestPlayer = { id: p.id, name: p.name, value: score.toFixed(1) };
         }
       }
-      return out;
-    };
 
-    return {
-      id: team.id,
-      nickname: team.name || "Без имени",
-      totalPoints: sumField("totalPoints"),
-      wins: sumDict("wins"),
-      gamesPlayed: sumDict("gamesPlayed"),
-      total_sk_penalty: sumField("sk"),
-      total_jk_penalty: sumField("jk"),
-      total_ppk_penalty: sumField("plus"),
-      role_plus: mergeRolePlus(),
-      totalCi: sumField("totalCi") || 0,
-      totalCb: sumField("totalCb") || 0,
-      membersStats,
-    };
-  });
+      return { role, winner: bestPlayer };
+    });
+  }, [playersStats]);
 
-  // ⬅️ ШАГ 2 — сортировка
-  data.sort((a, b) => b.totalPoints - a.totalPoints);
+  // ------------------------------
+  // Лучшая общая номинация
+  // ------------------------------
+  const overallNomination = useMemo(() => {
+    if (!playersStats || playersStats.length === 0) return null;
 
-  // ⬅️ ШАГ 3 — возвращаем отсортированный массив
-  return data;
-}, [teams, playersStats]);
-
-
-
-// ------------------------------
-// Лучшая номинация по ролям
-// ------------------------------
-const roleNominations = useMemo(() => {
-  if (!playersStats || playersStats.length === 0) return [];
-
-  const roles = ["sheriff", "citizen", "mafia", "don"];
-  return roles.map(role => {
     let bestPlayer = null;
     let bestScore = -Infinity;
 
     for (const p of playersStats) {
-      const roleGames = p.gamesPlayed?.[role] || 0;
-      const roleBonus = (p.role_plus?.[role] || []).reduce((a,b)=>a+b, 0);
-      const score = roleBonus - 2.5 * roleGames;
+      const totalGames = Object.values(p.gamesPlayed || {}).reduce((a,b)=>a+b,0);
+      const totalBonus = Object.values(p.role_plus || {}).flat().reduce((a,b)=>a+b,0);
+      const score = totalBonus - 2.5 * totalGames;
 
       if (score > bestScore) {
         bestScore = score;
@@ -418,33 +521,8 @@ const roleNominations = useMemo(() => {
       }
     }
 
-    return { role, winner: bestPlayer };
-  });
-}, [playersStats]);
-
-// ------------------------------
-// Лучшая общая номинация
-// ------------------------------
-const overallNomination = useMemo(() => {
-  if (!playersStats || playersStats.length === 0) return null;
-
-  let bestPlayer = null;
-  let bestScore = -Infinity;
-
-  for (const p of playersStats) {
-    const totalGames = Object.values(p.gamesPlayed || {}).reduce((a,b)=>a+b,0);
-    const totalBonus = Object.values(p.role_plus || {}).flat().reduce((a,b)=>a+b,0);
-    const score = totalBonus - 2.5 * totalGames;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestPlayer = { id: p.id, name: p.name, value: score.toFixed(1) };
-    }
-  }
-
-  return bestPlayer;
-}, [playersStats]);
-
+    return bestPlayer;
+  }, [playersStats]);
 
   const teamTotalPages = Math.ceil(aggregatedTeamData.length / pageSize);
   const [teamPage, setTeamPage] = useState(1);
@@ -455,9 +533,6 @@ const overallNomination = useMemo(() => {
   // ------------------------------
   // Заглушки для номинаций
   // ------------------------------
- 
-
-
 
   // ------------------------------
   const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
@@ -496,31 +571,118 @@ const overallNomination = useMemo(() => {
       {errorMessage && <div className={styles.notificationError}>{errorMessage}</div>}
 
       <header className={styles.header}>
-        <h1 className={styles.title}>{eventData.title}</h1>
+        <h1 className={styles.title}>
+          {isEditing ? (
+            <input
+              type="text"
+              value={editedEvent.title || ""}
+              onChange={(e) => updateEditedField("title", e.target.value)}
+              style={{ width: '100%', fontSize: '2rem' }}
+            />
+          ) : (
+            eventData.title
+          )}
+        </h1>
+        {isAdmin && !isEditing && (
+          <button onClick={startEditing} className={styles.editButton}>Редактировать событие</button>
+        )}
       </header>
 
       <div className={styles.topGrid}>
         <div className={styles.infoGrid}>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Даты проведения</div>
-            <div className={styles.value}>{eventData.dates}</div>
+            <div className={styles.value}>
+              {isEditing ? (
+                <div>
+                  {(editedEvent.dates || []).map((date, index) => (
+                    <div key={index} style={{ marginBottom: '5px' }}>
+                      <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => updateDate(index, e.target.value)}
+                      />
+                      <button onClick={() => removeDate(index)} style={{ marginLeft: '10px' }}>Удалить</button>
+                    </div>
+                  ))}
+                  <button onClick={addDate}>Добавить дату</button>
+                </div>
+              ) : (
+                formatDates(eventData.dates)
+              )}
+            </div>
           </div>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Место</div>
-            <div className={styles.value}>{eventData.location}</div>
+            <div className={styles.value}>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editedEvent.location || ""}
+                  onChange={(e) => updateEditedField("location", e.target.value)}
+                />
+              ) : (
+                eventData.location
+              )}
+            </div>
           </div>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Тип ивента</div>
             <div className={styles.value}>
-              {typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный"}
+              {isEditing ? (
+                <select
+                  value={editedEvent.type || ""}
+                  onChange={(e) => updateEditedField("type", e.target.value)}
+                >
+                  <option value="solo">Личный</option>
+                  <option value="pair">Парный</option>
+                  <option value="team">Командный</option>
+                </select>
+              ) : (
+                (typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный")
+              )}
             </div>
           </div>
           <div className={styles.infoCard}>
             <div className={styles.caption}>Участники</div>
             <div className={styles.value}>
-              {eventData.participantsCount} из {eventData.participantsLimit}
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={editedEvent.participants_limit || 0}
+                  onChange={(e) => updateEditedField("participants_limit", parseInt(e.target.value) || 0)}
+                />
+              ) : (
+                `${eventData.participantsCount} из ${eventData.participantsLimit}`
+              )}
             </div>
           </div>
+          {/* Дополнительные поля для редактирования */}
+          {isEditing && (
+            <>
+              <div className={styles.infoCard}>
+                <div className={styles.caption}>Взнос</div>
+                <div className={styles.value}>
+                  <input
+                    type="number"
+                    value={editedEvent.fee || 0}
+                    onChange={(e) => updateEditedField("fee", parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+              <div className={styles.infoCard}>
+                <div className={styles.caption}>Валюта</div>
+                <div className={styles.value}>
+                  <input
+                    type="text"
+                    value={editedEvent.currency || ""}
+                    onChange={(e) => updateEditedField("currency", e.target.value)}
+                  />
+                </div>
+              </div>
+              {/* GS и Org можно добавить аналогично, если нужны, но пока оставим */}
+            </>
+          )}
           <button
             type="button"
             className={styles.discussBtn}
@@ -529,6 +691,12 @@ const overallNomination = useMemo(() => {
             💬 Перейти к обсуждению
           </button>
         </div>
+        {isEditing && (
+          <div className={styles.editActions}>
+            <button onClick={saveEvent} className={styles.saveButton}>Сохранить</button>
+            <button onClick={cancelEditing} className={styles.cancelButton}>Отмена</button>
+          </div>
+        )}
 
         <aside className={styles.rightCol}>
           <div className={styles.personCard}>
@@ -659,7 +827,7 @@ const overallNomination = useMemo(() => {
             Админ-панель
           </button>}
 
-          
+
         </nav>
 
 
@@ -726,7 +894,7 @@ const overallNomination = useMemo(() => {
         </section>
       )}
 
-      
+
         {/* Panels */}
         {activeTab === 'solo' && (
   <div className={styles.tabPanel} role="tabpanel">
@@ -894,11 +1062,10 @@ const overallNomination = useMemo(() => {
                   </div>
                 </div>
               )))}
-            
+
           </div>
         </section>
       )}
     </section>
   );
 }
-
