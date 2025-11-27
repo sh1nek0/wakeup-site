@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useContext } from 'react';
 import styles from './EventPage.module.css';
 import CCC from '../EventPrew/CCC-prew.png';
 import { NavLink } from "react-router-dom";
+import { AuthContext } from "../AuthContext";
 
 function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
   const [imageOk, setImageOk] = useState(true);
@@ -41,8 +42,12 @@ function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
 
-  useEffect(() => {
+  // Функция для загрузки списка событий (предполагается, что backend имеет GET /api/events)
+  const fetchEvents = () => {
+    setLoading(true);
     fetch('/api/events')
       .then(res => {
         if (!res.ok) {
@@ -64,7 +69,61 @@ export default function EventsPage() {
         console.error("Failed to fetch events", err);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchEvents();
   }, []);
+
+  // Функция для создания нового события (с заглушками - hardcoded данными)
+  const createEvent = async () => {
+    setCreating(true);
+    // Заглушки для полей события (можно заменить на форму позже)
+    const newEventData = {
+      title: "Тестовое событие",  // Заглушка: название
+      dates: [new Date().toISOString()],  // Заглушка: одна дата на сегодня
+      location: "Тестовая локация",  // Заглушка: локация
+      type: "solo",  // Заглушка: тип
+      participants_limit: 100,  // Заглушка: лимит участников
+      fee: 0.0,  // Заглушка: бесплатное
+      currency: "USD",  // Заглушка: валюта
+      gs_name: "Test GS",  // Заглушка: имя GS
+      gs_role: "Admin",  // Заглушка: роль GS
+      gs_avatar: null,  // Заглушка: аватар GS
+      org_name: "Test Organizer",  // Заглушка: имя орг
+      org_role: "Organizer",  // Заглушка: роль орг
+      org_avatar: null,  // Заглушка: аватар орг
+      games_are_hidden: false,  // Заглушка: игры видимы
+      seating_exclusions: []  // Заглушка: без исключений
+    };
+
+    try {
+      const response = await fetch('/api/event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+          // Для теста предполагаем, что backend позволяет без токена или используйте заглушку
+        },
+        body: JSON.stringify(newEventData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create event');
+      }
+
+      const result = await response.json();
+      console.log("Event created:", result);
+
+      // После создания перезагружаем список событий для отображения нового
+      fetchEvents();
+    } catch (err) {
+      console.error("Failed to create event", err);
+      alert("Ошибка при создании события. Проверьте консоль.");  // Заглушка для ошибки
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className={styles.page}>
@@ -74,6 +133,11 @@ export default function EventsPage() {
           Тут вы можете посмотреть результаты уже прошедших событий или же
           зарегистрироваться на предстоящее событие
         </p>
+      </div>
+      <div>
+        <button onClick={createEvent} disabled={creating}  className={styles.createGameBtn}>
+          {creating ? "Создание..." : "Добавить ивент"}  {/* Заглушка: кнопка с состоянием */}
+        </button>
       </div>
 
       {loading ? (

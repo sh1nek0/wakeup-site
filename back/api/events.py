@@ -4,10 +4,20 @@ import json
 import uuid
 import random
 import re
+from typing import List, Dict, Tuple
+from datetime import datetime, timezone  # Добавлено timezone для корректного получения UTC времени
+
+# Попытка импортировать pulp — если нет, будет fallback
+try:
+    import pulp
+    HAS_PULP = True
+except Exception:
+    HAS_PULP = False
+
 
 from core.security import get_current_user, get_optional_current_user, get_db
 from db.models import Event, Team, Registration, User, Notification, Game
-from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest
+from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest
 from api.notifications import create_notification
 
 router = APIRouter()
@@ -221,21 +231,36 @@ async def get_events(db: Session = Depends(get_db)):
         Event.created_at
     ).order_by(Event.created_at.desc()).all()
 
-    return {"events": [{
-        "id": event.id,
-        "title": event.title,
-        "dates": event.dates,
-        "location": event.location,
-        "type": event.type,
-        "participants_limit": event.participants_limit,
-        "participants_count": event.participants_count,
-    } for event in events_query]}
+    events_list = []
+    for event in events_query:
+        try:
+            dates_parsed = json.loads(event.dates) if event.dates else []
+        except json.JSONDecodeError:
+            dates_parsed = []  # Fallback на пустой список, если JSON повреждён
+        
+        events_list.append({
+            "id": event.id,
+            "title": event.title,
+            "dates": dates_parsed,  # Возвращаем как список
+            "location": event.location,
+            "type": event.type,
+            "participants_limit": event.participants_limit,
+            "participants_count": event.participants_count,
+        })
+    
+    return {"events": events_list}
 
 @router.get("/getEvent/{event_id}")
 async def get_event(event_id: str, current_user: User = Depends(get_optional_current_user), db: Session = Depends(get_db)):
     event = db.query(Event).options(selectinload(Event.games)).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено")
+    
+    # Десериализуем dates
+    try:
+        dates_parsed = json.loads(event.dates) if event.dates else []
+    except json.JSONDecodeError:
+        dates_parsed = []
     
     # Логика получения участников и команд остается прежней
     registrations = db.query(Registration).filter(Registration.event_id == event_id).all()
@@ -318,7 +343,7 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
             })
 
     return {
-        "title": event.title, "dates": event.dates, "location": event.location, "type": event.type,
+        "title": event.title, "dates": dates_parsed, "location": event.location, "type": event.type,
         "participantsLimit": event.participants_limit, "participantsCount": event.participants_count,
         "fee": event.fee, "currency": event.currency,
         "gs": {"name": event.gs_name, "role": event.gs_role, "avatar": event.gs_avatar},
@@ -418,30 +443,6 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     db.add_all(new_games)
     db.commit()
     return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
-
-import re
-import json
-import random
-
-from fastapi import HTTPException
-from sqlalchemy.orm import selectinload
-
-import re
-import json
-import random
-from math import floor, ceil
-
-from fastapi import HTTPException
-from sqlalchemy.orm import selectinload
-from typing import List, Dict, Tuple
-
-# Попытка импортировать pulp — если нет, будет fallback
-try:
-    import pulp
-    HAS_PULP = True
-except Exception:
-    HAS_PULP = False
-
 
 @router.post("/events/{event_id}/generate_seating")
 async def generate_event_seating(
@@ -694,8 +695,6 @@ async def generate_event_seating(
     db.commit()
     return {"message": "Рассадка успешно сгенерирована."}
 
-
-
 @router.post("/events/{event_id}/toggle_visibility")
 async def toggle_games_visibility(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "admin":
@@ -710,3 +709,144 @@ async def toggle_games_visibility(event_id: str, current_user: User = Depends(ge
     
     status = "скрыты" if event.games_are_hidden else "показаны"
     return {"message": f"Игры турнира теперь {status} для обычных пользователей.", "games_are_hidden": event.games_are_hidden}
+
+@router.post("/event")
+async def create_event(request: CreateEventRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут создавать события.")
+    
+    event_id = f"event_{uuid.uuid4().hex[:12]}"
+    new_event = Event(
+        id=event_id,
+        title=request.title,
+        dates=json.dumps([d.isoformat() for d in request.dates]),  # Преобразуем datetime в ISO строки перед сериализацией
+        location=request.location,
+        type=request.type,
+        participants_limit=request.participants_limit,
+        participants_count=0,  # Начинаем с 0
+        fee=request.fee,
+        currency=request.currency,
+        gs_name=request.gs_name,
+        gs_role=request.gs_role,
+        gs_avatar=request.gs_avatar,
+        org_name=request.org_name,
+        org_role=request.org_role,
+        org_avatar=request.org_avatar,
+        created_at=datetime.now(timezone.utc),  # Исправлено: вместо datetime.utcnow() используем datetime.now(timezone.utc)
+        games_are_hidden=request.games_are_hidden,
+        seating_exclusions=json.dumps(request.seating_exclusions)  # Сохраняем как JSON строку
+    )
+    db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+    
+    # Десериализуем для возврата
+    try:
+        dates_parsed = json.loads(new_event.dates) if new_event.dates else []
+    except json.JSONDecodeError:
+        dates_parsed = request.dates  # Fallback на оригинал
+    
+    return {
+        "message": "Событие успешно создано.",
+        "event_id": event_id,
+        "event": {
+            "id": new_event.id,
+            "title": new_event.title,
+            "dates": dates_parsed,  # Возвращаем как список
+            "location": new_event.location,
+            "type": new_event.type,
+            "participants_limit": new_event.participants_limit,
+            "participants_count": new_event.participants_count,
+            "fee": new_event.fee,
+            "currency": new_event.currency,
+            "gs_name": new_event.gs_name,
+            "gs_role": new_event.gs_role,
+            "gs_avatar": new_event.gs_avatar,
+            "org_name": new_event.org_name,
+            "org_role": new_event.org_role,
+            "org_avatar": new_event.org_avatar,
+            "created_at": new_event.created_at,
+            "games_are_hidden": new_event.games_are_hidden,
+            "seating_exclusions": request.seating_exclusions
+        }
+    }
+
+@router.put("/event/{event_id}")
+async def update_event(event_id: str, request: CreateEventRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут обновлять события.")
+    
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+    
+    # Обновляем поля
+    event.title = request.title
+    event.dates = json.dumps([d.isoformat() for d in request.dates])  # Преобразуем datetime в ISO строки перед сериализацией
+    event.location = request.location
+    event.type = request.type
+    event.participants_limit = request.participants_limit
+    # participants_count не обновляем, так как это счетчик
+    event.fee = request.fee
+    event.currency = request.currency
+    event.gs_name = request.gs_name
+    event.gs_role = request.gs_role
+    event.gs_avatar = request.gs_avatar
+    event.org_name = request.org_name
+    event.org_role = request.org_role
+    event.org_avatar = request.org_avatar
+    event.games_are_hidden = request.games_are_hidden
+    event.seating_exclusions = json.dumps(request.seating_exclusions)
+    
+    db.commit()
+    db.refresh(event)
+    
+    # Десериализуем для возврата
+    try:
+        dates_parsed = json.loads(event.dates) if event.dates else []
+    except json.JSONDecodeError:
+        dates_parsed = request.dates  # Fallback на оригинал
+    
+    return {
+        "message": "Событие успешно обновлено.",
+        "event": {
+            "id": event.id,
+            "title": event.title,
+            "dates": dates_parsed,  # Возвращаем как список
+            "location": event.location,
+            "type": event.type,
+            "participants_limit": event.participants_limit,
+            "participants_count": event.participants_count,
+            "fee": event.fee,
+            "currency": event.currency,
+            "gs_name": event.gs_name,
+            "gs_role": event.gs_role,
+            "gs_avatar": event.gs_avatar,
+            "org_name": event.org_name,
+            "org_role": event.org_role,
+            "org_avatar": event.org_avatar,
+            "created_at": event.created_at,
+            "games_are_hidden": event.games_are_hidden,
+            "seating_exclusions": request.seating_exclusions
+        }
+    }
+
+@router.delete("/event/{event_id}")
+async def delete_event(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут удалять события.")
+    
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+    
+    # Удаляем связанные записи
+    db.query(Registration).filter(Registration.event_id == event_id).delete(synchronize_session=False)
+    db.query(Team).filter(Team.event_id == event_id).delete(synchronize_session=False)
+    db.query(Game).filter(Game.event_id == event_id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.related_id == event_id).delete(synchronize_session=False)
+    
+    db.delete(event)
+    db.commit()
+    
+    return {"message": f"Событие '{event.title}' успешно удалено."}

@@ -562,38 +562,6 @@ const overallNomination = useMemo(() => {
         </aside>
       </div>
 
-      {isAdmin && (
-        <section className={styles.adminPanel}>
-          <h2 className={styles.h2}>Панель администратора</h2>
-          <div className={styles.adminGrid}>
-            <div className={styles.adminForm}>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>Количество раундов</label>
-                <input type="number" className={styles.input} value={numRounds} onChange={e => setNumRounds(e.target.value)} />
-              </div>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>Количество столов</label>
-                <input type="number" className={styles.input} value={numTables} onChange={e => setNumTables(e.target.value)} />
-              </div>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>Исключения рассадки (каждая пара с новой строки)</label>
-                <textarea className={styles.textarea} value={exclusionsText} onChange={e => setExclusionsText(e.target.value)} placeholder="Player1, Player2&#10;Player3, Player4" />
-              </div>
-            </div>
-            <div className={styles.adminActions}>
-              <button onClick={handleSetupGames} className={styles.primaryBtn}>Создать сетку игр</button>
-              <button onClick={handleGenerateSeating} className={styles.primaryBtn}>Сгенерировать рассадку</button>
-              <button onClick={handleCreateSingleGame} className={styles.secondaryBtn}>Создать отдельную игру</button>
-              <button onClick={handleToggleVisibility} className={styles.secondaryBtn}>
-                {eventData.games_are_hidden ? "Показать игры" : "Скрыть игры"}
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-
-
       {isAdmin && pendingRegistrations.length > 0 && (
         <section className={styles.adminSection}>
           <h2 className={styles.h2}>Заявки на участие ({pendingRegistrations.length})</h2>
@@ -613,8 +581,6 @@ const overallNomination = useMemo(() => {
           </div>
         </section>
       )}
-
-    
 
       {/* Tabs for standings & nominations */}
       <section className={styles.tabsWrap}>
@@ -641,8 +607,6 @@ const overallNomination = useMemo(() => {
           </button>
           )}
 
-
-
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'games' ? styles.tabActive : ''}`}
@@ -653,7 +617,6 @@ const overallNomination = useMemo(() => {
             Игры
           </button>
 
-
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'solo' ? styles.tabActive : ''}`}
@@ -663,8 +626,6 @@ const overallNomination = useMemo(() => {
           >
             Личный зачёт
           </button>
-
-
 
           {showTeamTabs && (
             <button
@@ -688,9 +649,48 @@ const overallNomination = useMemo(() => {
             Номинации 
           </button>
 
+           {isAdmin && <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === 'admin' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('admin')}
+            aria-selected={activeTab === 'admin'}
+            role="tab"
+          >
+            Админ-панель
+          </button>}
+
           
         </nav>
 
+
+          {activeTab==="admin" && (
+        <section className={styles.adminPanel}>
+          <h2 className={styles.h2}>Панель администратора</h2>
+          <div className={styles.adminGrid}>
+            <div className={styles.adminForm}>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>Количество раундов</label>
+                <input type="number" className={styles.input} value={numRounds} onChange={e => setNumRounds(e.target.value)} />
+              </div>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>Количество столов</label>
+                <input type="number" className={styles.input} value={numTables} onChange={e => setNumTables(e.target.value)} />
+              </div>
+              <div className={styles.formRow}>
+                <label className={styles.formLabel}>Исключения рассадки (каждая пара с новой строки)</label>
+                <textarea className={styles.textarea} value={exclusionsText} onChange={e => setExclusionsText(e.target.value)} placeholder="Player1, Player2&#10;Player3, Player4" />
+              </div>
+            </div>
+            <div className={styles.adminActions}>
+              <button onClick={handleSetupGames} className={styles.primaryBtn}>Создать сетку игр</button>
+              <button onClick={handleGenerateSeating} className={styles.primaryBtn}>Сгенерировать рассадку</button>
+              <button onClick={handleCreateSingleGame} className={styles.secondaryBtn}>Создать отдельную игру</button>
+              <button onClick={handleToggleVisibility} className={styles.secondaryBtn}>
+                {eventData.games_are_hidden ? "Показать игры" : "Скрыть игры"}
+              </button>
+            </div>
+          </div>
+        </section>)}
 
 
         {activeTab==="player" && (
@@ -741,8 +741,6 @@ const overallNomination = useMemo(() => {
   </div>
 )}
 
-
-
         {activeTab === 'teamStat' && showTeamTabs && (
           <div className={styles.tabPanel} role="tabpanel">
             <h2 className={styles.h2}>Командный зачёт</h2>
@@ -757,65 +755,65 @@ const overallNomination = useMemo(() => {
         )}
 
 
-{activeTab === 'nomsSolo' && (
-  <div className={styles.tabPanel} role="tabpanel">
-    <h2 className={styles.h2}>Номинации</h2>
+        {activeTab === 'nomsSolo' && (
+          <div className={styles.tabPanel} role="tabpanel">
+            <h2 className={styles.h2}>Номинации</h2>
 
-    {/* Маппер ролей */}
-    {(() => {
-      const roleNames = {
-        sheriff: "Шериф",
-        citizen: "Мирный",
-        mafia: "Черный",
-        don: "Дон",
-      };
+            {/* Маппер ролей */}
+            {(() => {
+              const roleNames = {
+                sheriff: "Шериф",
+                citizen: "Мирный",
+                mafia: "Черный",
+                don: "Дон",
+              };
 
-      return (
-        <div className={styles.nominationsGrid}>
-          {/* Номинации по ролям */}
-          {roleNominations.map(n => (
-            <div key={n.role} className={styles.nominationCard}>
-              <div className={styles.nominationTitle}>
-                Лучший {roleNames[n.role] || n.role}
-              </div>
-              <div className={styles.nominationWinners}>
-                {n.winner && (
-                  <button
-                    type="button"
-                    className={styles.winnerLink}
-                    onClick={() => navigate(`/profile/${n.winner.id}`)}
-                    title={n.winner.name}
-                  >
-                    {n.winner.name}{" "}
-                    <span className={styles.winnerValue}>({n.winner.value})</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+              return (
+                <div className={styles.nominationsGrid}>
+                  {/* Номинации по ролям */}
+                  {roleNominations.map(n => (
+                    <div key={n.role} className={styles.nominationCard}>
+                      <div className={styles.nominationTitle}>
+                        Лучший {roleNames[n.role] || n.role}
+                      </div>
+                      <div className={styles.nominationWinners}>
+                        {n.winner && (
+                          <button
+                            type="button"
+                            className={styles.winnerLink}
+                            onClick={() => navigate(`/profile/${n.winner.id}`)}
+                            title={n.winner.name}
+                          >
+                            {n.winner.name}{" "}
+                            <span className={styles.winnerValue}>({n.winner.value})</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
 
-          {/* MVP */}
-          {overallNomination && (
-            <div className={styles.nominationCard}>
-              <div className={styles.nominationTitle}>MVP</div>
-              <div className={styles.nominationWinners}>
-                <button
-                  type="button"
-                  className={styles.winnerLink}
-                  onClick={() => navigate(`/profile/${overallNomination.id}`)}
-                  title={overallNomination.name}
-                >
-                  {overallNomination.name}{" "}
-                  <span className={styles.winnerValue}>({overallNomination.value})</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    })()}
-  </div>
-)}
+                  {/* MVP */}
+                  {overallNomination && (
+                    <div className={styles.nominationCard}>
+                      <div className={styles.nominationTitle}>MVP</div>
+                      <div className={styles.nominationWinners}>
+                        <button
+                          type="button"
+                          className={styles.winnerLink}
+                          onClick={() => navigate(`/profile/${overallNomination.id}`)}
+                          title={overallNomination.name}
+                        >
+                          {overallNomination.name}{" "}
+                          <span className={styles.winnerValue}>({overallNomination.value})</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
 
       </section>

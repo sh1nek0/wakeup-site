@@ -99,3 +99,42 @@ class UpdateCredentialsRequest(BaseModel):
     current_password: str
     new_nickname: Optional[str] = None
     new_password: Optional[str] = None
+
+# --- НОВАЯ МОДЕЛЬ ДЛЯ СОБЫТИЯ ---
+class Event(BaseModel):
+    id: str = Field(..., description="Идентификатор события")
+    title: str = Field(..., description="Название события")
+    dates: List[datetime] = Field(..., description="Список дат проведения события")
+    location: str = Field(..., description="Локация события")
+    type: str = Field(..., description="Тип события")
+    participants_limit: int = Field(..., description="Максимальное количество участников")
+    participants_count: int = Field(0, description="Текущее количество участников")
+    fee: float = Field(..., description="Стоимость участия")
+    currency: str = Field(..., description="Валюта оплаты")
+    gs_name: str = Field(..., description="Имя игрового сервера")
+    gs_role: str = Field(..., description="Роль игрового сервера")
+    gs_avatar: Optional[str] = Field(None, description="Аватар игрового сервера (URL)")
+    org_name: str = Field(..., description="Имя организатора")
+    org_role: str = Field(..., description="Роль организатора")
+    org_avatar: Optional[str] = Field(None, description="Аватар организатора (URL)")
+    created_at: datetime = Field(..., description="Дата создания события")
+    games_are_hidden: bool = Field(False, description="Флаг, скрыты ли игры")
+    seating_exclusions: List[List[str]] = Field([], description="Список исключений для рассадки (пары никнеймов)")
+
+
+class CreateEventRequest(BaseModel):
+    title: str = Field(..., description="Название события")
+    dates: List[datetime] = Field(..., description="Список дат проведения события")
+    location: str = Field(..., description="Локация события")
+    type: str = Field(..., description="Тип события (например, 'solo', 'pair', 'team')")
+    participants_limit: int = Field(..., gt=0, description="Максимальное количество участников")
+    fee: float = Field(..., ge=0, description="Стоимость участия")
+    currency: str = Field(..., description="Валюта оплаты")
+    gs_name: str = Field(..., description="Имя игрового сервера")
+    gs_role: str = Field(..., description="Роль игрового сервера")
+    gs_avatar: Optional[str] = Field(None, description="Аватар игрового сервера (URL)")
+    org_name: str = Field(..., description="Имя организатора")
+    org_role: str = Field(..., description="Роль организатора")
+    org_avatar: Optional[str] = Field(None, description="Аватар организатора (URL)")
+    games_are_hidden: bool = Field(False, description="Флаг, скрыты ли игры по умолчанию")
+    seating_exclusions: List[List[str]] = Field([], description="Список исключений для рассадки (пары никнеймов)")
