@@ -138,3 +138,20 @@ class CreateEventRequest(BaseModel):
     org_avatar: Optional[str] = Field(None, description="Аватар организатора (URL)")
     games_are_hidden: bool = Field(False, description="Флаг, скрыты ли игры по умолчанию")
     seating_exclusions: List[List[str]] = Field([], description="Список исключений для рассадки (пары никнеймов)")
+
+class UpdateEventRequest(BaseModel):
+    title: Optional[str] = None
+    dates: Optional[List[str]] = None  # <- строки удобнее для фронта
+    location: Optional[str] = None
+    type: Optional[str] = None
+    participants_limit: Optional[int] = None
+    fee: Optional[float] = None
+    currency: Optional[str] = None
+    gs_name: Optional[str] = None
+    gs_role: Optional[str] = None
+    gs_avatar: Optional[str] = None
+    org_name: Optional[str] = None
+    org_role: Optional[str] = None
+    org_avatar: Optional[str] = None
+    games_are_hidden: Optional[bool] = None
+    seating_exclusions: Optional[List[List[str]]] = None

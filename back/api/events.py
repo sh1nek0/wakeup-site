@@ -17,7 +17,7 @@ except Exception:
 
 from core.security import get_current_user, get_optional_current_user, get_db
 from db.models import Event, Team, Registration, User, Notification, Game
-from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest
+from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
 from api.notifications import create_notification
 
 router = APIRouter()
@@ -774,7 +774,7 @@ async def create_event(request: CreateEventRequest, current_user: User = Depends
 @router.patch("/event/{event_id}")
 async def update_event(
     event_id: str,
-    request: CreateEventRequest,
+    request: UpdateEventRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -785,39 +785,19 @@ async def update_event(
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено.")
 
-    # -----------------------
-    # Частичное обновление
-    # -----------------------
-    if request.title is not None:
-        event.title = request.title
-    if request.location is not None:
-        event.location = request.location
-    if request.type is not None:
-        event.type = request.type
-    if request.fee is not None:
-        event.fee = request.fee
-    if request.currency is not None:
-        event.currency = request.currency
-    if request.dates is not None:
-        event.dates = json.dumps([d.isoformat() for d in request.dates])
-    if request.participants_limit is not None:
-        event.participants_limit = request.participants_limit
-    if request.gs_name is not None:
-        event.gs_name = request.gs_name
-    if request.gs_role is not None:
-        event.gs_role = request.gs_role
-    if request.gs_avatar is not None:
-        event.gs_avatar = request.gs_avatar
-    if request.org_name is not None:
-        event.org_name = request.org_name
-    if request.org_role is not None:
-        event.org_role = request.org_role
-    if request.org_avatar is not None:
-        event.org_avatar = request.org_avatar
-    if request.games_are_hidden is not None:
-        event.games_are_hidden = request.games_are_hidden
-    if request.seating_exclusions is not None:
-        event.seating_exclusions = json.dumps(request.seating_exclusions)
+    # Получаем только те поля, которые реально пришли
+    update_data = request.dict(exclude_unset=True)
+
+    # Преобразуем даты и seating_exclusions
+    if "dates" in update_data:
+        update_data["dates"] = json.dumps(update_data["dates"])  # строки уже сериализуются без проблем
+
+    if "seating_exclusions" in update_data:
+        update_data["seating_exclusions"] = json.dumps(update_data["seating_exclusions"])
+
+    # Применяем изменения
+    for key, value in update_data.items():
+        setattr(event, key, value)
 
     db.commit()
     db.refresh(event)
@@ -827,7 +807,7 @@ async def update_event(
         "event": {
             "id": event.id,
             "title": event.title,
-            "dates": json.loads(event.dates),
+            "dates": json.loads(event.dates) if event.dates else [],
             "location": event.location,
             "type": event.type,
             "participants_limit": event.participants_limit,
@@ -841,7 +821,7 @@ async def update_event(
             "org_role": event.org_role,
             "org_avatar": event.org_avatar,
             "games_are_hidden": event.games_are_hidden,
-            "seating_exclusions": json.loads(event.seating_exclusions),
+            "seating_exclusions": json.loads(event.seating_exclusions) if event.seating_exclusions else [],
             "created_at": event.created_at
         }
     }

@@ -78,6 +78,7 @@ const cancelEditing = () => {
 
 const updateEditedField = (field, value) => {
   setEditedFields(prev => ({ ...prev, [field]: value }));
+  console.log(value)
 };
 
 const getDates = () => editedFields.dates ?? eventData.dates ?? [];
@@ -104,31 +105,75 @@ const saveEvent = async () => {
     return;
   }
 
+  const payload = {};
+
+  for (const [key, value] of Object.entries(editedFields)) {
+    if (value === undefined || value === null) continue;
+
+    // Обработка дат
+    if (key === "dates") {
+      if (Array.isArray(value)) {
+        payload.dates = value
+          .map(d => {
+            if (typeof d === "string" || d instanceof Date) {
+              return new Date(d).toISOString().split("T")[0];
+            }
+            console.warn("Неправильный формат даты:", d);
+            return null;
+          })
+          .filter(Boolean);
+      }
+      continue;
+    }
+
+    // seating_exclusions — массив массивов строк
+    if (key === "seating_exclusions") {
+      if (Array.isArray(value)) {
+        payload.seating_exclusions = value.map(row => 
+          Array.isArray(row) ? row.map(String) : []
+        );
+      }
+      continue;
+    }
+
+    // Все остальные поля отправляем как есть
+    payload[key] = value;
+  }
+
+  console.log("Payload для PATCH:", payload);
+
   try {
     const response = await fetch(`/api/event/${eventId}`, {
-      method: "PATCH", // используем PATCH для частичного обновления
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Authorization": `Bearer ${token}`,
       },
-      body: JSON.stringify(editedFields),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
+
     if (!response.ok) {
       showMessage(data.detail || "Ошибка сохранения", true);
       return;
     }
 
     showMessage("Событие успешно обновлено");
-    await fetchEventData(); // обновляем данные с сервера
+
+    // Обновляем данные события с сервера
+    await fetchEventData();
+
+    // Сбрасываем редактируемые поля
     setEditedFields({});
     setIsEditing(false);
+
   } catch (error) {
-    console.error(error);
+    console.error("Ошибка при сохранении события:", error);
     showMessage("Ошибка сохранения", true);
   }
 };
+
 
 
   // Форматирование дат для отображения
@@ -154,7 +199,7 @@ const saveEvent = async () => {
       setUserRegistrationStatus(data.user_registration_status || 'none');
       setExclusionsText(data.seating_exclusions || "");
     } catch (err) {
-      console.error("Ошибка:", err);
+    
     } finally {
       setLoading(false);
     }
@@ -352,7 +397,7 @@ const saveEvent = async () => {
     return buildPlayersStats(eventData.games)
       .sort((a, b) => b.totalPoints - a.totalPoints); // ⬅ сортировка
   }, [eventData]);
-  {console.log(playersStats)}
+  
 
   const personalTotalPages = useMemo(() => Math.ceil(playersStats.length / pageSize), [playersStats, pageSize]);
   const [personalPage, setPersonalPage] = useState(1);
@@ -564,164 +609,177 @@ const saveEvent = async () => {
       {errorMessage && <div className={styles.notificationError}>{errorMessage}</div>}
 
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          {isEditing ? (
-            <input
-              type="text"
-              value={editedFields.title ?? eventData.title ?? ""}
-              onChange={(e) => updateEditedField("title", e.target.value)}
-              style={{ width: '100%', fontSize: '2rem' }}
-            />
-          ) : (
-            eventData.title
-          )}
-        </h1>
-        {isAdmin && !isEditing && (
-          <button onClick={startEditing} className={styles.editButton}>Редактировать событие</button>
-        )}
-      </header>
+  <h1 className={styles.title}>
+    {isEditing ? (
+      <input
+        type="text"
+        value={editedFields.title ?? eventData.title ?? ""}
+        onChange={(e) => updateEditedField("title", e.target.value)}
+        style={{ width: '100%', fontSize: '2rem' }}
+      />
+    ) : (
+      eventData.title
+    )}
+  </h1>
+  {isAdmin && !isEditing && (
+    <button onClick={startEditing} className={styles.editButton}>Редактировать событие</button>
+  )}
+</header>
 
-      <div className={styles.topGrid}>
-        <div className={styles.infoGrid}>
-          <div className={styles.infoCard}>
-            <div className={styles.caption}>Даты проведения</div>
-            <div className={styles.value}>
-              {isEditing ? (
-                <div>
-                  {(editedEvent.dates || []).map((date, index) => (
-                    <div key={index} style={{ marginBottom: '5px' }}>
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => updateDate(index, e.target.value)}
-                      />
-                      <button onClick={() => removeDate(index)} style={{ marginLeft: '10px' }}>Удалить</button>
-                    </div>
-                  ))}
-                  <button onClick={addDate}>Добавить дату</button>
-                </div>
-              ) : (
-                formatDates(eventData.dates)
-              )}
-            </div>
-          </div>
-          <div className={styles.infoCard}>
-            <div className={styles.caption}>Место</div>
-            <div className={styles.value}>
-              {isEditing ? (
+<div className={styles.topGrid}>
+  <div className={styles.infoGrid}>
+    {/* ------------------ Даты ------------------ */}
+    <div className={styles.infoCard}>
+      <div className={styles.caption}>Даты проведения</div>
+      <div className={styles.value}>
+        {isEditing ? (
+          <div>
+            {getDates().map((date, index) => (
+              <div key={index} style={{ marginBottom: '5px' }}>
                 <input
-                  type="text"
-                  value={editedEvent.location || ""}
-                  onChange={(e) => updateEditedField("location", e.target.value)}
+                  type="date"
+                  value={date}
+                  onChange={(e) => updateDate(index, e.target.value)}
                 />
-              ) : (
-                eventData.location
-              )}
-            </div>
-          </div>
-          <div className={styles.infoCard}>
-            <div className={styles.caption}>Тип ивента</div>
-            <div className={styles.value}>
-              {isEditing ? (
-                <select
-                  value={editedEvent.type || ""}
-                  onChange={(e) => updateEditedField("type", e.target.value)}
-                >
-                  <option value="solo">Личный</option>
-                  <option value="pair">Парный</option>
-                  <option value="team">Командный</option>
-                </select>
-              ) : (
-                (typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный")
-              )}
-            </div>
-          </div>
-          <div className={styles.infoCard}>
-            <div className={styles.caption}>Участники</div>
-            <div className={styles.value}>
-              {isEditing ? (
-                <input
-                  type="number"
-                  value={editedEvent.participants_limit || 0}
-                  onChange={(e) => updateEditedField("participants_limit", parseInt(e.target.value) || 0)}
-                />
-              ) : (
-                `${eventData.participantsCount} из ${eventData.participantsLimit}`
-              )}
-            </div>
-          </div>
-          {/* Дополнительные поля для редактирования */}
-          {isEditing && (
-            <>
-              <div className={styles.infoCard}>
-                <div className={styles.caption}>Взнос</div>
-                <div className={styles.value}>
-                  <input
-                    type="number"
-                    value={editedEvent.fee || 0}
-                    onChange={(e) => updateEditedField("fee", parseFloat(e.target.value) || 0)}
-                  />
-                </div>
+                <button onClick={() => removeDate(index)} style={{ marginLeft: '10px' }}>Удалить</button>
               </div>
-              <div className={styles.infoCard}>
-                <div className={styles.caption}>Валюта</div>
-                <div className={styles.value}>
-                  <input
-                    type="text"
-                    value={editedEvent.currency || ""}
-                    onChange={(e) => updateEditedField("currency", e.target.value)}
-                  />
-                </div>
-              </div>
-              {/* GS и Org можно добавить аналогично, если нужны, но пока оставим */}
-            </>
-          )}
-          <button
-            type="button"
-            className={styles.discussBtn}
-            onClick={() => showMessage("Обсуждение скоро появится")}
-          >
-            💬 Перейти к обсуждению
-          </button>
-        </div>
-        {isEditing && (
-          <div className={styles.editActions}>
-            <button onClick={saveEvent} className={styles.saveButton}>Сохранить</button>
-            <button onClick={cancelEditing} className={styles.cancelButton}>Отмена</button>
+            ))}
+            <button onClick={addDate}>Добавить дату</button>
           </div>
+        ) : (
+          formatDates(eventData.dates)
         )}
-
-        <aside className={styles.rightCol}>
-          <div className={styles.personCard}>
-            <img src={eventData.gs?.avatar || stubAvatar} alt={eventData.gs?.name} className={styles.avatar} />
-            <div className={styles.personMeta}>
-              <div className={styles.personName}>{eventData.gs?.name}</div>
-              <div className={styles.personRole}>{eventData.gs?.role}</div>
-            </div>
-          </div>
-          <div className={styles.personCard}>
-            <img src={eventData.org?.avatar || stubAvatar} alt={eventData.org?.name} className={styles.avatar} />
-            <div className={styles.personMeta}>
-              <div className={styles.personName}>{eventData.org?.name}</div>
-              <div className={styles.personRole}>{eventData.org?.role}</div>
-            </div>
-          </div>
-          <div className={styles.feeCard}>
-            <div className={styles.caption}>Стоимость участия</div>
-            <div className={styles.fee}>
-              {eventData.fee?.toLocaleString()} {eventData.currency}
-            </div>
-            <button
-              type="button"
-              className={isRegButtonDisabled ? styles.primaryBtnDisabled : styles.primaryBtn}
-              onClick={handleRegister}
-              disabled={isRegButtonDisabled}
-            >
-              {regButtonText}
-            </button>
-          </div>
-        </aside>
       </div>
+    </div>
+
+    {/* ------------------ Место ------------------ */}
+    <div className={styles.infoCard}>
+      <div className={styles.caption}>Место</div>
+      <div className={styles.value}>
+        {isEditing ? (
+          <input
+            type="text"
+            value={editedFields.location ?? eventData.location ?? ""}
+            onChange={(e) => updateEditedField("location", e.target.value)}
+          />
+        ) : (
+          eventData.location
+        )}
+      </div>
+    </div>
+
+    {/* ------------------ Тип ивента ------------------ */}
+    <div className={styles.infoCard}>
+      <div className={styles.caption}>Тип ивента</div>
+      <div className={styles.value}>
+        {isEditing ? (
+          <select
+            value={editedFields.type ?? eventData.type ?? ""}
+            onChange={(e) => updateEditedField("type", e.target.value)}
+          >
+            <option value="solo">Личный</option>
+            <option value="pair">Парный</option>
+            <option value="team">Командный</option>
+          </select>
+        ) : (
+          typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный"
+        )}
+      </div>
+    </div>
+
+    {/* ------------------ Участники ------------------ */}
+    <div className={styles.infoCard}>
+      <div className={styles.caption}>Участники</div>
+      <div className={styles.value}>
+        {isEditing ? (
+          <input
+            type="number"
+            value={editedFields.participants_limit ?? eventData.participantsLimit ?? 0}
+            onChange={(e) => updateEditedField("participants_limit", parseInt(e.target.value) || 0)}
+          />
+        ) : (
+          `${eventData.participantsCount ?? 0} из ${eventData.participantsLimit ?? 0}`
+        )}
+      </div>
+    </div>
+
+    {/* ------------------ Взнос ------------------ */}
+    {isEditing && (
+      <div className={styles.infoCard}>
+        <div className={styles.caption}>Взнос</div>
+        <div className={styles.value}>
+          <input
+            type="number"
+            value={editedFields.fee ?? eventData.fee ?? 0}
+            onChange={(e) => updateEditedField("fee", parseFloat(e.target.value) || 0)}
+          />
+        </div>
+      </div>
+    )}
+
+    {/* ------------------ Валюта ------------------ */}
+    {isEditing && (
+      <div className={styles.infoCard}>
+        <div className={styles.caption}>Валюта</div>
+        <div className={styles.value}>
+          <input
+            type="text"
+            value={editedFields.currency ?? eventData.currency ?? ""}
+            onChange={(e) => updateEditedField("currency", e.target.value)}
+          />
+        </div>
+      </div>
+    )}
+
+    <button
+      type="button"
+      className={styles.discussBtn}
+      onClick={() => showMessage("Обсуждение скоро появится")}
+    >
+      💬 Перейти к обсуждению
+    </button>
+  </div>
+
+ 
+
+  <aside className={styles.rightCol}>
+    <div className={styles.personCard}>
+      <img src={eventData.gs?.avatar || stubAvatar} alt={eventData.gs?.name} className={styles.avatar} />
+      <div className={styles.personMeta}>
+        <div className={styles.personName}>{eventData.gs?.name}</div>
+        <div className={styles.personRole}>{eventData.gs?.role}</div>
+      </div>
+    </div>
+    <div className={styles.personCard}>
+      <img src={eventData.org?.avatar || stubAvatar} alt={eventData.org?.name} className={styles.avatar} />
+      <div className={styles.personMeta}>
+        <div className={styles.personName}>{eventData.org?.name}</div>
+        <div className={styles.personRole}>{eventData.org?.role}</div>
+      </div>
+    </div>
+    <div className={styles.feeCard}>
+      <div className={styles.caption}>Стоимость участия</div>
+      <div className={styles.fee}>
+        {eventData.fee?.toLocaleString()} {eventData.currency}
+      </div>
+      <button
+        type="button"
+        className={isRegButtonDisabled ? styles.primaryBtnDisabled : styles.primaryBtn}
+        onClick={handleRegister}
+        disabled={isRegButtonDisabled}
+      >
+        {regButtonText}
+      </button>
+    </div>
+  </aside>
+
+   {isEditing && (
+    <div className={styles.editActions}>
+      <button onClick={saveEvent} className={styles.saveButton}>Сохранить</button>
+      <button onClick={cancelEditing} className={styles.cancelButton}>Отмена</button>
+    </div>
+  )}
+</div>
 
       {isAdmin && pendingRegistrations.length > 0 && (
         <section className={styles.adminSection}>

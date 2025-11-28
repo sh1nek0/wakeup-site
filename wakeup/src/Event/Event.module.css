@@ -419,6 +419,73 @@
   margin-top: 36px;
 }
 
+/* Кнопка редактирования события */
+.editButton {
+  background-color: #ff6f00;
+  color: #111;
+  border: none;
+  padding: 8px 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.editButton:hover {
+  background-color: #ff8f00;
+  transform: scale(1.05);
+}
+
+/* Кнопка сохранения изменений */
+.saveButton {
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.saveButton:hover {
+  background-color: #66bb6a;
+  transform: scale(1.05);
+}
+
+/* Кнопка отмены изменений */
+.cancelButton {
+  background-color: #f44336;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.cancelButton:hover {
+  background-color: #e57373;
+  transform: scale(1.05);
+}
+
+/* Контейнер для кнопок редактирования */
+.editActions {
+  display: flex;
+  justify-content: flex-start; /* или center, если нужно по центру */
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+
+
 .tabsWrap { margin-top: 24px; }
 .tabsNav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .tabBtn { padding: 8px 12px;  border: 1px solid #3a3a3a; background: #1f1f1f; cursor: pointer; }
