@@ -44,6 +44,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
+  const isAdmin = user?.role === 'admin';
 
   // Функция для загрузки списка событий (предполагается, что backend имеет GET /api/events)
   const fetchEvents = () => {
@@ -80,11 +81,11 @@ export default function EventsPage() {
     setCreating(true);
     // Заглушки для полей события (можно заменить на форму позже)
     const newEventData = {
-      title: "Тестовое событие",  // Заглушка: название
+      title: "Миникап",  // Заглушка: название
       dates: [new Date().toISOString()],  // Заглушка: одна дата на сегодня
-      location: "Тестовая локация",  // Заглушка: локация
+      location: "МИЭТ",  // Заглушка: локация
       type: "solo",  // Заглушка: тип
-      participants_limit: 100,  // Заглушка: лимит участников
+      participants_limit: 10,  // Заглушка: лимит участников
       fee: 0.0,  // Заглушка: бесплатное
       currency: "USD",  // Заглушка: валюта
       gs_name: "Test GS",  // Заглушка: имя GS
@@ -134,11 +135,11 @@ export default function EventsPage() {
           зарегистрироваться на предстоящее событие
         </p>
       </div>
-      <div>
+      {isAdmin && (<div>
         <button onClick={createEvent} disabled={creating}  className={styles.createGameBtn}>
           {creating ? "Создание..." : "Добавить ивент"}  {/* Заглушка: кнопка с состоянием */}
         </button>
-      </div>
+      </div>)}
 
       {loading ? (
         <p>Загрузка событий...</p>

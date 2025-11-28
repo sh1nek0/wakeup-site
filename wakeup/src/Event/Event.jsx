@@ -61,82 +61,75 @@ export default function Game() {
 
   // ------------------------------
   // Редактирование события
-  // ------------------------------
-  const [isEditing, setIsEditing] = useState(false);
+const [editedFields, setEditedFields] = useState({}); // храним только изменённые поля
+const [isEditing, setIsEditing] = useState(false);
+
   const [editedEvent, setEditedEvent] = useState({});
 
-  const startEditing = () => {
-    setEditedEvent({ ...eventData });
-    setIsEditing(true);
-  };
+ const startEditing = () => {
+  setEditedFields({});
+  setIsEditing(true);
+};
 
-  const cancelEditing = () => {
-    setIsEditing(false);
-    setEditedEvent({});
-  };
+const cancelEditing = () => {
+  setEditedFields({});
+  setIsEditing(false);
+};
 
-  const updateEditedField = (field, value) => {
-    setEditedEvent(prev => ({ ...prev, [field]: value }));
-  };
+const updateEditedField = (field, value) => {
+  setEditedFields(prev => ({ ...prev, [field]: value }));
+};
 
-  const addDate = () => {
-    setEditedEvent(prev => ({
-      ...prev,
-      dates: [...(prev.dates || []), new Date().toISOString().split('T')[0]] // Добавляем сегодняшнюю дату как строку
-    }));
-  };
+const getDates = () => editedFields.dates ?? eventData.dates ?? [];
 
-  const removeDate = (index) => {
-    setEditedEvent(prev => ({
-      ...prev,
-      dates: prev.dates.filter((_, i) => i !== index)
-    }));
-  };
+const addDate = () => {
+  const newDates = [...getDates(), new Date().toISOString().split('T')[0]];
+  updateEditedField('dates', newDates);
+};
 
-  const updateDate = (index, value) => {
-    setEditedEvent(prev => ({
-      ...prev,
-      dates: prev.dates.map((d, i) => (i === index ? value : d))
-    }));
-  };
+const removeDate = (index) => {
+  const newDates = getDates().filter((_, i) => i !== index);
+  updateEditedField('dates', newDates);
+};
 
-  const saveEvent = async () => {
-    if (!isAdmin || !token) return;
-    // Простая валидация
-    if (!editedEvent.title?.trim()) return showMessage("Название события обязательно", true);
-    if (editedEvent.participants_limit <= 0) return showMessage("Лимит участников должен быть > 0", true);
+const updateDate = (index, value) => {
+  const newDates = getDates().map((d, i) => (i === index ? value : d));
+  updateEditedField('dates', newDates);
+};
 
-    try {
-      const response = await fetch(`/api/event/${eventId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({
-          title: editedEvent.title,
-          dates: editedEvent.dates, // Массив строк ISO
-          location: editedEvent.location,
-          type: editedEvent.type,
-          participants_limit: editedEvent.participants_limit,
-          fee: editedEvent.fee,
-          currency: editedEvent.currency,
-          gs_name: editedEvent.gs?.name || "",
-          gs_role: editedEvent.gs?.role || "",
-          gs_avatar: editedEvent.gs?.avatar || "",
-          org_name: editedEvent.org?.name || "",
-          org_role: editedEvent.org?.role || "",
-          org_avatar: editedEvent.org?.avatar || "",
-          games_are_hidden: editedEvent.games_are_hidden,
-          seating_exclusions: exclusionsText, // Используем exclusionsText
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Ошибка сохранения");
-      setEventData(data.event);
-      setIsEditing(false);
-      showMessage(data.message);
-    } catch (error) {
-      showMessage(`Ошибка: ${error.message}`, true);
+
+const saveEvent = async () => {
+  if (!Object.keys(editedFields).length) {
+    showMessage("Нет изменений для сохранения");
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/event/${eventId}`, {
+      method: "PATCH", // используем PATCH для частичного обновления
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(editedFields),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      showMessage(data.detail || "Ошибка сохранения", true);
+      return;
     }
-  };
+
+    showMessage("Событие успешно обновлено");
+    await fetchEventData(); // обновляем данные с сервера
+    setEditedFields({});
+    setIsEditing(false);
+  } catch (error) {
+    console.error(error);
+    showMessage("Ошибка сохранения", true);
+  }
+};
+
 
   // Форматирование дат для отображения
   const formatDates = (dates) => {
@@ -575,7 +568,7 @@ export default function Game() {
           {isEditing ? (
             <input
               type="text"
-              value={editedEvent.title || ""}
+              value={editedFields.title ?? eventData.title ?? ""}
               onChange={(e) => updateEditedField("title", e.target.value)}
               style={{ width: '100%', fontSize: '2rem' }}
             />

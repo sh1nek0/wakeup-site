@@ -771,48 +771,63 @@ async def create_event(request: CreateEventRequest, current_user: User = Depends
         }
     }
 
-@router.put("/event/{event_id}")
-async def update_event(event_id: str, request: CreateEventRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.patch("/event/{event_id}")
+async def update_event(
+    event_id: str,
+    request: CreateEventRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Только администраторы могут обновлять события.")
-    
+
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено.")
-    
-    # Обновляем поля
-    event.title = request.title
-    event.dates = json.dumps([d.isoformat() for d in request.dates])  # Преобразуем datetime в ISO строки перед сериализацией
-    event.location = request.location
-    event.type = request.type
-    event.participants_limit = request.participants_limit
-    # participants_count не обновляем, так как это счетчик
-    event.fee = request.fee
-    event.currency = request.currency
-    event.gs_name = request.gs_name
-    event.gs_role = request.gs_role
-    event.gs_avatar = request.gs_avatar
-    event.org_name = request.org_name
-    event.org_role = request.org_role
-    event.org_avatar = request.org_avatar
-    event.games_are_hidden = request.games_are_hidden
-    event.seating_exclusions = json.dumps(request.seating_exclusions)
-    
+
+    # -----------------------
+    # Частичное обновление
+    # -----------------------
+    if request.title is not None:
+        event.title = request.title
+    if request.location is not None:
+        event.location = request.location
+    if request.type is not None:
+        event.type = request.type
+    if request.fee is not None:
+        event.fee = request.fee
+    if request.currency is not None:
+        event.currency = request.currency
+    if request.dates is not None:
+        event.dates = json.dumps([d.isoformat() for d in request.dates])
+    if request.participants_limit is not None:
+        event.participants_limit = request.participants_limit
+    if request.gs_name is not None:
+        event.gs_name = request.gs_name
+    if request.gs_role is not None:
+        event.gs_role = request.gs_role
+    if request.gs_avatar is not None:
+        event.gs_avatar = request.gs_avatar
+    if request.org_name is not None:
+        event.org_name = request.org_name
+    if request.org_role is not None:
+        event.org_role = request.org_role
+    if request.org_avatar is not None:
+        event.org_avatar = request.org_avatar
+    if request.games_are_hidden is not None:
+        event.games_are_hidden = request.games_are_hidden
+    if request.seating_exclusions is not None:
+        event.seating_exclusions = json.dumps(request.seating_exclusions)
+
     db.commit()
     db.refresh(event)
-    
-    # Десериализуем для возврата
-    try:
-        dates_parsed = json.loads(event.dates) if event.dates else []
-    except json.JSONDecodeError:
-        dates_parsed = request.dates  # Fallback на оригинал
-    
+
     return {
         "message": "Событие успешно обновлено.",
         "event": {
             "id": event.id,
             "title": event.title,
-            "dates": dates_parsed,  # Возвращаем как список
+            "dates": json.loads(event.dates),
             "location": event.location,
             "type": event.type,
             "participants_limit": event.participants_limit,
@@ -825,9 +840,9 @@ async def update_event(event_id: str, request: CreateEventRequest, current_user:
             "org_name": event.org_name,
             "org_role": event.org_role,
             "org_avatar": event.org_avatar,
-            "created_at": event.created_at,
             "games_are_hidden": event.games_are_hidden,
-            "seating_exclusions": request.seating_exclusions
+            "seating_exclusions": json.loads(event.seating_exclusions),
+            "created_at": event.created_at
         }
     }
 
