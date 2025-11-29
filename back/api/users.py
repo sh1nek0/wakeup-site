@@ -14,7 +14,7 @@ import os
 from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
 from db.models import User, Game, Registration, Notification
-from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest
+from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest
 from services.calculations import calculate_all_game_points # --- ИЗМЕНЕНИЕ ---
 from services.search import get_player_suggestions_logic
 

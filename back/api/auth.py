@@ -5,7 +5,7 @@ from datetime import datetime
 
 from core.security import get_password_hash, verify_password, create_access_token, get_current_user, get_db
 from db.models import User
-from schemas.main import UserCreate, UserLogin, PromoteAdminRequest
+from schemas.main import UserCreate, UserLogin, PromoteAdminRequest, DemoteUserRequest
 
 router = APIRouter()
 
@@ -108,3 +108,33 @@ async def promote_admin(request: PromoteAdminRequest, current_user: User = Depen
     db.commit()
 
     return {"message": f"Пользователь {target_user.nickname} успешно повышен до админа"}
+
+
+
+
+@router.post("/demote-user")
+async def demote_user_to_regular(
+    request: DemoteUserRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Проверка прав: только админ может выполнять
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
+
+    # Поиск целевого пользователя по email и nickname
+    target_user = db.query(User).filter(
+        (User.email == request.target_email) & (User.nickname == request.target_nickname)
+    ).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Пользователь с таким email и nickname не найден")
+
+    # Проверка, является ли пользователь уже обычным пользователем
+    if target_user.role != "admin":
+        raise HTTPException(status_code=400, detail="Пользователь уже не является администратором")
+
+    # Понижение роли до обычного пользователя
+    target_user.role = "user"
+    db.commit()
+
+    return {"message": f"Пользователь {target_user.nickname} успешно понижен до обычного пользователя"}
