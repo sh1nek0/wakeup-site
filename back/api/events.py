@@ -970,13 +970,11 @@ def calculate_ci(x: int, n: int, confidence: float = 0.95) -> float:
     return ci_half_width * 2  # Полная ширина
 
 
-
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
     event_id: str,
     db: Session = Depends(get_db)
-):
-    # event_id - строка, не конвертируем
+):    
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено.")

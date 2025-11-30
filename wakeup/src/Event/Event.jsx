@@ -194,7 +194,7 @@ export default function Game() {
       const res = await fetch(`/api/getEvent/${eventId}`, { headers });
       if (!res.ok) throw new Error("Ошибка загрузки данных ивента");
       const data = await res.json();
-
+      console.log(data)
       setEventData(data);
       setParticipants(data.participants || []);
       setTeams(data.teams || []);
