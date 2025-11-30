@@ -993,6 +993,7 @@ export default function Game() {
               totalPages={Math.ceil(aggregatedTeamData.length / pageSize)}
               onPageChange={setTeamPage}
               user={user}
+              isSolo={0}
             />
           </div>
         )}

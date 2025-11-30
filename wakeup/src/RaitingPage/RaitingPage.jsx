@@ -594,7 +594,7 @@ export default function RatingPage() {
   );
 }
 
-function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user }) {
+function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user, isSolo=1 }) {
   const navigate = useNavigate();
   console.log(data)
   const handlePlayerClick = (playerId) => {
@@ -622,13 +622,13 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
         <thead>
           <tr>
             <th>#</th>
-            <th>Игрок / Команда</th>
-            <th>Сумма баллов</th>
+            { isSolo ? <th>Игрок</th>  :  <th> Команда </th>}
+            <th>Σ</th>
             <th>Винрейт</th>
-            <th>Допы Ср./Сумма</th>
-            <th>Ci сумма</th>
-            <th>Cb сумма</th>
-            <th>Штрафы сумма</th>
+            <th>Допы Ср./Σ</th>
+            <th>Ci</th>
+            <th>Cb</th>
+            <th>Штрафы</th>
 
             <th className={styles.roleSheriff}>Шериф П/И</th>
             <th className={styles.roleSheriff}>Шериф Ср</th>
@@ -681,7 +681,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
                 </td>
                 <td>{p.totalPoints || 0}</td>
                 <td>{winrate}</td>
-                <td>{totalBonuses/((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))}/{totalBonuses}</td>
+                <td>{(totalBonuses/((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))).toFixed(2)}/{totalBonuses}</td>
                 <td>{totalCi.toFixed(2)}</td>
                 <td>{totalCb.toFixed(2)}</td>
                 <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>
