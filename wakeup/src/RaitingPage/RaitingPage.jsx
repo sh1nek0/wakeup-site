@@ -674,12 +674,12 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
                     onClick={() => handlePlayerClick(p.id)}
                     title={p.name || p.nickname}
                   >
-                    {(p.name || p.nickname || "—").length > 10
+                    {(p.name || p.nickname || "—").length > 10 && isSolo
                       ? (p.name || p.nickname).slice(0, 10) + '...'
                       : (p.name || p.nickname || "—")}
                   </span>
                 </td>
-                <td>{p.totalPoints || 0}</td>
+                <td>{p.totalPoints.toFixed(2) || 0}</td>
                 <td>{winrate}</td>
                 <td>{(totalBonuses/((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))).toFixed(2)}/{totalBonuses}</td>
                 <td>{totalCi.toFixed(2)}</td>
