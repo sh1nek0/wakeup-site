@@ -1122,7 +1122,7 @@ async def get_player_stats(
                         elif mafia_don_count == 2:
                             bonus = 1.0
                         elif mafia_don_count == 1:
-                            bonus = 0.5
+                            bonus = 0.0
                         player_totals[player_key]["total_best_move_bonus"] += bonus
                         if mafia_don_count >= 1:
                             has_black_in_best_move = True
