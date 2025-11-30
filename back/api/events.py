@@ -969,7 +969,6 @@ def calculate_ci(x: int, n: int, confidence: float = 0.95) -> float:
     ci_half_width = z * se
     return ci_half_width * 2  # Полная ширина
 
-
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
     event_id: str,
@@ -1062,7 +1061,7 @@ async def get_player_stats(
                 if user_id:
                     player_totals[player_key]["user_id"] = user_id  # Храним как есть (str или int)
                 
-                # Маппинг на DB имя, если user_id в user_map
+                
                 if player_totals[player_key]["user_id"] in user_map:
                     db_user = user_map[player_totals[player_key]["user_id"]]
                     db_name = (db_user.nickname or db_user.name or "").strip()
@@ -1097,17 +1096,26 @@ async def get_player_stats(
                 
                 player_totals[player_key]["games_count"] += 1
                 
-                # Логика best_move (адаптирована для str id)
+                # Логика best_move (адаптирована для str id, с исправлением для индексов)
                 best_move = p.get("best_move", "").strip()
                 has_black_in_best_move = False
                 if best_move:
                     try:
-                        # Парсим nominated_ids из best_move (e.g., "1 2 3" → ['1','2','3'])
+                        # Парсим nominated_strs из best_move (e.g., "1 2 3" → ['1','2','3'])
                         nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
                         if len(nominated_strs) != 3:
                             continue
-                        nominated_ids = nominated_strs  # Уже str, как в player_roles
-                        mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(nid, "") in ["мафия", "дон"])
+                        # Исправление: предполагаем, что числа - 1-based индексы игроков в массиве players
+                        nominated_ids = []
+                        for s in nominated_strs:
+                            try:
+                                idx = int(s) - 1  # 1-based -> 0-based
+                                if 0 <= idx < len(data["players"]):
+                                    nominated_ids.append(data["players"][idx]["id"])  # Реальный id игрока
+                            except ValueError:
+                                continue
+                        # Теперь nominated_ids содержит реальные id (str), как в player_roles
+                        mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(str(nid), "") in ["мафия", "дон"])
                         bonus = 0.0
                         if mafia_don_count == 3:
                             bonus = 1.5
