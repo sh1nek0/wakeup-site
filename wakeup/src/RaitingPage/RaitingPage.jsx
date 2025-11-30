@@ -624,11 +624,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             <th>#</th>
             { isSolo ? <th>Игрок</th>  :  <th> Команда </th>}
             <th>Σ</th>
-            <th>Винрейт</th>
+            <th>WR</th>
             <th>Допы Ср./Σ</th>
             <th>Ci</th>
             <th>Cb</th>
-            <th>Штрафы</th>
+            <th>-</th>
 
             <th className={styles.roleSheriff}>Шериф П/И</th>
             <th className={styles.roleSheriff}>Шериф Ср</th>
