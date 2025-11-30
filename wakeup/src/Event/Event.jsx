@@ -4,7 +4,7 @@ import { AuthContext } from "../AuthContext";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import TournamentGames from "../components/TournamentGames/TournamentGames";
 import { DetailedStatsTable } from "../RaitingPage/RaitingPage";
-import buildPlayersStats from "../components/Build";
+import buildPlayersStats from "../components/Build";  // Удалить, если больше не нужен
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
@@ -60,121 +60,124 @@ export default function Game() {
   const [exclusionsText, setExclusionsText] = useState("");
 
   // ------------------------------
+  // Новое: Состояние для статистики игроков из API
+  // ------------------------------
+  const [playersStats, setPlayersStats] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // ------------------------------
   // Редактирование события
-const [editedFields, setEditedFields] = useState({}); // храним только изменённые поля
-const [isEditing, setIsEditing] = useState(false);
+  const [editedFields, setEditedFields] = useState({}); // храним только изменённые поля
+  const [isEditing, setIsEditing] = useState(false);
 
   const [editedEvent, setEditedEvent] = useState({});
 
- const startEditing = () => {
-  setEditedFields({});
-  setIsEditing(true);
-};
+  const startEditing = () => {
+    setEditedFields({});
+    setIsEditing(true);
+  };
 
-const cancelEditing = () => {
-  setEditedFields({});
-  setIsEditing(false);
-};
+  const cancelEditing = () => {
+    setEditedFields({});
+    setIsEditing(false);
+  };
 
-const updateEditedField = (field, value) => {
-  setEditedFields(prev => ({ ...prev, [field]: value }));
-  console.log(value)
-};
+  const updateEditedField = (field, value) => {
+    setEditedFields(prev => ({ ...prev, [field]: value }));
+    console.log(value)
+  };
 
-const getDates = () => editedFields.dates ?? eventData.dates ?? [];
+  const getDates = () => editedFields.dates ?? eventData.dates ?? [];
 
-const addDate = () => {
-  const newDates = [...getDates(), new Date().toISOString().split('T')[0]];
-  updateEditedField('dates', newDates);
-};
+  const addDate = () => {
+    const newDates = [...getDates(), new Date().toISOString().split('T')[0]];
+    updateEditedField('dates', newDates);
+  };
 
-const removeDate = (index) => {
-  const newDates = getDates().filter((_, i) => i !== index);
-  updateEditedField('dates', newDates);
-};
+  const removeDate = (index) => {
+    const newDates = getDates().filter((_, i) => i !== index);
+    updateEditedField('dates', newDates);
+  };
 
-const updateDate = (index, value) => {
-  const newDates = getDates().map((d, i) => (i === index ? value : d));
-  updateEditedField('dates', newDates);
-};
+  const updateDate = (index, value) => {
+    const newDates = getDates().map((d, i) => (i === index ? value : d));
+    updateEditedField('dates', newDates);
+  };
 
-
-const saveEvent = async () => {
-  if (!Object.keys(editedFields).length) {
-    showMessage("Нет изменений для сохранения");
-    return;
-  }
-
-  const payload = {};
-
-  for (const [key, value] of Object.entries(editedFields)) {
-    if (value === undefined || value === null) continue;
-
-    // Обработка дат
-    if (key === "dates") {
-      if (Array.isArray(value)) {
-        payload.dates = value
-          .map(d => {
-            if (typeof d === "string" || d instanceof Date) {
-              return new Date(d).toISOString().split("T")[0];
-            }
-            console.warn("Неправильный формат даты:", d);
-            return null;
-          })
-          .filter(Boolean);
-      }
-      continue;
-    }
-
-    // seating_exclusions — массив массивов строк
-    if (key === "seating_exclusions") {
-      if (Array.isArray(value)) {
-        payload.seating_exclusions = value.map(row => 
-          Array.isArray(row) ? row.map(String) : []
-        );
-      }
-      continue;
-    }
-
-    // Все остальные поля отправляем как есть
-    payload[key] = value;
-  }
-
-  console.log("Payload для PATCH:", payload);
-
-  try {
-    const response = await fetch(`/api/event/${eventId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      showMessage(data.detail || "Ошибка сохранения", true);
+  const saveEvent = async () => {
+    if (!Object.keys(editedFields).length) {
+      showMessage("Нет изменений для сохранения");
       return;
     }
 
-    showMessage("Событие успешно обновлено");
+    const payload = {};
 
-    // Обновляем данные события с сервера
-    await fetchEventData();
+    for (const [key, value] of Object.entries(editedFields)) {
+      if (value === undefined || value === null) continue;
 
-    // Сбрасываем редактируемые поля
-    setEditedFields({});
-    setIsEditing(false);
+      // Обработка дат
+      if (key === "dates") {
+        if (Array.isArray(value)) {
+          payload.dates = value
+            .map(d => {
+              if (typeof d === "string" || d instanceof Date) {
+                return new Date(d).toISOString().split("T")[0];
+              }
+              console.warn("Неправильный формат даты:", d);
+              return null;
+            })
+            .filter(Boolean);
+        }
+        continue;
+      }
 
-  } catch (error) {
-    console.error("Ошибка при сохранении события:", error);
-    showMessage("Ошибка сохранения", true);
-  }
-};
+      // seating_exclusions — массив массивов строк
+      if (key === "seating_exclusions") {
+        if (Array.isArray(value)) {
+          payload.seating_exclusions = value.map(row => 
+            Array.isArray(row) ? row.map(String) : []
+          );
+        }
+        continue;
+      }
 
+      // Все остальные поля отправляем как есть
+      payload[key] = value;
+    }
 
+    console.log("Payload для PATCH:", payload);
+
+    try {
+      const response = await fetch(`/api/event/${eventId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showMessage(data.detail || "Ошибка сохранения", true);
+        return;
+      }
+
+      showMessage("Событие успешно обновлено");
+
+      // Обновляем данные события с сервера
+      await fetchEventData();
+
+      // Сбрасываем редактируемые поля
+      setEditedFields({});
+      setIsEditing(false);
+
+    } catch (error) {
+      console.error("Ошибка при сохранении события:", error);
+      showMessage("Ошибка сохранения", true);
+    }
+  };
 
   // Форматирование дат для отображения
   const formatDates = (dates) => {
@@ -205,8 +208,30 @@ const saveEvent = async () => {
     }
   };
 
+  // ------------------------------
+  // Новое: Загрузка статистики из API
+  // ------------------------------
+  const fetchPlayersStats = async () => {
+    if (!eventId) return;
+    setStatsLoading(true);
+    try {
+      const headers = { 'Cache-Control': 'no-cache' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`/api/events/${eventId}/player-stats`, { headers });
+      if (!res.ok) throw new Error("Ошибка загрузки статистики игроков");
+      const data = await res.json();
+      setPlayersStats(data.players || []);
+    } catch (err) {
+      console.error("Ошибка загрузки статистики:", err);
+      setPlayersStats([]);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchEventData();
+    fetchPlayersStats();  // Загружаем статистику параллельно
   }, [eventId, token]);
 
   const teamSize = useMemo(() => {
@@ -369,6 +394,7 @@ const saveEvent = async () => {
       }
       showMessage('Игра успешно удалена.');
       fetchEventData();
+      fetchPlayersStats();  // Обновляем статистику после удаления игры
     } catch (err) {
       showMessage(err.message, true);
     }
@@ -392,20 +418,19 @@ const saveEvent = async () => {
   const pageSize = 10;
 
   // ------------------------------
-  const playersStats = useMemo(() => {
-    if (!eventData?.games) return [];
-    return buildPlayersStats(eventData.games)
-      .sort((a, b) => b.totalPoints - a.totalPoints); // ⬅ сортировка
-  }, [eventData]);
-  
+  // Изменено: playersStats теперь из API, сортируем в useMemo
+  // ------------------------------
+  const playersStatsSorted = useMemo(() => {
+    return [...playersStats].sort((a, b) => b.totalPoints - a.totalPoints);
+  }, [playersStats]);
 
-  const personalTotalPages = useMemo(() => Math.ceil(playersStats.length / pageSize), [playersStats, pageSize]);
+  const personalTotalPages = useMemo(() => Math.ceil(playersStatsSorted.length / pageSize), [playersStatsSorted, pageSize]);
   const [personalPage, setPersonalPage] = useState(1);
   const personalPageData = useMemo(() => {
     const start = (personalPage - 1) * pageSize;
     const end = personalPage * pageSize;
-    return playersStats.slice(start, end);
-  }, [playersStats, personalPage, pageSize]);
+    return playersStatsSorted.slice(start, end);
+  }, [playersStatsSorted, personalPage, pageSize]);
 
   // ------------------------------
   // Командная агрегация
@@ -437,26 +462,26 @@ const saveEvent = async () => {
       totalPoints: sumField('totalPoints'),
       wins: sumDict('wins'),
       gamesPlayed: sumDict('gamesPlayed'),
-      total_sk_penalty: sumField('sk'),
-      total_jk_penalty: sumField('jk'),
-      total_best_move_bonus: sumField('plus'),
+      total_sk_penalty: sumField('total_sk_penalty'),  // Изменено
+      total_jk_penalty: sumField('total_jk_penalty'),  // Изменено
+      total_best_move_bonus: sumField('totalCb'),  // Изменено (totalCb = best_move_bonus)
       role_plus: mergeRolePlus(),
     };
   };
 
   const personalIndex = useMemo(() => {
     const map = new Map();
-    for (const p of playersStats) {
+    for (const p of playersStatsSorted) {  // Изменено
       map.set(p.name, p);
     }
     return map;
-  }, [playersStats]);
+  }, [playersStatsSorted]);
 
   const aggregatedTeamData = useMemo(() => {
-    if (!teams || !playersStats) return [];
+    if (!teams || !playersStatsSorted) return [];  // Изменено
 
     const playerIndexByName = new Map(
-      playersStats.map(p => [p.name.toLowerCase().trim(), p])
+      playersStatsSorted.map(p => [p.name.toLowerCase().trim(), p])  // Изменено
     );
 
     // ⬅️ ШАГ 1 — сначала формируем массив без возврата
@@ -496,9 +521,9 @@ const saveEvent = async () => {
         totalPoints: sumField("totalPoints"),
         wins: sumDict("wins"),
         gamesPlayed: sumDict("gamesPlayed"),
-        total_sk_penalty: sumField("sk"),
-        total_jk_penalty: sumField("jk"),
-        total_ppk_penalty: sumField("plus"),
+        total_sk_penalty: sumField("total_sk_penalty"),  // Изменено
+        total_jk_penalty: sumField("total_jk_penalty"),  // Изменено
+        total_ppk_penalty: sumField("totalCb"),  // Изменено
         role_plus: mergeRolePlus(),
         totalCi: sumField("totalCi") || 0,
         totalCb: sumField("totalCb") || 0,
@@ -511,20 +536,20 @@ const saveEvent = async () => {
 
     // ⬅️ ШАГ 3 — возвращаем отсортированный массив
     return data;
-  }, [teams, playersStats]);
+  }, [teams, playersStatsSorted]);  // Изменено
 
   // ------------------------------
   // Лучшая номинация по ролям
   // ------------------------------
   const roleNominations = useMemo(() => {
-    if (!playersStats || playersStats.length === 0) return [];
+    if (!playersStatsSorted || playersStatsSorted.length === 0) return [];  // Изменено
 
     const roles = ["sheriff", "citizen", "mafia", "don"];
     return roles.map(role => {
       let bestPlayer = null;
       let bestScore = -Infinity;
 
-      for (const p of playersStats) {
+      for (const p of playersStatsSorted) {  // Изменено
         const roleGames = p.gamesPlayed?.[role] || 0;
         const roleBonus = (p.role_plus?.[role] || []).reduce((a,b)=>a+b, 0);
         const score = roleBonus - 2.5 * roleGames;
@@ -537,18 +562,18 @@ const saveEvent = async () => {
 
       return { role, winner: bestPlayer };
     });
-  }, [playersStats]);
+  }, [playersStatsSorted]);  // Изменено
 
   // ------------------------------
   // Лучшая общая номинация
   // ------------------------------
   const overallNomination = useMemo(() => {
-    if (!playersStats || playersStats.length === 0) return null;
+    if (!playersStatsSorted || playersStatsSorted.length === 0) return null;  // Изменено
 
     let bestPlayer = null;
     let bestScore = -Infinity;
 
-    for (const p of playersStats) {
+    for (const p of playersStatsSorted) {  // Изменено
       const totalGames = Object.values(p.gamesPlayed || {}).reduce((a,b)=>a+b,0);
       const totalBonus = Object.values(p.role_plus || {}).flat().reduce((a,b)=>a+b,0);
       const score = totalBonus - 2.5 * totalGames;
@@ -560,7 +585,7 @@ const saveEvent = async () => {
     }
 
     return bestPlayer;
-  }, [playersStats]);
+  }, [playersStatsSorted]);  // Изменено
 
   const teamTotalPages = Math.ceil(aggregatedTeamData.length / pageSize);
   const [teamPage, setTeamPage] = useState(1);
@@ -577,7 +602,7 @@ const saveEvent = async () => {
   const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
   const [activeTab, setActiveTab] = useState('player');
 
-  if (loading) return <div>Загрузка...</div>;
+  if (loading || statsLoading) return <div>Загрузка...</div>;  // Изменено: ждем и статистику
 
   const isEventFull = eventData.participantsCount >= eventData.participantsLimit;
   let regButtonText = "Зарегистрироваться";
@@ -951,9 +976,9 @@ const saveEvent = async () => {
   <div className={styles.tabPanel} role="tabpanel">
     <h2 className={styles.h2}>Личный зачёт</h2>
     <DetailedStatsTable
-      data={personalPageData.slice((personalPage - 1) * pageSize, personalPage * pageSize)}
+      data={personalPageData.slice((personalPage - 1) * pageSize, personalPage * pageSize)}  // Уже paginated
       currentPage={personalPage}
-      totalPages={Math.ceil(personalPageData.length / pageSize)}
+      totalPages={Math.ceil(personalPageData.length / pageSize)}  // Ошибка: personalPageData уже срезан, использовать personalTotalPages
       onPageChange={setPersonalPage}
       user={user}
     />

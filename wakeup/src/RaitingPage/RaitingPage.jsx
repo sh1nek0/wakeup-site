@@ -596,7 +596,7 @@ export default function RatingPage() {
 
 function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user }) {
   const navigate = useNavigate();
-
+  console.log(data)
   const handlePlayerClick = (playerId) => {
     if (playerId) navigate(`/profile/${playerId}`);
   };
@@ -684,7 +684,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
                 <td>{totalBonuses.toFixed(1)}/{totalBonuses.toFixed(1)}</td>
                 <td>{totalCi.toFixed(1)}</td>
                 <td>{totalCb.toFixed(1)}</td>
-                <td>{(p.total_sk_penalty || 0 + p.total_jk_penalty || 0).toFixed(1)}</td>
+                <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>
 
                 {renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff)}
                 {renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen)}

@@ -16,7 +16,6 @@ router = APIRouter()
 async def save_game_data(data: SaveGameData, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
-
     player_roles = {player.get("id"): player.get("role", "").lower() for player in data.players}
     winning_roles = []
     if data.badgeColor == "red":

@@ -967,6 +967,8 @@ else saveResult(candidates.map((c) => c.playerId));
     const dataToSave = {
       gameId,
       eventId,
+      sk:players.map(({ id, sk }) => ({ playerId: id, sk })),
+      jk:players.map(({ id,jk }) => ({ playerId: id, jk })),
       players: players.map(p => ({...p, id: p.userId || p.id })),
       fouls: players.map(({ id, fouls }) => ({ playerId: id, fouls })),
       gameInfo: { 
