@@ -681,9 +681,9 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
                 </td>
                 <td>{p.totalPoints || 0}</td>
                 <td>{winrate}</td>
-                <td>{totalBonuses.toFixed(1)}/{totalBonuses.toFixed(1)}</td>
-                <td>{totalCi.toFixed(1)}</td>
-                <td>{totalCb.toFixed(1)}</td>
+                <td>{totalBonuses/((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))}/{totalBonuses}</td>
+                <td>{totalCi.toFixed(2)}</td>
+                <td>{totalCb.toFixed(2)}</td>
                 <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>
 
                 {renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff)}

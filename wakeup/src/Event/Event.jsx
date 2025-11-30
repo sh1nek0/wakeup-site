@@ -4,7 +4,6 @@ import { AuthContext } from "../AuthContext";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import TournamentGames from "../components/TournamentGames/TournamentGames";
 import { DetailedStatsTable } from "../RaitingPage/RaitingPage";
-import buildPlayersStats from "../components/Build";  // Удалить, если больше не нужен
 
 const stubAvatar =
   "data:image/svg+xml;utf8," +
