@@ -959,15 +959,14 @@ async def delete_event(event_id: str, current_user: User = Depends(get_current_u
     
     return {"message": f"Событие '{event.title}' успешно удалено."}
 
-
-def calculate_ci(x: int, n: int, confidence: float = 0.95) -> float:
-    if n == 0 or x < 0 or x > n:
+def calculate_ci(x: int, n: int) -> float:
+    if n <= 0 or x < 0 or x > n:
         return 0.0
-    p_hat = x / n
-    z = 1.96  # Для 95%
-    se = math.sqrt(p_hat * (1 - p_hat) / n) if p_hat * (1 - p_hat) > 0 else 0
-    ci_half_width = z * se
-    return ci_half_width * 2  # Полная ширина
+    K = max(0, x - n / 10)
+    if K == 0:
+        return 0.0
+    ci = K * (K + 1) / math.sqrt(n)
+    return ci
 
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
