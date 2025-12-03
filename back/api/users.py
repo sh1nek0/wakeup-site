@@ -117,7 +117,6 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
 async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
     return get_player_suggestions_logic(query, db)
 
-
 @router.get("/getRating")
 async def get_rating(limit: int = Query(10, description="Количество элементов на странице"), offset: int = Query(0, description="Смещение для пагинации"), db: Session = Depends(get_db)):
     logger = logging.getLogger("uvicorn.error")
@@ -173,7 +172,6 @@ async def get_rating(limit: int = Query(10, description="Количество э
 
     rating.sort(key=lambda x: x["rating_score"], reverse=True)
     return {"players": rating[offset: offset + limit], "total_count": len(rating)}
-
 
 @router.get("/getDetailedStats")
 async def get_detailed_stats(
@@ -346,9 +344,6 @@ async def get_detailed_stats(
         "total_count": total_count,
         "average_points": average_points
     }
-
-
-
 
 @router.post("/profile/avatar", response_model=AvatarUploadResponse)
 async def upload_avatar(userId: str = Form(...), avatar: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

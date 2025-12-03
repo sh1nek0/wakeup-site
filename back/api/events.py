@@ -8,6 +8,12 @@ from typing import List, Dict, Tuple
 from datetime import datetime, timezone  # Добавлено timezone для корректного получения UTC времени
 import math
 from sqlalchemy import or_
+from sqlalchemy.exc import SQLAlchemyError
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Попытка импортировать pulp — если нет, будет fallback
 try:
     import pulp
@@ -1153,26 +1159,62 @@ async def update_event(
     # Получаем только те поля, которые реально пришли
     update_data = request.dict(exclude_unset=True)
 
-    # Преобразуем даты и seating_exclusions
+    # Валидация и преобразование данных
     if "dates" in update_data:
-        update_data["dates"] = json.dumps(update_data["dates"])  # строки уже сериализуются без проблем
+        if not isinstance(update_data["dates"], list) or not all(isinstance(d, str) for d in update_data["dates"]):
+            raise HTTPException(status_code=400, detail="Поле 'dates' должно быть списком строк.")
+        update_data["dates"] = json.dumps(update_data["dates"])
 
     if "seating_exclusions" in update_data:
+        if not isinstance(update_data["seating_exclusions"], list) or not all(isinstance(se, str) for se in update_data["seating_exclusions"]):
+            raise HTTPException(status_code=400, detail="Поле 'seating_exclusions' должно быть списком строк.")
         update_data["seating_exclusions"] = json.dumps(update_data["seating_exclusions"])
 
-    # Применяем изменения
-    for key, value in update_data.items():
-        setattr(event, key, value)
+    # Дополнительная валидация для лимита участников
+    if "participants_limit" in update_data:
+        new_limit = update_data["participants_limit"]
+        if not isinstance(new_limit, int) or new_limit < 0:
+            raise HTTPException(status_code=400, detail="Лимит участников должен быть неотрицательным целым числом.")
+        if event.participants_count > new_limit:
+            raise HTTPException(status_code=400, detail="Невозможно установить лимит меньше текущего количества участников.")
 
-    db.commit()
-    db.refresh(event)
+    # Если обновляется participants_count, проверить с лимитом
+    if "participants_count" in update_data:
+        new_count = update_data["participants_count"]
+        if not isinstance(new_count, int) or new_count < 0:
+            raise HTTPException(status_code=400, detail="Количество участников должно быть неотрицательным целым числом.")
+        if new_count > (update_data.get("participants_limit", event.participants_limit)):
+            raise HTTPException(status_code=400, detail="Количество участников не может превышать лимит.")
+
+    # Применяем изменения
+    try:
+        for key, value in update_data.items():
+            setattr(event, key, value)
+        db.commit()
+        db.refresh(event)
+        logger.info(f"Event {event_id} updated successfully by user {current_user.id}")
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Error updating event {event_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ошибка базы данных при обновлении события.")
+
+    # Безопасная загрузка JSON для возврата
+    try:
+        dates = json.loads(event.dates) if event.dates else []
+    except json.JSONDecodeError:
+        dates = []  # Если JSON повреждён, возвращаем пустой список
+
+    try:
+        seating_exclusions = json.loads(event.seating_exclusions) if event.seating_exclusions else []
+    except json.JSONDecodeError:
+        seating_exclusions = []  # Если JSON повреждён, возвращаем пустой список
 
     return {
         "message": "Событие успешно обновлено.",
         "event": {
             "id": event.id,
             "title": event.title,
-            "dates": json.loads(event.dates) if event.dates else [],
+            "dates": dates,
             "location": event.location,
             "type": event.type,
             "participants_limit": event.participants_limit,
@@ -1186,7 +1228,7 @@ async def update_event(
             "org_role": event.org_role,
             "org_avatar": event.org_avatar,
             "games_are_hidden": event.games_are_hidden,
-            "seating_exclusions": json.loads(event.seating_exclusions) if event.seating_exclusions else [],
+            "seating_exclusions": seating_exclusions,
             "created_at": event.created_at
         }
     }

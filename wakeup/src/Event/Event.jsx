@@ -4,9 +4,9 @@ import { AuthContext } from "../AuthContext";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import TournamentGames from "../components/TournamentGames/TournamentGames";
 import { DetailedStatsTable } from "../RaitingPage/RaitingPage";
+import PersonCard from '../components/PersonCard/PersonCard';
 
-const stubAvatar =
-  "data:image/svg+xml;utf8," +
+const stubAvatar = "data:image/svg+xml;utf8," +
   encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>
        <rect fill='#303030' width='100%' height='100%'/>
@@ -129,6 +129,10 @@ export default function Game() {
         }
         continue;
       }
+      if (key === "gs_name") payload.gs_id = value;
+      if (key === "gs_role") payload.gs_role = value;
+      if (key === "org_name") payload.org_id = value;
+      if (key === "org_role") payload.org_role = value; 
 
       // seating_exclusions — массив массивов строк
       if (key === "seating_exclusions") {
@@ -306,13 +310,6 @@ export default function Game() {
     }
   };
 
-  const roleToRussian = {
-    sheriff: "Шериф",
-    citizen: "Мирный",
-    mafia: "Мафия",
-    don: "Дон",
-  };
-
   const handleManageRegistration = async (registrationId, action) => {
     if (!isAdmin) return;
     try {
@@ -434,47 +431,7 @@ export default function Game() {
   // ------------------------------
   // Командная агрегация
   // ------------------------------
-  const aggregateMembersToTeam = (membersStats = [], teamName, teamId) => {
-    const zeroWins = { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
-    const sumField = (field) => membersStats.reduce((s, p) => s + Number(p?.[field] || 0), 0);
-    const sumDict = (key) => membersStats.reduce((acc, p) => {
-      const src = p?.[key] || {};
-      acc.sheriff += Number(src.sheriff || 0);
-      acc.citizen += Number(src.citizen || 0);
-      acc.mafia   += Number(src.mafia   || 0);
-      acc.don     += Number(src.don     || 0);
-      return acc;
-    }, { ...zeroWins });
-    const mergeRolePlus = () => {
-      const out = { sheriff: [], citizen: [], mafia: [], don: [] };
-      for (const p of membersStats) {
-        const rp = p?.role_plus || {};
-        for (const role of ["sheriff", "citizen", "mafia", "don"]) {
-          out[role].push(...(rp[role] || []));
-        }
-      }
-      return out;
-    };
-    return {
-      id: teamId ?? null,
-      nickname: teamName,
-      totalPoints: sumField('totalPoints'),
-      wins: sumDict('wins'),
-      gamesPlayed: sumDict('gamesPlayed'),
-      total_sk_penalty: sumField('total_sk_penalty'),  // Изменено
-      total_jk_penalty: sumField('total_jk_penalty'),  // Изменено
-      total_best_move_bonus: sumField('totalCb'),  // Изменено (totalCb = best_move_bonus)
-      role_plus: mergeRolePlus(),
-    };
-  };
-
-  const personalIndex = useMemo(() => {
-    const map = new Map();
-    for (const p of playersStatsSorted) {  // Изменено
-      map.set(p.name, p);
-    }
-    return map;
-  }, [playersStatsSorted]);
+  
 
   const aggregatedTeamData = useMemo(() => {
     if (!teams || !playersStatsSorted) return [];  // Изменено
@@ -586,17 +543,9 @@ export default function Game() {
     return bestPlayer;
   }, [playersStatsSorted]);  // Изменено
 
-  const teamTotalPages = Math.ceil(aggregatedTeamData.length / pageSize);
+
   const [teamPage, setTeamPage] = useState(1);
-  const teamPageData = useMemo(() => (
-    aggregatedTeamData.slice((teamPage - 1) * pageSize, teamPage * pageSize)
-  ), [aggregatedTeamData, teamPage]);
 
-  // ------------------------------
-  // Заглушки для номинаций
-  // ------------------------------
-
-  // ------------------------------
   const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
   const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
   const [activeTab, setActiveTab] = useState('player');
@@ -652,7 +601,6 @@ export default function Game() {
 
 <div className={styles.topGrid}>
   <div className={styles.infoGrid}>
-    {/* ------------------ Даты ------------------ */}
     <div className={styles.infoCard}>
       <div className={styles.caption}>Даты проведения</div>
       <div className={styles.value}>
@@ -764,16 +712,19 @@ export default function Game() {
     </button>
   </div>
 
- 
 
   <aside className={styles.rightCol}>
-    <div className={styles.personCard}>
-      <img src={eventData.gs?.avatar || stubAvatar} alt={eventData.gs?.name} className={styles.avatar} />
-      <div className={styles.personMeta}>
-        <div className={styles.personName}>{eventData.gs?.name}</div>
-        <div className={styles.personRole}>{eventData.gs?.role}</div>
-      </div>
-    </div>
+    <PersonCard 
+  user={eventData.gs} 
+  isEdit={isEditing} 
+  onChange={(user, role) => { 
+    updateEditedField('gs_name', user?.nickname); 
+    updateEditedField('gs_role', role); 
+    updateEditedField('gs_avatar',user?.photoUrl)
+  }} 
+  token={token} 
+  defaultRole="GS" 
+/>
     <div className={styles.personCard}>
       <img src={eventData.org?.avatar || stubAvatar} alt={eventData.org?.name} className={styles.avatar} />
       <div className={styles.personMeta}>
