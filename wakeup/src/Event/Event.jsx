@@ -971,13 +971,13 @@ export default function Game() {
 
 
         {/* Panels */}
-        {activeTab === 'solo' && (
+   {activeTab === 'solo' && (
   <div className={styles.tabPanel} role="tabpanel">
     <h2 className={styles.h2}>Личный зачёт</h2>
     <DetailedStatsTable
-      data={personalPageData.slice((personalPage - 1) * pageSize, personalPage * pageSize)}  // Уже paginated
+      data={personalPageData}  // Исправление: передаём уже пагенированные данные (без лишнего slice)
       currentPage={personalPage}
-      totalPages={Math.ceil(personalPageData.length / pageSize)}  // Ошибка: personalPageData уже срезан, использовать personalTotalPages
+      totalPages={personalTotalPages}  // Исправление: используем общее количество страниц от полного списка
       onPageChange={setPersonalPage}
       user={user}
     />
