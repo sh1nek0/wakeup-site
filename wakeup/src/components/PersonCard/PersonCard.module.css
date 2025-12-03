@@ -1,0 +1,43 @@
+/* =============== СТИЛИ ДЛЯ КОМПОНЕНТА PersonCard =============== */
+.personCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.avatar {
+  width: 56px;
+  height: 56px;
+  background: var(--panel-3);
+  border: 2px solid var(--accent);
+  flex: 0 0 auto;
+}
+.personMeta { display: grid; gap: 4px; }
+.personName { font-weight: 800; font-size: 20px; }
+.personRole { color: var(--muted); }
+
+/* Контейнер для режима редактирования (аналогично .personCard, но адаптирован для формы) */
+.editContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Небольшой отступ между dropdown и input */
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  border-radius: 12px; /* Совпадает с другими элементами, как .input */
+}
+
+/* Выпадающее меню (dropdown) для выбора игрока (аналогично .input) */
+.dropdown {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  background: var(--panel-3);
+  border: 1.5px solid var(--accent);
+  color: var(--text);
+  border-radius: 12px;
+}
