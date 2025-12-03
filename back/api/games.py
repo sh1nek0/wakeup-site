@@ -432,6 +432,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
 
     return {"games": games_list, "total_count": total_count}
 
+
 @router.get("/getPlayerGames/{nickname}")
 async def get_player_games(nickname: str, db: Session = Depends(get_db)):
     all_users = db.query(User).all()
