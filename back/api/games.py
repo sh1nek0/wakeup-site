@@ -154,8 +154,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         game for game in all_games_for_calc if json.loads(game.data).get("badgeColor")
     ]
     
-    # --- ИЗМЕНЕНИЕ: Используем calculate_all_game_points для points ---
-    all_points = calculate_all_game_points(played_games_for_calc)
+    # УБРАНО: all_points = calculate_all_game_points(played_games_for_calc)
 
     total_count = len(played_games_for_calc)
     paginated_games = sorted(played_games_for_calc, key=lambda g: g.created_at, reverse=True)[offset:offset+limit]
@@ -298,10 +297,16 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         processed_players = []
         for p in players:
             name = p.get("name")
-            final_points = all_points.get(name, {}).get(game.gameId, 0)
+            
+            # ДОБАВЛЕНО: Локальный расчёт points для игрока в этой игре
+            player_key = name.strip()
+            if player_key in player_totals:
+                details = player_totals[player_key]
+                final_points = details["total_plus_only"] + details["total_best_move_bonus"] + details["total_minus"]
+            else:
+                final_points = 0.0
             
             # Расчёт дополнительных значений для этого игрока в этой игре
-            player_key = name.strip()
             if player_key in player_totals:
                 details = player_totals[player_key]
                 m = details["jk_count"]
@@ -322,9 +327,8 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
                 "id": user_id_map.get(name), 
                 "name": name,
                 "role": p.get("role", ""),
-                "points": final_points,
+                "points": round(final_points, 2),
                 "best_move": p.get("best_move", ""),
-                # Новые поля с дополнительными значениями
                 "jk": jk,
                 "ci": round(ci, 2),
                 "cb": round(cb, 2),
@@ -347,7 +351,6 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         })
 
     return {"games": games_list, "total_count": total_count}
-
 
 def calculate_ci(x: int, n: int) -> float:
     if n <= 0 or x < 0 or x > n:
