@@ -7,6 +7,7 @@ import re
 from typing import List, Dict, Tuple
 from datetime import datetime, timezone  # Добавлено timezone для корректного получения UTC времени
 import math
+from sqlalchemy import or_
 # Попытка импортировать pulp — если нет, будет fallback
 try:
     import pulp
@@ -973,11 +974,16 @@ async def get_player_stats(
     event_id: str,
     db: Session = Depends(get_db)
 ):    
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Событие не найдено.")
-
-    games = db.query(Game).filter(Game.event_id == event_id).all()
+    # Специальная логика для event_id == "1": включаем игры с event_id == "1" или null
+    if event_id == "1":
+        games = db.query(Game).filter(or_(Game.event_id == event_id, Game.event_id.is_(None))).all()
+    else:
+        # Для других event_id проверяем существование события
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Событие не найдено.")
+        games = db.query(Game).filter(Game.event_id == event_id).all()
+    
     if not games:
         return {"players": [], "message": "Нет игр в событии."}
 
@@ -1198,6 +1204,5 @@ async def get_player_stats(
         "event_id": event_id,
         "total_games": len(games)
     }
-
 
 

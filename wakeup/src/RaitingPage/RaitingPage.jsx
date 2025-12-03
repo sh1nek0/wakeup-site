@@ -17,6 +17,8 @@ export default function RatingPage() {
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+  const event_id="1"
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -148,31 +150,42 @@ export default function RatingPage() {
     }
   };
 
-  const fetchDetailedStats = async () => {
-    setDetailedStatsLoading(true);
-    setDetailedStatsError(null);
-    try {
-      const res = await fetch(`/api/getDetailedStats?limit=1000&offset=0`);
-      if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
-      const data = await res.json();
-      if (data && Array.isArray(data.players)) {
-        setDetailedStatsData(data.players);
-        console.log(data.players)
-        
-        setDetailedStatsTotalCount(data.total_count || 0);
-        setAveragePoints(data.average_points || 0);
-      } else {
-        throw new Error('Некорректная структура ответа (players)');
-      }
-    } catch (e) {
-      setDetailedStatsError(e.message);
-      setDetailedStatsData([]);
-      setDetailedStatsTotalCount(0);
-      setAveragePoints(0);
-    } finally {
-      setDetailedStatsLoading(false);
+  const fetchDetailedStats = async (event_id) => {
+  if (!event_id) {
+    console.error("event_id is required");
+    return;
+  }
+
+  setDetailedStatsLoading(true);
+  setDetailedStatsError(null);
+  try {
+    const res = await fetch(`/api/events/${event_id}/player-stats`);
+    if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
+    const data = await res.json();
+    if (data && Array.isArray(data.players)) {
+      setDetailedStatsData(data.players);
+      console.log(data.players);
+      
+      // Адаптируем под новый ответ: total_count как длина массива players (количество игроков)
+      setDetailedStatsTotalCount(data.players.length);
+      
+      // Рассчитываем average_points как среднее totalPoints (если нужно; иначе можно убрать)
+      const totalPointsSum = data.players.reduce((sum, player) => sum + (player.totalPoints || 0), 0);
+      const average = data.players.length > 0 ? totalPointsSum / data.players.length : 0;
+      setAveragePoints(average);
+    } else {
+      throw new Error('Некорректная структура ответа (players)');
     }
-  };
+  } catch (e) {
+    setDetailedStatsError(e.message);
+    setDetailedStatsData([]);
+    setDetailedStatsTotalCount(0);
+    setAveragePoints(0);
+  } finally {
+    setDetailedStatsLoading(false);
+  }
+};
+
 
   useEffect(() => {
     if (activeTab === 'Общий рейтинг') {
@@ -180,7 +193,7 @@ export default function RatingPage() {
     } else if (activeTab === 'Игры') {
         fetchGames();
     } else if (activeTab === 'Статистика') {
-        fetchDetailedStats();
+        fetchDetailedStats(event_id);
     }
   }, [activeTab, currentPage]);
 
@@ -586,6 +599,7 @@ export default function RatingPage() {
               totalPages={detailedStatsTotalPages}
               onPageChange={handleDetailedStatsPageChange}
               user={user}
+              key={detailedStatsCurrentPage}
             />
           </section>
         )}
