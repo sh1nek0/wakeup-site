@@ -184,13 +184,13 @@
 }
 
 .avatarWrap{ position:relative; width:56px; height:56px; flex:0 0 56px; }
-.avatar{ width:56px; height:56px; object-fit:cover; border-radius:50%; }
+.avatar{ width:56px; height:56px; object-fit:cover;border: 2px solid #FF7A1A; }
 
 .rankBadge{
   position:absolute; left:-8px; bottom:-8px;
   width:22px; height:22px;
   display:flex; align-items:center; justify-content:center;
-  background:#F5B63D; color:#121212;
+  background:#FF7A1A; color:#121212;
   font-weight:800; font-size:12px;
   border-radius:0;
   box-shadow:0 0 0 1px rgba(0,0,0,.35);
