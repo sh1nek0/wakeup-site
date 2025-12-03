@@ -42,6 +42,7 @@ export default function RatingPage() {
   const [gamesLoading, setGamesLoading] = useState(false);
   const [gamesError, setGamesError] = useState(null);
 
+  
   const [detailedStatsData, setDetailedStatsData] = useState([]);
   const [detailedStatsTotalCount, setDetailedStatsTotalCount] = useState(0);
   const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);

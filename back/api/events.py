@@ -357,7 +357,6 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
         "seating_exclusions": event.seating_exclusions or ""
     }
 
-
 @router.delete("/deleteTeam/{team_id}")
 async def leave_or_delete_team(team_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     team = db.query(Team).filter(Team.id == team_id).first()

@@ -4,6 +4,8 @@ from sqlalchemy import or_
 import json
 import logging
 import math
+from collections import defaultdict
+
 
 from core.security import get_current_user, get_db
 from db.models import Game, User
@@ -152,7 +154,7 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         game for game in all_games_for_calc if json.loads(game.data).get("badgeColor")
     ]
     
-    # --- ИЗМЕНЕНИЕ: Используем новую централизованную функцию ---
+    # --- ИЗМЕНЕНИЕ: Используем calculate_all_game_points для points ---
     all_points = calculate_all_game_points(played_games_for_calc)
 
     total_count = len(played_games_for_calc)
@@ -163,16 +165,170 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         data = json.loads(game.data)
         players = data.get("players", [])
         
+        # Маппинг ролей (как в player-stats)
+        role_mapping = {
+            "шериф": "sheriff",
+            "мирный": "citizen",
+            "мафия": "mafia",
+            "дон": "don"
+        }
+        
+        # player_roles для игры
+        player_roles: Dict[str, str] = {}
+        for p in players:
+            player_id = str(p.get("id", ""))
+            role = p.get("role", "")
+            player_roles[player_id] = role
+        
+        # Извлекаем badgeColor для всей игры
+        badge_color = data.get("badgeColor", None)
+        
+        # Сбор user_ids для запроса пользователей (если нужно для замены имён)
+        user_ids = set()
+        for p in players:
+            user_id = p.get("userId")
+            if user_id:
+                if isinstance(user_id, str) and user_id.isdigit():
+                    user_ids.add(int(user_id))
+                else:
+                    user_ids.add(user_id)
+        
+        # Запрос пользователей
+        db_users_query = db.query(User).filter(User.id.in_(user_ids))
+        db_users = db_users_query.all()
+        user_map: Dict[Any, User] = {u.id: u for u in db_users}
+        
+        # player_totals для этой конкретной игры (расчёты как в player-stats, но только для одной игры)
+        player_totals: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
+            "total_plus_only": 0.0,
+            "games_count": 1,  # Всегда 1 для одной игры
+            "total_best_move_bonus": 0.0,
+            "total_minus": 0.0,
+            "bestMovesWithBlack": 0,
+            "jk_count": 0,
+            "sk_count": 0,
+            "wins": defaultdict(int),
+            "gamesPlayed": defaultdict(int),
+            "role_plus": defaultdict(list),
+            "user_id": None
+        })
+        
+        for p in players:
+            player_name = p.get("name", "").strip()
+            if not player_name:
+                continue
+            
+            player_key = player_name
+            user_id = p.get("userId")
+            if user_id:
+                player_totals[player_key]["user_id"] = user_id
+            
+            # Замена имени на DB-имя, если есть
+            if player_totals[player_key]["user_id"] in user_map:
+                db_user = user_map[player_totals[player_key]["user_id"]]
+                db_name = (db_user.nickname or db_user.name or "").strip()
+                if db_name:
+                    player_key = db_name
+            
+            player_totals[player_key]["name"] = player_key
+            
+            role = p.get("role", "")
+            english_role = role_mapping.get(role, "")
+            
+            if english_role:
+                player_totals[player_key]["gamesPlayed"][english_role] += 1
+                
+                # Логика победы
+                win_condition = False
+                if badge_color == "red" and role in ["мирный", "шериф"]:
+                    win_condition = True
+                elif badge_color == "black" and role in ["мафия", "дон"]:
+                    win_condition = True
+                
+                if win_condition:
+                    player_totals[player_key]["wins"][english_role] += 1
+                
+                plus_value = p.get("plus", 0.0)
+                if isinstance(plus_value, (int, float)):
+                    player_totals[player_key]["role_plus"][english_role].append(plus_value)
+                    player_totals[player_key]["total_plus_only"] += plus_value
+            
+            # best_move логика
+            best_move = p.get("best_move", "").strip()
+            has_black_in_best_move = False
+            if best_move:
+                try:
+                    nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
+                    if len(nominated_strs) != 3:
+                        continue
+                    nominated_ids = []
+                    for s in nominated_strs:
+                        try:
+                            idx = int(s) - 1
+                            if 0 <= idx < len(players):
+                                nominated_ids.append(players[idx]["id"])
+                        except ValueError:
+                            continue
+                    mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(str(nid), "") in ["мафия", "дон"])
+                    bonus = 0.0
+                    if mafia_don_count == 3:
+                        bonus = 1.5
+                    elif mafia_don_count == 2:
+                        bonus = 1.0
+                    elif mafia_don_count == 1:
+                        bonus = 0.0
+                    player_totals[player_key]["total_best_move_bonus"] += bonus
+                    if mafia_don_count >= 1:
+                        has_black_in_best_move = True
+                except ValueError:
+                    continue
+            
+            sk_count = p.get("sk", 0)
+            if isinstance(sk_count, (int, float)) and sk_count > 0:
+                player_totals[player_key]["sk_count"] += int(sk_count)
+                player_totals[player_key]["total_minus"] += -0.5 * sk_count
+            
+            jk_count = p.get("jk", 0)
+            if isinstance(jk_count, (int, float)) and jk_count > 0:
+                player_totals[player_key]["jk_count"] += int(jk_count)
+            
+            if has_black_in_best_move:
+                player_totals[player_key]["bestMovesWithBlack"] += 1
+        
         processed_players = []
         for p in players:
             name = p.get("name")
             final_points = all_points.get(name, {}).get(game.gameId, 0)
+            
+            # Расчёт дополнительных значений для этого игрока в этой игре
+            player_key = name.strip()
+            if player_key in player_totals:
+                details = player_totals[player_key]
+                m = details["jk_count"]
+                cy = 0.5 * m * (m + 1) if m > 0 else 0.0
+                total_minus = details["total_minus"] - cy  # minuses = total_minus (уже включает sk и jk штрафы)
+                x = details["bestMovesWithBlack"]
+                n = details["games_count"]
+                ci = calculate_ci(x, n)
+                cb = details["total_best_move_bonus"]  # cb = total_best_move_bonus
+                jk = details["jk_count"]  # jk = jk_count
+            else:
+                jk = 0
+                ci = 0.0
+                cb = 0.0
+                total_minus = 0.0
+            
             processed_players.append({
                 "id": user_id_map.get(name), 
                 "name": name,
                 "role": p.get("role", ""),
                 "points": final_points,
-                "best_move": p.get("best_move", "")
+                "best_move": p.get("best_move", ""),
+                # Новые поля с дополнительными значениями
+                "jk": jk,
+                "ci": round(ci, 2),
+                "cb": round(cb, 2),
+                "minuses": round(total_minus, 2)
             })
         
         game_info = data.get("gameInfo", {})
@@ -191,6 +347,17 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
         })
 
     return {"games": games_list, "total_count": total_count}
+
+
+def calculate_ci(x: int, n: int) -> float:
+    if n <= 0 or x < 0 or x > n:
+        return 0.0
+    K = max(0, x - n / 10)
+    if K == 0:
+        return 0.0
+    ci = K * (K + 1) / math.sqrt(n)
+    return ci
+
 
 @router.get("/getPlayerGames/{nickname}")
 async def get_player_games(nickname: str, db: Session = Depends(get_db)):
