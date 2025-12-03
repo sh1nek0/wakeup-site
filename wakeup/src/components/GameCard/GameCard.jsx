@@ -48,7 +48,7 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                 </div>
             </div>
             <div className={styles.sheetTop}>
-                <span className={styles.sheetTitle}>{title}</span>
+                <span className={styles.sheetTitle} onClick={() => navigate(`/Event/${game.event_id || '1'}/Game/${game.id}?mode=view`)}>{title}</span>
                 <div className={`${styles.sheetSlashTop} ${locationColorClass}`} />
                 <time className={styles.sheetDate}>{gameDate}</time>
             </div>
@@ -107,7 +107,6 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, gameNumber }
                 </span>
             </div>
             <div className={styles.sheetActions}>
-                <button onClick={() => navigate(`/Event/${game.event_id || '1'}/Game/${game.id}?mode=view`)} className={styles.sheetViewBtn}>Посмотреть</button>
                 {isAdmin && (
                     <>
                         <button onClick={() => onEdit(game.id, game.event_id)} className={styles.sheetEditBtn}>Редактировать</button>
