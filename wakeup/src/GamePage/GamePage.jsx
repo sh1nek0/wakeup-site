@@ -957,6 +957,7 @@ else saveResult(candidates.map((c) => c.playerId));
     console.log("Кэш страницы рейтинга очищен.");
   };
 
+  
   const handleSave = async () => {
     if (isReadOnly) {
       showMessage('Нельзя сохранить изменения в режиме просмотра.', true);
