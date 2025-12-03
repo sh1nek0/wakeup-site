@@ -495,19 +495,14 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
                         player_totals[player_key]["total_plus_only"] += plus_value + win_coefficient
                         player_totals[player_key]["role_plus"][english_role].append(plus_value)
                 
-                # best_move_bonus: Используем из JSON, если есть, иначе рассчитываем
-                best_move_bonus_from_json = p.get("best_move_bonus", 0.0)
-                has_black_in_best_move = False  # Инициализируем здесь
-                if best_move_bonus_from_json > 0:
-                    player_totals[player_key]["total_best_move_bonus"] += best_move_bonus_from_json
-                else:
-                    # Расчёт, если нет в JSON
-                    best_move = p.get("best_move", "").strip()
-                    if best_move:
-                        try:
-                            nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
-                            if len(nominated_strs) != 3:
-                                continue
+                # Всегда рассчитываем has_black_in_best_move по best_move (для CI), независимо от JSON
+                has_black_in_best_move = False
+                best_move = p.get("best_move", "").strip()
+                mafia_don_count = 0
+                if best_move:
+                    try:
+                        nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
+                        if len(nominated_strs) == 3:
                             nominated_ids = []
                             for s in nominated_strs:
                                 try:
@@ -517,18 +512,24 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
                                 except ValueError:
                                     continue
                             mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(str(nid), "") in ["мафия", "дон"])
-                            bonus = 0.0
-                            if mafia_don_count == 3:
-                                bonus = 1.5
-                            elif mafia_don_count == 2:
-                                bonus = 1.0
-                            elif mafia_don_count == 1:
-                                bonus = 0.0
-                            player_totals[player_key]["total_best_move_bonus"] += bonus
-                            if mafia_don_count >= 1:
-                                has_black_in_best_move = True
-                        except ValueError:
-                            continue
+                            has_black_in_best_move = mafia_don_count >= 1
+                    except ValueError:
+                        pass
+                
+                # best_move_bonus: Используем из JSON, если есть, иначе рассчитываем по mafia_don_count
+                best_move_bonus_from_json = p.get("best_move_bonus", 0.0)
+                if best_move_bonus_from_json > 0:
+                    player_totals[player_key]["total_best_move_bonus"] += best_move_bonus_from_json
+                else:
+                    # Расчёт бонуса по mafia_don_count
+                    bonus = 0.0
+                    if mafia_don_count == 3:
+                        bonus = 1.5
+                    elif mafia_don_count == 2:
+                        bonus = 1.0
+                    elif mafia_don_count == 1:
+                        bonus = 0.0
+                    player_totals[player_key]["total_best_move_bonus"] += bonus
                 
                 sk_count = p.get("sk", 0)
                 if isinstance(sk_count, (int, float)) and sk_count > 0:
