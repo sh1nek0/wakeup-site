@@ -971,15 +971,16 @@ export default function Game() {
 
 
         {/* Panels */}
-   {activeTab === 'solo' && (
+{activeTab === 'solo' && (
   <div className={styles.tabPanel} role="tabpanel">
     <h2 className={styles.h2}>Личный зачёт</h2>
     <DetailedStatsTable
-      data={personalPageData}  // Исправление: передаём уже пагенированные данные (без лишнего slice)
+      data={personalPageData}  // Уже пагенированные данные
       currentPage={personalPage}
-      totalPages={personalTotalPages}  // Исправление: используем общее количество страниц от полного списка
+      totalPages={personalTotalPages}  // Общее количество страниц
       onPageChange={setPersonalPage}
       user={user}
+      key={personalPage}  // Исправление: добавляем key для принудительного перемонтирования при смене страницы
     />
   </div>
 )}
