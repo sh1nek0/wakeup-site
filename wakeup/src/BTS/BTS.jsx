@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import s from "./BTS.module.css";
 
 // постер схемы (твоя картинка)
@@ -8,21 +8,65 @@ import poster_m from "../images/BTSback.png";
 // заглушка для аватарок
 import avatarPlaceholder from "../NavBar/avatar.png";
 
-/** Массив игроков, прошедших на текущий момент.
- *  Поля для реальных данных: id, nick, from, avatar
- */
-const qualifiedNow = [
-  // Примеры (можешь оставить пустым [] — тогда покажется "Ты можешь стать первым!")
-  // { id: 3, nick: "Neo", from: "Финал миникланов", avatar: avatarPlaceholder },
-];
-
 export default function RoadPoster() {
-  // Мемоизация проверок и JSX элементов, чтобы избежать пересоздания
+  // Начальный массив игроков с плейсхолдерами (как в вашем коде)
+  const initialQualifiedNow = [
+    { id: 1, nick: "Никто.", from: "ССС", avatar: avatarPlaceholder },
+    { id: 2, nick: "sukmadik", from: "ССС", avatar: avatarPlaceholder }
+  ];
+
+  // Состояние для списка игроков (начально с плейсхолдерами, потом обновится с реальными аватарками)
+  const [qualifiedNow, setQualifiedNow] = useState(initialQualifiedNow);
+
+  // useEffect для загрузки аватарок при монтировании компонента
+  useEffect(() => {
+    const fetchAvatars = async () => {
+      try {
+        // Извлекаем ники из начального массива
+        const nicknames = initialQualifiedNow.map(player => player.nick);
+
+        // Отправляем POST-запрос на эндпоинт
+        const response = await fetch('/getUsersPhotos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nicknames })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Обновляем состояние: заменяем плейсхолдеры на реальные аватарки
+        const updatedQualifiedNow = initialQualifiedNow.map(player => {
+          const photoData = data.photos.find(p => p.nick === player.nick);
+          return {
+            ...player,
+            avatar: photoData?.avatar || avatarPlaceholder  // Если API вернул null, используем плейсхолдер
+          };
+        });
+
+        setQualifiedNow(updatedQualifiedNow);
+      } catch (error) {
+        console.error('Ошибка загрузки аватарок:', error);
+        // В случае ошибки оставляем плейсхолдеры (состояние не меняется)
+      }
+    };
+
+    // Вызываем функцию загрузки, если есть ники для запроса
+    if (initialQualifiedNow.length > 0) {
+      fetchAvatars();
+    }
+  }, []);  // Пустой массив зависимостей: эффект запускается только при монтировании
+
+  // Мемоизация проверки наличия игроков
   const hasQualified = useMemo(
     () => qualifiedNow && qualifiedNow.length > 0,
-    []
+    [qualifiedNow]  // Зависит от состояния
   );
 
+  // Мемоизация списка игроков
   const qualifiedList = useMemo(() => {
     if (!hasQualified) return null;
     return (
@@ -45,8 +89,9 @@ export default function RoadPoster() {
         ))}
       </ul>
     );
-  }, [hasQualified]);
+  }, [hasQualified, qualifiedNow]);  // Зависит от состояния
 
+  // Остальные мемоизации (без изменений)
   const posterImage = useMemo(
     () => (
       <img

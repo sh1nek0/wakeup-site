@@ -159,3 +159,6 @@ class UpdateEventRequest(BaseModel):
 class DemoteUserRequest(BaseModel):
     target_email: str
     target_nickname: str
+
+class GetUsersPhotosRequest(BaseModel):
+    nicknames: List[str]  # Список ников

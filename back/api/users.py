@@ -14,11 +14,28 @@ import os
 from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
 from db.models import User, Game, Registration, Notification
-from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest
+from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest, GetUsersPhotosRequest
 from services.calculations import calculate_all_game_points # --- ИЗМЕНЕНИЕ ---
 from services.search import get_player_suggestions_logic
 
 router = APIRouter()
+
+
+
+# Новый эндпоинт
+@router.post("/getUsersPhotos")
+async def get_users_photos(request: GetUsersPhotosRequest, db: Session = Depends(get_db)):
+    """
+    Получает аватарки для списка пользователей по их никам.
+    Возвращает список объектов: {nick: str, avatar: str | null}
+    """
+    result = []
+    for nick in request.nicknames:
+        user_obj = db.query(User).filter(User.nickname == nick).first()
+        avatar = user_obj.avatar if user_obj else None  # Если пользователь не найден, avatar = None
+        result.append({"nick": nick, "avatar": avatar})
+    
+    return {"photos": result}
 
 def human_size(n: int) -> str:
     units = ["B", "KB", "MB", "GB"]
