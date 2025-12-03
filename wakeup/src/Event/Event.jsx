@@ -725,13 +725,18 @@ export default function Game() {
   token={token} 
   defaultRole="GS" 
 />
-    <div className={styles.personCard}>
-      <img src={eventData.org?.avatar || stubAvatar} alt={eventData.org?.name} className={styles.avatar} />
-      <div className={styles.personMeta}>
-        <div className={styles.personName}>{eventData.org?.name}</div>
-        <div className={styles.personRole}>{eventData.org?.role}</div>
-      </div>
-    </div>
+ <PersonCard 
+  user={eventData.org} 
+  isEdit={isEditing} 
+  onChange={(user, role) => { 
+    updateEditedField('org_name', user?.nickname); 
+    updateEditedField('org_role', role); 
+    updateEditedField('org_avatar',user?.photoUrl)
+  }} 
+  token={token} 
+  defaultRole="Организатор" 
+/>
+    
     <div className={styles.feeCard}>
       <div className={styles.caption}>Стоимость участия</div>
       <div className={styles.fee}>
