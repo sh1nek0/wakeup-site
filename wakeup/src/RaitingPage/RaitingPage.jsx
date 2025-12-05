@@ -599,7 +599,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     { key: 'winrate', label: 'WR' },
     { key: 'bonuses', label: 'Допы Ср./Σ' },
     { key: 'totalCi', label: 'Ci' },
-    { key: 'totalCb', label: 'Cb' },
+    { key: 'totalCb', label: 'ЛХ'},
     { key: 'penalty', label: '-' },
     // Новые столбцы для смертей
     { key: 'deaths', label: 'Смертей' },
