@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
@@ -569,33 +569,10 @@ export default function RatingPage() {
             role="tabpanel"
             aria-label="Общая статистика"
           >
-            <div className={styles.statsGrid}>
-              <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Кол-во игр</h3>
-                <p className={styles.statValue}>{totalGamesCount}</p>
-              </div>
-              <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Кол-во игроков</h3>
-                <p className={styles.statValue}>{detailedStatsTotalCount}</p>
-              </div>
-              <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Средний балл</h3>
-                <p className={styles.statValue}>{averagePoints.toFixed(2)}</p>
-              </div>
-              <div className={styles.statItem}>
-                <h3 className={styles.statTitle}>Лучший игрок</h3>
-                <p className={styles.statValue}>
-                  {detailedStatsData.length > 0
-                    ? (detailedStatsData[0].nickname.length > 10
-                        ? detailedStatsData[0].nickname.slice(0, 10) + '...'
-                        : detailedStatsData[0].nickname)
-                    : '-'}
-                </p>
-              </div>
-            </div>
+            
 
             <DetailedStatsTable
-              data={paginatedStats}
+              data={detailedStatsData}
               currentPage={detailedStatsCurrentPage}
               totalPages={detailedStatsTotalPages}
               onPageChange={handleDetailedStatsPageChange}
@@ -609,62 +586,281 @@ export default function RatingPage() {
   );
 }
 
-function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user, isSolo=1 }) {
+function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user, isSolo = 1 }) {
   const navigate = useNavigate();
-  console.log(data)
+  console.log(data);
+
+  // Определяем все столбцы с их ключами и метками
+  const allColumns = [
+    { key: 'rank', label: '#', alwaysVisible: true }, // Ранг всегда видим
+    { key: 'player', label: isSolo ? 'Игрок' : 'Команда' },
+    { key: 'totalPoints', label: 'Σ' },
+    { key: 'winrate', label: 'WR' },
+    { key: 'bonuses', label: 'Допы Ср./Σ' },
+    { key: 'totalCi', label: 'Ci' },
+    { key: 'totalCb', label: 'Cb' },
+    { key: 'penalty', label: '-' },
+    { key: 'sheriffWins', label: 'Шериф П/И' },
+    { key: 'sheriffAvg', label: 'Шериф Ср' },
+    { key: 'sheriffMax', label: 'Шериф МАКС' },
+    { key: 'citizenWins', label: 'Мирн. П/И' },
+    { key: 'citizenAvg', label: 'Мирн. Ср' },
+    { key: 'citizenMax', label: 'Мирн. МАКС' },
+    { key: 'mafiaWins', label: 'Мафия П/И' },
+    { key: 'mafiaAvg', label: 'Мафия Ср' },
+    { key: 'mafiaMax', label: 'Мафия МАКС' },
+    { key: 'donWins', label: 'Дон П/И' },
+    { key: 'donAvg', label: 'Дон Ср' },
+    { key: 'donMax', label: 'Дон МАКС' },
+  ];
+
+  // Ключ для localStorage: уникальный для пользователя (используем user.name или user.id, если доступно)
+  const storageKey = `columnVisibility_${user?.id || user?.name || 'default'}`;
+
+  // Инициализируем состояние видимости из localStorage или по умолчанию все видимы (кроме alwaysVisible)
+  const [columnVisibility, setColumnVisibility] = useState(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // По умолчанию все столбцы видимы
+    const defaultVisibility = {};
+    allColumns.forEach(col => {
+      defaultVisibility[col.key] = !col.alwaysVisible || true; // alwaysVisible всегда true
+    });
+    return defaultVisibility;
+  });
+
+  // Состояние для модального окна
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Состояние для сортировки: по умолчанию по totalPoints убыванию
+  const [sortConfig, setSortConfig] = useState({ key: 'totalPoints', direction: 'desc' });
+
+  // Сохраняем изменения в localStorage при обновлении columnVisibility
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(columnVisibility));
+  }, [columnVisibility, storageKey]);
+
+  // Функция для переключения видимости столбца
+  const toggleColumnVisibility = (key) => {
+    if (allColumns.find(col => col.key === key)?.alwaysVisible) return; // Не даем скрывать всегда видимые
+    setColumnVisibility(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // Функция для открытия/закрытия модального окна
+  const toggleModal = () => setIsModalOpen(!isModalOpen);
+
+  // Функция для закрытия модала при клике на overlay
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setIsModalOpen(false);
+    }
+  };
+
+  // Функция для запроса сортировки
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Функции сортировки для каждого ключа
+  const sortFunctions = {
+    rank: (a, b) => {
+      // Сортировка по рангу: рассчитываем rank на основе totalPoints
+      const rankA = a.totalPoints; // Или другой логики, если rank не по totalPoints
+      const rankB = b.totalPoints;
+      return rankA - rankB;
+    },
+    player: (a, b) => (a.name || a.nickname || '').localeCompare(b.name || b.nickname || ''),
+    totalPoints: (a, b) => a.totalPoints - b.totalPoints,
+    winrate: (a, b) => {
+      const getWinrate = (p) => {
+        const totalGames = Object.values(p.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+        const totalWins = Object.values(p.wins || {}).reduce((sum, val) => sum + val, 0);
+        return totalGames > 0 ? totalWins / totalGames : 0;
+      };
+      return getWinrate(a) - getWinrate(b);
+    },
+    bonuses: (a, b) => {
+      const getBonusesAvg = (p) => {
+        const totalBonuses = Object.values(p.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+        const totalGames = Object.values(p.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+        return totalGames > 0 ? totalBonuses / totalGames : 0;
+      };
+      return getBonusesAvg(a) - getBonusesAvg(b);
+    },
+    totalCi: (a, b) => (a.totalCi || 0) - (b.totalCi || 0),
+    totalCb: (a, b) => (a.totalCb || 0) - (b.totalCb || 0),
+    penalty: (a, b) => ((a.total_sk_penalty || 0) + (a.total_jk_penalty || 0)) - ((b.total_sk_penalty || 0) + (b.total_jk_penalty || 0)),
+    sheriffWins: (a, b) => (a.wins?.sheriff || 0) - (b.wins?.sheriff || 0),
+    sheriffAvg: (a, b) => {
+      const bonuses = a.role_plus?.sheriff || [];
+      const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
+      const bonusesB = b.role_plus?.sheriff || [];
+      const avgB = bonusesB.length ? bonusesB.reduce((sum, val) => sum + val, 0) / bonusesB.length : 0;
+      return avgA - avgB;
+    },
+    sheriffMax: (a, b) => {
+      const bonuses = a.role_plus?.sheriff || [];
+      const maxA = bonuses.length ? Math.max(...bonuses) : 0;
+      const bonusesB = b.role_plus?.sheriff || [];
+      const maxB = bonusesB.length ? Math.max(...bonusesB) : 0;
+      return maxA - maxB;
+    },
+    citizenWins: (a, b) => (a.wins?.citizen || 0) - (b.wins?.citizen || 0),
+    citizenAvg: (a, b) => {
+      const bonuses = a.role_plus?.citizen || [];
+      const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
+      const bonusesB = b.role_plus?.citizen || [];
+      const avgB = bonusesB.length ? bonusesB.reduce((sum, val) => sum + val, 0) / bonusesB.length : 0;
+      return avgA - avgB;
+    },
+    citizenMax: (a, b) => {
+      const bonuses = a.role_plus?.citizen || [];
+      const maxA = bonuses.length ? Math.max(...bonuses) : 0;
+      const bonusesB = b.role_plus?.citizen || [];
+      const maxB = bonusesB.length ? Math.max(...bonusesB) : 0;
+      return maxA - maxB;
+    },
+    mafiaWins: (a, b) => (a.wins?.mafia || 0) - (b.wins?.mafia || 0),
+    mafiaAvg: (a, b) => {
+      const bonuses = a.role_plus?.mafia || [];
+      const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
+      const bonusesB = b.role_plus?.mafia || [];
+      const avgB = bonusesB.length ? bonusesB.reduce((sum, val) => sum + val, 0) / bonusesB.length : 0;
+      return avgA - avgB;
+    },
+    mafiaMax: (a, b) => {
+      const bonuses = a.role_plus?.mafia || [];
+      const maxA = bonuses.length ? Math.max(...bonuses) : 0;
+      const bonusesB = b.role_plus?.mafia || [];
+      const maxB = bonusesB.length ? Math.max(...bonusesB) : 0;
+      return maxA - maxB;
+    },
+    donWins: (a, b) => (a.wins?.don || 0) - (b.wins?.don || 0),
+    donAvg: (a, b) => {
+      const bonuses = a.role_plus?.don || [];
+      const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
+      const bonusesB = b.role_plus?.don || [];
+      const avgB = bonusesB.length ? bonusesB.reduce((sum, val) => sum + val, 0) / bonusesB.length : 0;
+      return avgA - avgB;
+    },
+    donMax: (a, b) => {
+      const bonuses = a.role_plus?.don || [];
+      const maxA = bonuses.length ? Math.max(...bonuses) : 0;
+      const bonusesB = b.role_plus?.don || [];
+      const maxB = bonusesB.length ? Math.max(...bonusesB) : 0;
+      return maxA - maxB;
+    },
+  };
+
+  // Отсортированные данные (сортировка применяется ко всему data)
+  const sortedData = useMemo(() => {
+    let sortableItems = [...data];
+    if (sortConfig.key && sortFunctions[sortConfig.key]) {
+      sortableItems.sort((a, b) => {
+        const result = sortFunctions[sortConfig.key](a, b);
+        return sortConfig.direction === 'asc' ? result : -result;
+      });
+    }
+    return sortableItems;
+  }, [data, sortConfig]);
+
+  // Пагинация применяется после сортировки
+  const itemsPerPage = 10; // Предполагаем 10 элементов на страницу; можно сделать пропсом, если нужно
+  const totalPagesCalculated = Math.ceil(sortedData.length / itemsPerPage); // Рассчитываем totalPages на основе полного отсортированного массива
+  const paginatedData = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const handlePlayerClick = (playerId) => {
     if (playerId) navigate(`/profile/${playerId}`);
   };
 
-  const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass) => {
+  // Модифицированная функция renderRoleStats: принимает массив видимых столбцов и рендерит только видимые
+  const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass, roleKey) => {
     const avgBonus = bonuses.length
-      ? (bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length).toFixed(1)
+      ? (bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length).toFixed(2)
       : "0.0";
-    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed(1) : "0.0";
+    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed(2) : "0.0";
 
     return (
       <>
-        <td className={`${styles.roleCell} ${colorClass}`}>{wins}/{games}</td>
-        <td className={`${styles.roleCell} ${colorClass}`}>{avgBonus}</td>
-        <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>
+        {columnVisibility[`${roleKey}Wins`] && <td className={`${styles.roleCell} ${colorClass}`}>{wins}/{games}</td>}
+        {columnVisibility[`${roleKey}Avg`] && <td className={`${styles.roleCell} ${colorClass}`}>{avgBonus}</td>}
+        {columnVisibility[`${roleKey}Max`] && <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>}
       </>
     );
   };
 
   return (
     <div className={styles.tableWrapper}>
+      {/* Кнопка для открытия модального окна */}
+      <button onClick={toggleModal} className={styles.editButton}>
+        Редактировать таблицу
+      </button>
+
+      {/* Модальное окно */}
+      {isModalOpen && (
+        <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+          <div className={styles.modal}>
+            <h4>Выберите столбцы для отображения:</h4>
+            <div className={styles.columnToggles}>
+              {allColumns.filter(col => !col.alwaysVisible).map(col => (
+                <label key={col.key} style={{ marginRight: '10px', display: 'block' }}>
+                  <input
+                    type="checkbox"
+                    checked={columnVisibility[col.key]}
+                    onChange={() => toggleColumnVisibility(col.key)}
+                  />
+                  {col.label}
+                </label>
+              ))}
+            </div>
+            <button onClick={toggleModal} className={styles.closeButton}>
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+
       <table className={styles.detailedStatsTable}>
         <thead>
           <tr>
-            <th>#</th>
-            { isSolo ? <th>Игрок</th>  :  <th> Команда </th>}
-            <th>Σ</th>
-            <th>WR</th>
-            <th>Допы Ср./Σ</th>
-            <th>Ci</th>
-            <th>Cb</th>
-            <th>-</th>
+            {columnVisibility.rank && <th onClick={() => requestSort('rank')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'rank').label} {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.player && <th onClick={() => requestSort('player')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'player').label} {sortConfig.key === 'player' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.totalPoints && <th onClick={() => requestSort('totalPoints')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalPoints').label} {sortConfig.key === 'totalPoints' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.winrate && <th onClick={() => requestSort('winrate')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'winrate').label} {sortConfig.key === 'winrate' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.bonuses && <th onClick={() => requestSort('bonuses')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'bonuses').label} {sortConfig.key === 'bonuses' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.totalCi && <th onClick={() => requestSort('totalCi')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCi').label} {sortConfig.key === 'totalCi' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.totalCb && <th onClick={() => requestSort('totalCb')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCb').label} {sortConfig.key === 'totalCb' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.penalty && <th onClick={() => requestSort('penalty')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'penalty').label} {sortConfig.key === 'penalty' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
-            <th className={styles.roleSheriff}>Шериф П/И</th>
-            <th className={styles.roleSheriff}>Шериф Ср</th>
-            <th className={styles.roleSheriff}>Шериф МАКС</th>
+            {columnVisibility.sheriffWins && <th onClick={() => requestSort('sheriffWins')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffWins').label} {sortConfig.key === 'sheriffWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.sheriffAvg && <th onClick={() => requestSort('sheriffAvg')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffAvg').label} {sortConfig.key === 'sheriffAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.sheriffMax && <th onClick={() => requestSort('sheriffMax')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffMax').label} {sortConfig.key === 'sheriffMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
-            <th className={styles.roleCitizen}>Мирн. П/И</th>
-            <th className={styles.roleCitizen}>Мирн. Ср</th>
-            <th className={styles.roleCitizen}>Мирн. МАКС</th>
+            {columnVisibility.citizenWins && <th onClick={() => requestSort('citizenWins')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenWins').label} {sortConfig.key === 'citizenWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.citizenAvg && <th onClick={() => requestSort('citizenAvg')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenAvg').label} {sortConfig.key === 'citizenAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.citizenMax && <th onClick={() => requestSort('citizenMax')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenMax').label} {sortConfig.key === 'citizenMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
-            <th className={styles.roleMafia}>Мафия П/И</th>
-            <th className={styles.roleMafia}>Мафия Ср</th>
-            <th className={styles.roleMafia}>Мафия МАКС</th>
+            {columnVisibility.mafiaWins && <th onClick={() => requestSort('mafiaWins')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaWins').label} {sortConfig.key === 'mafiaWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.mafiaAvg && <th onClick={() => requestSort('mafiaAvg')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaAvg').label} {sortConfig.key === 'mafiaAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.mafiaMax && <th onClick={() => requestSort('mafiaMax')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaMax').label} {sortConfig.key === 'mafiaMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
-            <th className={styles.roleDon}>Дон П/И</th>
-            <th className={styles.roleDon}>Дон Ср</th>
-            <th className={styles.roleDon}>Дон МАКС</th>
+            {columnVisibility.donWins && <th onClick={() => requestSort('donWins')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWins').label} {sortConfig.key === 'donWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.donAvg && <th onClick={() => requestSort('donAvg')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donAvg').label} {sortConfig.key === 'donAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.donMax && <th onClick={() => requestSort('donMax')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donMax').label} {sortConfig.key === 'donMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
           </tr>
         </thead>
-        <tbody>
-          {Array.isArray(data) && data.map((p, i) => {
-            const rank = (currentPage - 1) * 10 + i + 1;
+        <tbody key={sortConfig.key + sortConfig.direction}> {/* Добавлен key для перерендера при изменении сортировки */}
+          {Array.isArray(paginatedData) && paginatedData.map((p, i) => {
+            const rank = (currentPage - 1) * itemsPerPage + i + 1; // Глобальный rank на основе отсортированного списка
 
             // Защищаемся от undefined
             const wins = p.wins || { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
@@ -682,39 +878,41 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
 
             return (
               <tr key={p.id || p.nickname || i} className={p.name === user?.name ? styles.currentUserRow : ''}>
-                <td>{rank}</td>
-                <td>
-                  <span
-                    className={styles.clickableName}
-                    onClick={() => handlePlayerClick(p.id)}
-                    title={p.name || p.nickname}
-                  >
-                    {(p.name || p.nickname || "—").length > 10 && isSolo
-                      ? (p.name || p.nickname).slice(0, 10) + '...'
-                      : (p.name || p.nickname || "—")}
-                  </span>
-                </td>
-                <td>{p.totalPoints.toFixed(2) || 0}</td>
-                <td>{winrate}</td>
-                <td>{(totalBonuses/((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))).toFixed(2)}/{totalBonuses}</td>
-                <td>{totalCi.toFixed(2)}</td>
-                <td>{totalCb.toFixed(2)}</td>
-                <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>
+                {columnVisibility.rank && <td>{rank}</td>}
+                {columnVisibility.player && (
+                  <td>
+                    <span
+                      className={styles.clickableName}
+                      onClick={() => handlePlayerClick(p.id)}
+                      title={p.name || p.nickname}
+                    >
+                      {(p.name || p.nickname || "—").length > 10 && isSolo
+                        ? (p.name || p.nickname).slice(0, 10) + '...'
+                        : (p.name || p.nickname || "—")}
+                    </span>
+                  </td>
+                )}
+                {columnVisibility.totalPoints && <td>{p.totalPoints.toFixed(2) || 0}</td>}
+                {columnVisibility.winrate && <td>{winrate}</td>}
+                {columnVisibility.bonuses && <td>{(totalBonuses / ((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))).toFixed(2)}/{totalBonuses}</td>}
+                {columnVisibility.totalCi && <td>{totalCi.toFixed(2)}</td>}
+                {columnVisibility.totalCb && <td>{totalCb.toFixed(2)}</td>}
+                {columnVisibility.penalty && <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>}
 
-                {renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff)}
-                {renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen)}
-                {renderRoleStats(wins.mafia, gamesPlayed.mafia, role_plus.mafia, styles.roleMafia)}
-                {renderRoleStats(wins.don, gamesPlayed.don, role_plus.don, styles.roleDon)}
+                {renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff, 'sheriff')}
+                {renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen, 'citizen')}
+                {renderRoleStats(wins.mafia, gamesPlayed.mafia, role_plus.mafia, styles.roleMafia, 'mafia')}
+                {renderRoleStats(wins.don, gamesPlayed.don, role_plus.don, styles.roleDon, 'don')}
               </tr>
             );
           })}
         </tbody>
       </table>
 
-      {totalPages > 1 && (
+      {totalPagesCalculated > 1 && (
         <nav className={styles.pagination}>
           <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>‹</button>
-          {[...Array(totalPages)].map((_, i) => {
+          {[...Array(totalPagesCalculated)].map((_, i) => {
             const page = i + 1;
             return (
               <button
@@ -726,7 +924,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
               </button>
             );
           })}
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={styles.pageBtn}>›</button>
+          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPagesCalculated} className={styles.pageBtn}>›</button>
         </nav>
       )}
     </div>

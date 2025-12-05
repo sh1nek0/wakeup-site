@@ -186,6 +186,64 @@
 .avatarWrap{ position:relative; width:56px; height:56px; flex:0 0 56px; }
 .avatar{ width:56px; height:56px; object-fit:cover;border: 2px solid #FF7A1A; }
 
+
+.editButton {
+  margin-bottom: 10px;
+  padding: 8px 16px;
+  background-color: #FF7A1A;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.editButton:hover {
+  background-color: #FF7A1A;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: rgb(58, 58, 58);
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.columnToggles {
+  margin: 10px 0;
+}
+
+.closeButton {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background-color: #545b62;
+}
+
+
+
 .rankBadge{
   position:absolute; left:-8px; bottom:-8px;
   width:22px; height:22px;
@@ -441,7 +499,7 @@
 
 .tableWrapper{
   width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;
-  border:1px solid #2A2A2A; border-radius:0; margin-bottom:1rem; margin-top: 10px;
+  border-radius:0; margin-bottom:1rem; margin-top: 10px;
 }
 .detailedStatsTable{
   width:100%; min-width:900px; border-collapse:collapse;
