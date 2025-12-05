@@ -1262,6 +1262,7 @@ def calculate_ci(x: int, n: int) -> float:
     ci = K * (K + 1) / math.sqrt(n)
     return ci
 
+
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
     event_id: str,
@@ -1327,10 +1328,10 @@ async def get_player_stats(
         "gamesPlayed": defaultdict(int),  # gamesPlayed по ролям
         "role_plus": defaultdict(list),  # списки плюсов по ролям
         "user_id": None,
-        "deaths": 0,  # Новое: общее количество смертей (теперь только с best_move)
-        "deathsWith1Black": 0,  # Новое: смерти с 1 чёрным в best_move
-        "deathsWith2Black": 0,  # Новое: смерти с 2 чёрными в best_move
-        "deathsWith3Black": 0,  # Новое: смерти с 3 чёрными в best_move
+        "deaths": 0,  # Новое: общее количество best_move (теперь независимо от черных)
+        "deathsWith1Black": 0,  # Новое: best_move с 1 чёрным
+        "deathsWith2Black": 0,  # Новое: best_move с 2 чёрными
+        "deathsWith3Black": 0,  # Новое: best_move с 3 чёрными
     })
 
     for game in games:
@@ -1391,7 +1392,6 @@ async def get_player_stats(
                     if win_condition:
                         player_totals[player_key]["wins"][english_role] += 1
                         print(f"Win for {player_key} as {english_role} in {game.gameId}")  # Debug
-                    # Убрали увеличение deaths здесь, теперь только ниже при best_move
                 
                 player_totals[player_key]["games_count"] += 1
                 
@@ -1428,9 +1428,10 @@ async def get_player_stats(
                     except ValueError:
                         continue
                 
-                # Новое: если проигрыш и есть best_move с чёрными, увеличиваем соответствующий счётчик и deaths
-                if not win_condition and has_black_in_best_move:
-                    player_totals[player_key]["deaths"] += 1  # Теперь deaths только здесь
+                # Изменено: deaths теперь общее количество best_move (независимо от черных)
+                if best_move:  # Просто проверяем наличие best_move
+                    player_totals[player_key]["deaths"] += 1
+                    # deathsWithXBlack только для тех с X черными
                     if mafia_don_count == 1:
                         player_totals[player_key]["deathsWith1Black"] += 1
                     elif mafia_don_count == 2:
