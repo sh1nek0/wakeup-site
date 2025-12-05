@@ -983,7 +983,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     const avgBonus = bonuses.length
       ? (bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length).toFixed(2)
       : "0.0";
-    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed() : "0.0";
+    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed(2): "0.0";
     
     // Подсчёт винрейта по роли
     const roleWinrate = games > 0 ? (wins / games * 100).toFixed(0) + '%' : '0%';

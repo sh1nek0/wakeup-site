@@ -1327,7 +1327,7 @@ async def get_player_stats(
         "gamesPlayed": defaultdict(int),  # gamesPlayed по ролям
         "role_plus": defaultdict(list),  # списки плюсов по ролям
         "user_id": None,
-        "deaths": 0,  # Новое: общее количество смертей
+        "deaths": 0,  # Новое: общее количество смертей (теперь только с best_move)
         "deathsWith1Black": 0,  # Новое: смерти с 1 чёрным в best_move
         "deathsWith2Black": 0,  # Новое: смерти с 2 чёрными в best_move
         "deathsWith3Black": 0,  # Новое: смерти с 3 чёрными в best_move
@@ -1391,14 +1391,7 @@ async def get_player_stats(
                     if win_condition:
                         player_totals[player_key]["wins"][english_role] += 1
                         print(f"Win for {player_key} as {english_role} in {game.gameId}")  # Debug
-                    else:
-                        # Новое: увеличиваем deaths при проигрыше
-                        player_totals[player_key]["deaths"] += 1
-                    
-                    plus_value = p.get("plus", 0.0)
-                    if isinstance(plus_value, (int, float)):
-                        player_totals[player_key]["role_plus"][english_role].append(plus_value)
-                        player_totals[player_key]["total_plus_only"] += plus_value
+                    # Убрали увеличение deaths здесь, теперь только ниже при best_move
                 
                 player_totals[player_key]["games_count"] += 1
                 
@@ -1435,8 +1428,9 @@ async def get_player_stats(
                     except ValueError:
                         continue
                 
-                # Новое: если проигрыш и есть best_move с чёрными, увеличиваем соответствующий счётчик
+                # Новое: если проигрыш и есть best_move с чёрными, увеличиваем соответствующий счётчик и deaths
                 if not win_condition and has_black_in_best_move:
+                    player_totals[player_key]["deaths"] += 1  # Теперь deaths только здесь
                     if mafia_don_count == 1:
                         player_totals[player_key]["deathsWith1Black"] += 1
                     elif mafia_don_count == 2:
