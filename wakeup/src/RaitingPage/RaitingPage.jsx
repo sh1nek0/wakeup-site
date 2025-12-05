@@ -586,6 +586,7 @@ export default function RatingPage() {
   );
 }
 
+
 function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user, isSolo = 1 }) {
   const navigate = useNavigate();
   console.log(data);
@@ -600,6 +601,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     { key: 'totalCi', label: 'Ci' },
     { key: 'totalCb', label: 'Cb' },
     { key: 'penalty', label: '-' },
+    // Новые столбцы для смертей
+    { key: 'deaths', label: 'Смертей' },
+    { key: 'deathsWith1Black', label: 'Смертей с 1ч' },
+    { key: 'deathsWith2Black', label: 'Смертей с 2ч' },
+    { key: 'deathsWith3Black', label: 'Смертей с 3ч' },
     { key: 'sheriffWins', label: 'Шериф П/И' },
     { key: 'sheriffAvg', label: 'Шериф Ср' },
     { key: 'sheriffMax', label: 'Шериф МАКС' },
@@ -616,6 +622,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
 
   // Ключ для localStorage: уникальный для пользователя (используем user.name или user.id, если доступно)
   const storageKey = `columnVisibility_${user?.id || user?.name || 'default'}`;
+  const filterStorageKey = `filters_${user?.id || user?.name || 'default'}`;
 
   // Инициализируем состояние видимости из localStorage или по умолчанию все видимы (кроме alwaysVisible)
   const [columnVisibility, setColumnVisibility] = useState(() => {
@@ -631,8 +638,18 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     return defaultVisibility;
   });
 
-  // Состояние для модального окна
+  // Состояние для фильтров: массив условий [{ field, operator, value, logical }]
+  // logical: 'AND' или 'OR' для связи с предыдущим (первый без logical)
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem(filterStorageKey);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Состояние для модального окна столбцов
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Состояние для модального окна фильтров
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Состояние для сортировки: по умолчанию по totalPoints убыванию
   const [sortConfig, setSortConfig] = useState({ key: 'totalPoints', direction: 'desc' });
@@ -641,6 +658,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(columnVisibility));
   }, [columnVisibility, storageKey]);
+
+  // Сохраняем фильтры в localStorage
+  useEffect(() => {
+    localStorage.setItem(filterStorageKey, JSON.stringify(filters));
+  }, [filters, filterStorageKey]);
 
   // Функция для переключения видимости столбца
   const toggleColumnVisibility = (key) => {
@@ -651,14 +673,182 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     }));
   };
 
-  // Функция для открытия/закрытия модального окна
+  // Функция для открытия/закрытия модального окна столбцов
   const toggleModal = () => setIsModalOpen(!isModalOpen);
+
+  // Функция для открытия/закрытия модального окна фильтров
+  const toggleFilterModal = () => setIsFilterModalOpen(!isFilterModalOpen);
 
   // Функция для закрытия модала при клике на overlay
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
       setIsModalOpen(false);
+      setIsFilterModalOpen(false);
     }
+  };
+
+  // Функция для добавления нового условия фильтра
+  const addFilterCondition = (field, operator, value, logical) => {
+    setFilters(prev => [...prev, { field, operator, value: parseFloat(value) || value, logical }]);
+  };
+
+  // Функция для удаления условия фильтра
+  const removeFilterCondition = (index) => {
+    setFilters(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Функция для сброса всех фильтров
+  const clearFilters = () => {
+    setFilters([]);
+  };
+
+  // Функция для применения фильтра к данным
+  const applyFilters = (data) => {
+    if (filters.length === 0) return data;
+
+    return data.filter(player => {
+      let result = true; // Начинаем с true для первого условия
+      for (let i = 0; i < filters.length; i++) {
+        const { field, operator, value, logical } = filters[i];
+        let fieldValue;
+
+        // Получаем значение поля для игрока
+        switch (field) {
+          case 'player':
+            fieldValue = player.name || player.nickname || '';
+            break;
+          case 'totalPoints':
+            fieldValue = player.totalPoints || 0;
+            break;
+          case 'winrate':
+            const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+            const totalWins = Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0);
+            fieldValue = totalGames > 0 ? totalWins / totalGames : 0;
+            break;
+          case 'bonuses':
+            const totalBonuses = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+            const totalGamesBonuses = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+            fieldValue = totalGamesBonuses > 0 ? totalBonuses / totalGamesBonuses : 0;
+            break;
+          case 'totalCi':
+            fieldValue = player.totalCi || 0;
+            break;
+          case 'totalCb':
+            fieldValue = player.totalCb || 0;
+            break;
+          case 'penalty':
+            fieldValue = (player.total_sk_penalty || 0) + (player.total_jk_penalty || 0);
+            break;
+          case 'deaths':
+            fieldValue = player.deaths || 0;
+            break;
+          case 'deathsWith1Black':
+            fieldValue = player.deathsWith1Black || 0;
+            break;
+          case 'deathsWith2Black':
+            fieldValue = player.deathsWith2Black || 0;
+            break;
+          case 'deathsWith3Black':
+            fieldValue = player.deathsWith3Black || 0;
+            break;
+          case 'sheriffWins':
+            fieldValue = player.wins?.sheriff || 0;
+            break;
+          case 'sheriffAvg':
+            const sheriffBonuses = player.role_plus?.sheriff || [];
+            fieldValue = sheriffBonuses.length ? sheriffBonuses.reduce((sum, val) => sum + val, 0) / sheriffBonuses.length : 0;
+            break;
+          case 'sheriffMax':
+            const sheriffBonusesMax = player.role_plus?.sheriff || [];
+            fieldValue = sheriffBonusesMax.length ? Math.max(...sheriffBonusesMax) : 0;
+            break;
+          case 'citizenWins':
+            fieldValue = player.wins?.citizen || 0;
+            break;
+          case 'citizenAvg':
+            const citizenBonuses = player.role_plus?.citizen || [];
+            fieldValue = citizenBonuses.length ? citizenBonuses.reduce((sum, val) => sum + val, 0) / citizenBonuses.length : 0;
+            break;
+          case 'citizenMax':
+            const citizenBonusesMax = player.role_plus?.citizen || [];
+            fieldValue = citizenBonusesMax.length ? Math.max(...citizenBonusesMax) : 0;
+            break;
+          case 'mafiaWins':
+            fieldValue = player.wins?.mafia || 0;
+            break;
+          case 'mafiaAvg':
+            const mafiaBonuses = player.role_plus?.mafia || [];
+            fieldValue = mafiaBonuses.length ? mafiaBonuses.reduce((sum, val) => sum + val, 0) / mafiaBonuses.length : 0;
+            break;
+          case 'mafiaMax':
+            const mafiaBonusesMax = player.role_plus?.mafia || [];
+            fieldValue = mafiaBonusesMax.length ? Math.max(...mafiaBonusesMax) : 0;
+            break;
+          case 'donWins':
+            fieldValue = player.wins?.don || 0;
+            break;
+          case 'donAvg':
+            const donBonuses = player.role_plus?.don || [];
+            fieldValue = donBonuses.length ? donBonuses.reduce((sum, val) => sum + val, 0) / donBonuses.length : 0;
+            break;
+          case 'donMax':
+            const donBonusesMax = player.role_plus?.don || [];
+            fieldValue = donBonusesMax.length ? Math.max(...donBonusesMax) : 0;
+            break;
+          default:
+            fieldValue = 0;
+        }
+
+        // Применяем оператор
+        let conditionResult;
+        if (field === 'player') {
+          // Для строк: =, !=, contains (предполагаем contains если operator === 'contains')
+          switch (operator) {
+            case '=':
+              conditionResult = fieldValue === value;
+              break;
+            case '!=':
+              conditionResult = fieldValue !== value;
+              break;
+            case 'contains':
+              conditionResult = fieldValue.includes(value);
+              break;
+            default:
+              conditionResult = false;
+          }
+        } else {
+          // Для чисел: >, <, =, !=
+          switch (operator) {
+            case '>':
+              conditionResult = fieldValue > value;
+              break;
+            case '<':
+              conditionResult = fieldValue < value;
+              break;
+            case '=':
+              conditionResult = fieldValue === value;
+              break;
+            case '!=':
+              conditionResult = fieldValue !== value;
+              break;
+            default:
+              conditionResult = false;
+          }
+        }
+
+        // Применяем логический оператор
+        if (i === 0) {
+          result = conditionResult;
+        } else {
+          if (logical === 'AND') {
+            result = result && conditionResult;
+          } else if (logical === 'OR') {
+            result = result || conditionResult;
+          }
+        }
+      }
+      return result;
+    });
   };
 
   // Функция для запроса сортировки
@@ -670,8 +860,9 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     setSortConfig({ key, direction });
   };
 
-  // Функции сортировки для каждого ключа
+  // Функции сортировки для каждого ключа (без изменений)
   const sortFunctions = {
+    // ... (остальные функции сортировки, как в оригинале)
     rank: (a, b) => {
       // Сортировка по рангу: рассчитываем rank на основе totalPoints
       const rankA = a.totalPoints; // Или другой логики, если rank не по totalPoints
@@ -699,6 +890,10 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     totalCi: (a, b) => (a.totalCi || 0) - (b.totalCi || 0),
     totalCb: (a, b) => (a.totalCb || 0) - (b.totalCb || 0),
     penalty: (a, b) => ((a.total_sk_penalty || 0) + (a.total_jk_penalty || 0)) - ((b.total_sk_penalty || 0) + (b.total_jk_penalty || 0)),
+    deaths: (a, b) => (a.deaths || 0) - (b.deaths || 0),
+    deathsWith1Black: (a, b) => (a.deathsWith1Black || 0) - (b.deathsWith1Black || 0),
+    deathsWith2Black: (a, b) => (a.deathsWith2Black || 0) - (b.deathsWith2Black || 0),
+    deathsWith3Black: (a, b) => (a.deathsWith3Black || 0) - (b.deathsWith3Black || 0),
     sheriffWins: (a, b) => (a.wins?.sheriff || 0) - (b.wins?.sheriff || 0),
     sheriffAvg: (a, b) => {
       const bonuses = a.role_plus?.sheriff || [];
@@ -761,37 +956,42 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     },
   };
 
-  // Отсортированные данные (сортировка применяется ко всему data)
-  const sortedData = useMemo(() => {
-    let sortableItems = [...data];
+  // Отфильтрованные и отсортированные данные
+  const filteredAndSortedData = useMemo(() => {
+    let filteredData = applyFilters(data);
     if (sortConfig.key && sortFunctions[sortConfig.key]) {
-      sortableItems.sort((a, b) => {
+      filteredData.sort((a, b) => {
         const result = sortFunctions[sortConfig.key](a, b);
         return sortConfig.direction === 'asc' ? result : -result;
       });
     }
-    return sortableItems;
-  }, [data, sortConfig]);
+    return filteredData;
+  }, [data, filters, sortConfig]);
 
-  // Пагинация применяется после сортировки
+  // Пагинация применяется после фильтрации и сортировки
   const itemsPerPage = 10; // Предполагаем 10 элементов на страницу; можно сделать пропсом, если нужно
-  const totalPagesCalculated = Math.ceil(sortedData.length / itemsPerPage); // Рассчитываем totalPages на основе полного отсортированного массива
-  const paginatedData = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPagesCalculated = Math.ceil(filteredAndSortedData.length / itemsPerPage); // Рассчитываем totalPages на основе полного отфильтрованного массива
+  const paginatedData = filteredAndSortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handlePlayerClick = (playerId) => {
     if (playerId) navigate(`/profile/${playerId}`);
   };
 
   // Модифицированная функция renderRoleStats: принимает массив видимых столбцов и рендерит только видимые
+  // Добавлен подсчёт винрейта по роли в формате "wins/games (wr%)"
   const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass, roleKey) => {
     const avgBonus = bonuses.length
       ? (bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length).toFixed(2)
       : "0.0";
-    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed(2) : "0.0";
+    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed() : "0.0";
+    
+    // Подсчёт винрейта по роли
+    const roleWinrate = games > 0 ? (wins / games * 100).toFixed(0) + '%' : '0%';
+    const roleDisplay = `${wins}/${games} (${roleWinrate})`;
 
     return (
       <>
-        {columnVisibility[`${roleKey}Wins`] && <td className={`${styles.roleCell} ${colorClass}`}>{wins}/{games}</td>}
+        {columnVisibility[`${roleKey}Wins`] && <td className={`${styles.roleCell} ${colorClass}`}>{roleDisplay}</td>}
         {columnVisibility[`${roleKey}Avg`] && <td className={`${styles.roleCell} ${colorClass}`}>{avgBonus}</td>}
         {columnVisibility[`${roleKey}Max`] && <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>}
       </>
@@ -800,12 +1000,15 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
 
   return (
     <div className={styles.tableWrapper}>
-      {/* Кнопка для открытия модального окна */}
+      {/* Кнопки для открытия модальных окон */}
       <button onClick={toggleModal} className={styles.editButton}>
         Редактировать таблицу
       </button>
+      <button onClick={toggleFilterModal} className={styles.editButton}>
+        Фильтры
+      </button>
 
-      {/* Модальное окно */}
+      {/* Модальное окно для столбцов */}
       {isModalOpen && (
         <div className={styles.modalOverlay} onClick={handleOverlayClick}>
           <div className={styles.modal}>
@@ -829,6 +1032,65 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
         </div>
       )}
 
+      {/* Модальное окно для фильтров */}
+      {isFilterModalOpen && (
+        <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+          <div className={styles.modal}>
+            <h4>Создать фильтры:</h4>
+            <div className={styles.filterBuilder}>
+              {/* Форма для добавления условия */}
+              <div className={styles.filterForm}>
+                <select id="field">
+                  {allColumns.filter(col => col.key !== 'rank').map(col => (
+                    <option key={col.key} value={col.key}>{col.label}</option>
+                  ))}
+                </select>
+                <select id="operator">
+  <option value=">">&gt;</option>
+  <option value="<">&lt;</option>
+  <option value="=">=</option>
+  <option value="!=">!=</option>
+  {document.getElementById('field')?.value === 'player' && <option value="contains">содержит</option>}
+</select>
+                <input type="text" id="value" placeholder="Значение" />
+                {filters.length > 0 && (
+                  <select id="logical">
+                    <option value="AND">И</option>
+                    <option value="OR">ИЛИ</option>
+                  </select>
+                )}
+                <button onClick={() => {
+                  const field = document.getElementById('field').value;
+                  const operator = document.getElementById('operator').value;
+                  const value = document.getElementById('value').value;
+                  const logical = filters.length > 0 ? document.getElementById('logical').value : null;
+                  if (value) {
+                    addFilterCondition(field, operator, value, logical);
+                    document.getElementById('value').value = '';
+                  }
+                }}>
+                  Добавить условие
+                </button>
+              </div>
+              {/* Список условий */}
+              <div className={styles.filterList}>
+                {filters.map((filter, index) => (
+                  <div key={index} className={styles.filterItem}>
+                    {index > 0 && <span>{filter.logical} </span>}
+                    {allColumns.find(col => col.key === filter.field)?.label} {filter.operator} {filter.value}
+                    <button onClick={() => removeFilterCondition(index)}>Удалить</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={clearFilters}>Сбросить все фильтры</button>
+            </div>
+            <button onClick={toggleFilterModal} className={styles.closeButton}>
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+
       <table className={styles.detailedStatsTable}>
         <thead>
           <tr>
@@ -840,6 +1102,12 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             {columnVisibility.totalCi && <th onClick={() => requestSort('totalCi')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCi').label} {sortConfig.key === 'totalCi' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.totalCb && <th onClick={() => requestSort('totalCb')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCb').label} {sortConfig.key === 'totalCb' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.penalty && <th onClick={() => requestSort('penalty')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'penalty').label} {sortConfig.key === 'penalty' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            
+            {/* Новые заголовки для столбцов смертей */}
+            {columnVisibility.deaths && <th onClick={() => requestSort('deaths')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deaths').label} {sortConfig.key === 'deaths' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.deathsWith1Black && <th onClick={() => requestSort('deathsWith1Black')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deathsWith1Black').label} {sortConfig.key === 'deathsWith1Black' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.deathsWith2Black && <th onClick={() => requestSort('deathsWith2Black')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deathsWith2Black').label} {sortConfig.key === 'deathsWith2Black' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.deathsWith3Black && <th onClick={() => requestSort('deathsWith3Black')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deathsWith3Black').label} {sortConfig.key === 'deathsWith3Black' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
             {columnVisibility.sheriffWins && <th onClick={() => requestSort('sheriffWins')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffWins').label} {sortConfig.key === 'sheriffWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.sheriffAvg && <th onClick={() => requestSort('sheriffAvg')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffAvg').label} {sortConfig.key === 'sheriffAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
@@ -898,6 +1166,12 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
                 {columnVisibility.totalCi && <td>{totalCi.toFixed(2)}</td>}
                 {columnVisibility.totalCb && <td>{totalCb.toFixed(2)}</td>}
                 {columnVisibility.penalty && <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>}
+                
+                {/* Новые ячейки для столбцов смертей */}
+                {columnVisibility.deaths && <td>{p.deaths || 0}</td>}
+                {columnVisibility.deathsWith1Black && <td>{p.deathsWith1Black || 0}</td>}
+                {columnVisibility.deathsWith2Black && <td>{p.deathsWith2Black || 0}</td>}
+                {columnVisibility.deathsWith3Black && <td>{p.deathsWith3Black || 0}</td>}
 
                 {renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff, 'sheriff')}
                 {renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen, 'citizen')}

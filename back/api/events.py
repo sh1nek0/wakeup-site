@@ -1326,7 +1326,11 @@ async def get_player_stats(
         "wins": defaultdict(int),  # wins по ролям
         "gamesPlayed": defaultdict(int),  # gamesPlayed по ролям
         "role_plus": defaultdict(list),  # списки плюсов по ролям
-        "user_id": None
+        "user_id": None,
+        "deaths": 0,  # Новое: общее количество смертей
+        "deathsWith1Black": 0,  # Новое: смерти с 1 чёрным в best_move
+        "deathsWith2Black": 0,  # Новое: смерти с 2 чёрными в best_move
+        "deathsWith3Black": 0,  # Новое: смерти с 3 чёрными в best_move
     })
 
     for game in games:
@@ -1373,19 +1377,23 @@ async def get_player_stats(
                 role = p.get("role", "")
                 english_role = role_mapping.get(role, "")
                 
+                win_condition = False
+                if badge_color == "red" and role in ["мирный", "шериф"]:
+                    win_condition = True
+                elif badge_color == "black" and role in ["мафия", "дон"]:
+                    win_condition = True
+                
+                mafia_don_count = 0  # Инициализируем для best_move
+                
                 if english_role:
                     player_totals[player_key]["gamesPlayed"][english_role] += 1
-                    
-                    # Новая логика победы на основе badgeColor (для всей игры)
-                    win_condition = False
-                    if badge_color == "red" and role in ["мирный", "шериф"]:
-                        win_condition = True
-                    elif badge_color == "black" and role in ["мафия", "дон"]:
-                        win_condition = True
                     
                     if win_condition:
                         player_totals[player_key]["wins"][english_role] += 1
                         print(f"Win for {player_key} as {english_role} in {game.gameId}")  # Debug
+                    else:
+                        # Новое: увеличиваем deaths при проигрыше
+                        player_totals[player_key]["deaths"] += 1
                     
                     plus_value = p.get("plus", 0.0)
                     if isinstance(plus_value, (int, float)):
@@ -1426,6 +1434,15 @@ async def get_player_stats(
                             has_black_in_best_move = True
                     except ValueError:
                         continue
+                
+                # Новое: если проигрыш и есть best_move с чёрными, увеличиваем соответствующий счётчик
+                if not win_condition and has_black_in_best_move:
+                    if mafia_don_count == 1:
+                        player_totals[player_key]["deathsWith1Black"] += 1
+                    elif mafia_don_count == 2:
+                        player_totals[player_key]["deathsWith2Black"] += 1
+                    elif mafia_don_count == 3:
+                        player_totals[player_key]["deathsWith3Black"] += 1
                 
                 sk_count = p.get("sk", 0)
                 if isinstance(sk_count, (int, float)) and sk_count > 0:
@@ -1487,7 +1504,12 @@ async def get_player_stats(
             "totalCi": round(ci, 2),  # Предполагаем, что totalCi - это ci
             "totalCb": round(total_best_move_bonus, 2),  # Предполагаем, что totalCb - best_move_bonus
             "total_sk_penalty": round(total_sk_penalty, 2),
-            "total_jk_penalty": round(total_jk_penalty, 2)
+            "total_jk_penalty": round(total_jk_penalty, 2),
+            # Новые поля
+            "deaths": details["deaths"],
+            "deathsWith1Black": details["deathsWith1Black"],
+            "deathsWith2Black": details["deathsWith2Black"],
+            "deathsWith3Black": details["deathsWith3Black"],
         })
 
     response_players.sort(key=lambda x: x["totalPoints"], reverse=True)
@@ -1497,5 +1519,4 @@ async def get_player_stats(
         "event_id": event_id,
         "total_games": len(games)
     }
-
 
