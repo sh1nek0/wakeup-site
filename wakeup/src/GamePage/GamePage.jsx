@@ -10,8 +10,18 @@ import SuggestionInput from '../components/SuggestionInput/SuggestionInput';
    ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
    ========================== */
 
-const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }) => {
+const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults, onUpdateVotingResults, onUpdateShootingResults }) => {
   const days = ['Д.1', 'Д.2', 'Д.3', 'Д.4', 'Д.5'];
+
+  // Обработчик для обновления голосования
+  const handleVotingChange = (day, newVotes) => {
+    onUpdateVotingResults(day, newVotes);
+  };
+
+  // Обработчик для обновления стрельбы (смерти)
+  const handleShootingChange = (day, newResult) => {
+    onUpdateShootingResults(day, newResult);
+  };
 
   return (
     <div className={styles.gameInfoWrapper}>
@@ -28,25 +38,41 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
           <tr>
             <td>Ушел</td>
             {days.map((day, i) => (
-              <td key={i}>{votingResults[day]?.votes || ''}</td>
+              <td key={i}>
+                <input
+                  type="text"
+                  value={votingResults[day]?.votes || ''}
+                  onChange={(e) => handleVotingChange(day, e.target.value)}
+                  placeholder=""
+                  style={{ width: '100%', border: 'none', background: 'transparent' }}
+                />
+              </td>
             ))}
           </tr>
           <tr>
             <td>Умер</td>
             {days.map((day, i) => (
-              <td key={i}>{shootingResults[day]?.result || ''}</td>
+              <td key={i}>
+                <input
+                  type="text"
+                  value={shootingResults[day]?.result || ''}
+                  onChange={(e) => handleShootingChange(day, e.target.value)}
+                  placeholder=""
+                  style={{ width: '100%', border: 'none', background: 'transparent' }}
+                />
+              </td>
             ))}
           </tr>
           <tr>
             <td>Дон</td>
             {days.map((day, i) => (
-              <td key={i}>{donResults[day]?.result || ''}</td>
+              <td key={i}>{donResults[day]?.result}</td>
             ))}
           </tr>
           <tr>
             <td>Шериф</td>
             {days.map((day, i) => (
-              <td key={i}>{sheriffResults[day]?.result || ''}</td>
+              <td key={i}>{sheriffResults[day]?.result}</td>
             ))}
           </tr>
         </tbody>
@@ -54,6 +80,7 @@ const GameInfo = ({ votingResults, shootingResults, donResults, sheriffResults }
     </div>
   );
 };
+
 
 const FoulsComponent = ({ players, onIncrementFoul, onIncrementDFouls, onDecrementFoul, isPenaltyTime, isReadOnly }) => {
   const holdDuration = 500; // Время удержания в мс
@@ -242,9 +269,6 @@ const BadgeDropdown = ({ value, onChange, disabled }) => {
 };
 
 
-/* ================
-   ОСНОВНОЙ КОМПОНЕНТ
-   ================ */
 
 const Game = () => {
   const { gameId, eventId } = useParams();
@@ -711,13 +735,22 @@ setShowConfirmModal(false);
     setFirstVoteValue(increment);
   }
 
-  handleVoteChange(selectedPlayerId, increment);
+  if (increment === 0) {
+    // Фикс: обнуляем голоса для выбранного игрока
+    setVotes((prev) =>
+      prev.map((v) => (v.playerId === selectedPlayerId ? { ...v, votesCount: 0 } : v))
+    );
+  } else {
+    // Обычное добавление голосов для 1-10
+    handleVoteChange(selectedPlayerId, increment);
+  }
 
   const currentIndex = votes.findIndex((v) => v.playerId === selectedPlayerId);
   if (currentIndex !== -1) {
     const nextIndex = (currentIndex + 1) % votes.length;
     setSelectedPlayerId(votes[nextIndex].playerId);
   }
+  
 };
 
   
@@ -1028,6 +1061,26 @@ else saveResult(candidates.map((c) => c.playerId));
   if (loading) {
     return <div>Загрузка данных игры...</div>;
   }
+
+
+
+
+// Функция для обновления голосования
+const handleUpdateVotingResults = (day, newVotes) => {
+  setVotingResults(prev => ({
+    ...prev,
+    [day]: { ...prev[day], votes: newVotes }
+  }));
+};
+const handleUpdateShootingResults = (day, newResult) => {
+  setShootingResults(prev => ({
+    ...prev,
+    [day]: { ...prev[day], result: newResult }
+  }));
+};
+
+
+
 
   return (
     <>
@@ -1701,11 +1754,13 @@ else saveResult(candidates.map((c) => c.playerId));
                         style={isPenaltyTime ? { pointerEvents: 'none', opacity: 0.5 } : undefined}
                       >
                         <GameInfo
-                          votingResults={votingResults}
-                          shootingResults={shootingResults}
-                          donResults={donResults}
-                          sheriffResults={sheriffResults}
-                        />
+  votingResults={votingResults}
+  shootingResults={shootingResults}
+  donResults={donResults}
+  sheriffResults={sheriffResults}
+  onUpdateVotingResults={handleUpdateVotingResults}
+  onUpdateShootingResults={handleUpdateShootingResults}
+/>
                       </div>
 
                       <div
