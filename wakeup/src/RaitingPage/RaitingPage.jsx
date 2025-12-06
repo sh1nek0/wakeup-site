@@ -596,8 +596,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     { key: 'rank', label: '#', alwaysVisible: true }, // Ранг всегда видим
     { key: 'player', label: isSolo ? 'Игрок' : 'Команда' },
     { key: 'totalPoints', label: 'Σ' },
+    { key: 'totalGames', label: 'Всего игр' }, // Новый столбец: суммарное количество сыгранных игр
+    { key: 'totalWins', label: 'Всего побед' }, // Новый столбец: суммарное количество побед
     { key: 'winrate', label: 'WR' },
-    { key: 'bonuses', label: 'Допы Ср./Σ' },
+    { key: 'bonusesSum', label: 'Допы Σ' }, // Сумма бонусов
+    { key: 'bonusesAvg', label: 'Допы Ср.' }, // Среднее бонусов
     { key: 'totalCi', label: 'Ci' },
     { key: 'totalCb', label: 'ЛХ' },
     { key: 'penalty', label: '-' },
@@ -741,15 +744,24 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
           case 'totalPoints':
             fieldValue = player.totalPoints || 0;
             break;
+          case 'totalGames':
+            fieldValue = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+            break;
+          case 'totalWins':
+            fieldValue = Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0);
+            break;
           case 'winrate':
             const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
             const totalWins = Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0);
             fieldValue = totalGames > 0 ? totalWins / totalGames : 0;
             break;
-          case 'bonuses':
-            const totalBonuses = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
-            const totalGamesBonuses = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
-            fieldValue = totalGamesBonuses > 0 ? totalBonuses / totalGamesBonuses : 0;
+          case 'bonusesSum':
+            fieldValue = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+            break;
+          case 'bonusesAvg':
+            const totalBonusesAvg = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+            const totalGamesAvg = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+            fieldValue = totalGamesAvg > 0 ? totalBonusesAvg / totalGamesAvg : 0;
             break;
           case 'totalCi':
             fieldValue = player.totalCi || 0;
@@ -918,6 +930,16 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     },
     player: (a, b) => (a.name || a.nickname || '').localeCompare(b.name || b.nickname || ''),
     totalPoints: (a, b) => a.totalPoints - b.totalPoints,
+    totalGames: (a, b) => {
+      const totalGamesA = Object.values(a.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+      const totalGamesB = Object.values(b.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+      return totalGamesA - totalGamesB;
+    },
+    totalWins: (a, b) => {
+      const totalWinsA = Object.values(a.wins || {}).reduce((sum, val) => sum + val, 0);
+      const totalWinsB = Object.values(b.wins || {}).reduce((sum, val) => sum + val, 0);
+      return totalWinsA - totalWinsB;
+    },
     winrate: (a, b) => {
       const getWinrate = (p) => {
         const totalGames = Object.values(p.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
@@ -926,7 +948,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
       };
       return getWinrate(a) - getWinrate(b);
     },
-    bonuses: (a, b) => {
+    bonusesSum: (a, b) => {
+      const getBonusesSum = (p) => Object.values(p.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+      return getBonusesSum(a) - getBonusesSum(b);
+    },
+    bonusesAvg: (a, b) => {
       const getBonusesAvg = (p) => {
         const totalBonuses = Object.values(p.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
         const totalGames = Object.values(p.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
@@ -1190,8 +1216,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             {columnVisibility.rank && <th onClick={() => requestSort('rank')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'rank').label} {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.player && <th onClick={() => requestSort('player')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'player').label} {sortConfig.key === 'player' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.totalPoints && <th onClick={() => requestSort('totalPoints')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalPoints').label} {sortConfig.key === 'totalPoints' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.totalGames && <th onClick={() => requestSort('totalGames')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalGames').label} {sortConfig.key === 'totalGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.totalWins && <th onClick={() => requestSort('totalWins')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalWins').label} {sortConfig.key === 'totalWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.winrate && <th onClick={() => requestSort('winrate')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'winrate').label} {sortConfig.key === 'winrate' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
-            {columnVisibility.bonuses && <th onClick={() => requestSort('bonuses')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'bonuses').label} {sortConfig.key === 'bonuses' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.bonusesSum && <th onClick={() => requestSort('bonusesSum')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'bonusesSum').label} {sortConfig.key === 'bonusesSum' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.bonusesAvg && <th onClick={() => requestSort('bonusesAvg')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'bonusesAvg').label} {sortConfig.key === 'bonusesAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.totalCi && <th onClick={() => requestSort('totalCi')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCi').label} {sortConfig.key === 'totalCi' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.totalCb && <th onClick={() => requestSort('totalCb')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCb').label} {sortConfig.key === 'totalCb' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.penalty && <th onClick={() => requestSort('penalty')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'penalty').label} {sortConfig.key === 'penalty' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
@@ -1223,57 +1252,56 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             {columnVisibility.donWins && <th onClick={() => requestSort('donWins')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWins').label} {sortConfig.key === 'donWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donWR && <th onClick={() => requestSort('donWR')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWR').label} {sortConfig.key === 'donWR' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donGames && <th onClick={() => requestSort('donGames')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donGames').label} {sortConfig.key === 'donGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
-            {columnVisibility.donAvg && <th onClick={() => requestSort('donAvg')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donAvg').label} {sortConfig.key === 'donAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+          {columnVisibility.donAvg && <th onClick={() => requestSort('donAvg')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donAvg').label} {sortConfig.key === 'donAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donMax && <th onClick={() => requestSort('donMax')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donMax').label} {sortConfig.key === 'donMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
           </tr>
         </thead>
-        <tbody key={sortConfig.key + sortConfig.direction}> {/* Добавлен key для перерендера при изменении сортировки */}
-          {Array.isArray(paginatedData) && paginatedData.map((p, i) => {
-            const rank = (currentPage - 1) * itemsPerPage + i + 1; // Глобальный rank на основе отсортированного списка
-
-            // Защищаемся от undefined
-            const wins = p.wins || { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
-            const gamesPlayed = p.gamesPlayed || { sheriff: 0, citizen: 0, mafia: 0, don: 0 };
-            const role_plus = p.role_plus || { sheriff: [], citizen: [], mafia: [], don: [] };
-
-            const totalGames = Object.values(gamesPlayed).reduce((a, b) => a + b, 0);
-            const totalWins = Object.values(wins).reduce((a, b) => a + b, 0);
-            const totalBonuses = Object.values(role_plus).flat().reduce((a, b) => a + b, 0);
-
-            const winrate = totalGames > 0 ? `${(totalWins / totalGames * 100).toFixed(0)}% (${totalWins}/${totalGames})` : '0% (0/0)';
-
-            const totalCi = p.totalCi !== undefined ? parseFloat(p.totalCi) : 0.00;
-            const totalCb = p.totalCb !== undefined ? parseFloat(p.totalCb) : 0.00;
-
-            return (
-              <tr key={p.id || p.nickname || i} className={p.name === user?.name ? styles.currentUserRow : ''}>
-                {columnVisibility.rank && <td>{rank}</td>}
-                {columnVisibility.player && <td onClick={() => handlePlayerClick(p.id)} className={styles.clickable}>{p.name || p.nickname}</td>}
-                {columnVisibility.totalPoints && <td>{p.totalPoints}</td>}
-                {columnVisibility.winrate && <td>{winrate}</td>}
-                {columnVisibility.bonuses && <td>{totalGames > 0 ? (totalBonuses / totalGames).toFixed(2) : "0.00"}</td>}
-                {columnVisibility.totalCi && <td>{totalCi.toFixed(2)}</td>}
-                {columnVisibility.totalCb && <td>{totalCb.toFixed(2)}</td>}
-{columnVisibility.penalty && <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>}
-{columnVisibility.deaths && <td>{p.deaths || 0}</td>}
-{columnVisibility.deathsWith1Black && <td>{p.deathsWith1Black || 0}</td>}
-{columnVisibility.deathsWith2Black && <td>{p.deathsWith2Black || 0}</td>}
-{columnVisibility.deathsWith3Black && <td>{p.deathsWith3Black || 0}</td>}
-{renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff, 'sheriff')}
-{renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen, 'citizen')}
-{renderRoleStats(wins.mafia, gamesPlayed.mafia, role_plus.mafia, styles.roleMafia, 'mafia')}
-{renderRoleStats(wins.don, gamesPlayed.don, role_plus.don, styles.roleDon, 'don')}
-              </tr>
-            );
-          })}
+        <tbody>
+          {paginatedData.map((player, index) => (
+            <tr key={player.id || index}>
+              {columnVisibility.rank && <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>}
+              {columnVisibility.player && <td className={styles.playerCell} onClick={() => handlePlayerClick(player.id)}>{player.name || player.nickname || 'Unknown'}</td>}
+              {columnVisibility.totalPoints && <td>{player.totalPoints || 0}</td>}
+              {columnVisibility.totalGames && <td>{Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0)}</td>}
+              {columnVisibility.totalWins && <td>{Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0)}</td>}
+              {columnVisibility.winrate && <td>{(() => {
+                const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+                const totalWins = Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0);
+                return totalGames > 0 ? (totalWins / totalGames * 100).toFixed(0) + '%' : '0%';
+              })()}</td>}
+              {columnVisibility.bonusesSum && <td>{Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0)}</td>}
+              {columnVisibility.bonusesAvg && <td>{(() => {
+                const totalBonuses = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+                const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+                return totalGames > 0 ? (totalBonuses / totalGames).toFixed(2) : "0.00";
+              })()}</td>}
+              {columnVisibility.totalCi && <td>{player.totalCi || 0}</td>}
+              {columnVisibility.totalCb && <td>{player.totalCb || 0}</td>}
+              {columnVisibility.penalty && <td>{(player.total_sk_penalty || 0) + (player.total_jk_penalty || 0)}</td>}
+              {/* Новые ячейки для смертей */}
+              {columnVisibility.deaths && <td>{player.deaths || 0}</td>}
+              {columnVisibility.deathsWith1Black && <td>{player.deathsWith1Black || 0}</td>}
+              {columnVisibility.deathsWith2Black && <td>{player.deathsWith2Black || 0}</td>}
+              {columnVisibility.deathsWith3Black && <td>{player.deathsWith3Black || 0}</td>}
+              {/* Рендеринг статистики для ролей */}
+              {renderRoleStats(player.wins?.sheriff || 0, player.gamesPlayed?.sheriff || 0, player.role_plus?.sheriff || [], styles.roleSheriff, 'sheriff')}
+              {renderRoleStats(player.wins?.citizen || 0, player.gamesPlayed?.citizen || 0, player.role_plus?.citizen || [], styles.roleCitizen, 'citizen')}
+              {renderRoleStats(player.wins?.mafia || 0, player.gamesPlayed?.mafia || 0, player.role_plus?.mafia || [], styles.roleMafia, 'mafia')}
+              {renderRoleStats(player.wins?.don || 0, player.gamesPlayed?.don || 0, player.role_plus?.don || [], styles.roleDon, 'don')}
+            </tr>
+          ))}
         </tbody>
       </table>
+      {/* Пагинация */}
       <div className={styles.pagination}>
         {renderPagination()}
       </div>
     </div>
   );
 };
+
+
+
 
 export  {DetailedStatsTable};
 
