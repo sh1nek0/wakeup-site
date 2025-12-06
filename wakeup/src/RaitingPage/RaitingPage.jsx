@@ -6,12 +6,12 @@ import defaultAvatar from '../NavBar/avatar.png';
 import { useDebounce } from '../useDebounce';
 import GameCard from '../components/GameCard/GameCard';
 
-const tabs = ['Общий рейтинг', 'Игры', 'Статистика'];
+const tabs = ['ТОП', 'Игры', 'Статистика'];
 
 const baseURL = ""
 
 export default function RatingPage() {
-  const [activeTab, setActiveTab] = useState('Общий рейтинг');
+  const [activeTab, setActiveTab] = useState('ТОП');
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
@@ -189,7 +189,7 @@ export default function RatingPage() {
 
 
   useEffect(() => {
-    if (activeTab === 'Общий рейтинг') {
+    if (activeTab === 'ТОП') {
         fetchPlayers(currentPage);
     } else if (activeTab === 'Игры') {
         fetchGames();
@@ -350,7 +350,7 @@ export default function RatingPage() {
             )}
         </div>
 
-        {activeTab === 'Общий рейтинг' && (
+        {activeTab === 'ТОП' && (
           <>
             {playersLoading && <p>Загрузка игроков...</p>}
             {playersError && <p>Ошибка: {playersError}</p>}
@@ -599,30 +599,43 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     { key: 'winrate', label: 'WR' },
     { key: 'bonuses', label: 'Допы Ср./Σ' },
     { key: 'totalCi', label: 'Ci' },
-    { key: 'totalCb', label: 'ЛХ'},
+    { key: 'totalCb', label: 'ЛХ' },
     { key: 'penalty', label: '-' },
     // Новые столбцы для смертей
     { key: 'deaths', label: 'Смертей' },
     { key: 'deathsWith1Black', label: 'Смертей с 1ч' },
     { key: 'deathsWith2Black', label: 'Смертей с 2ч' },
     { key: 'deathsWith3Black', label: 'Смертей с 3ч' },
-    { key: 'sheriffWins', label: 'Шериф П/И' },
+    // Столбцы для Шерифа: разбиты на 5 (П, WR, И, Ср, М)
+    { key: 'sheriffWins', label: 'Шериф П' },
+    { key: 'sheriffWR', label: 'Шериф WR' },
+    { key: 'sheriffGames', label: 'Шериф И' },
     { key: 'sheriffAvg', label: 'Шериф Ср' },
-    { key: 'sheriffMax', label: 'Шериф МАКС' },
-    { key: 'citizenWins', label: 'Мирн. П/И' },
+    { key: 'sheriffMax', label: 'Шериф М' },
+    // Столбцы для Мирного: разбиты на 5 (П, WR, И, Ср, М)
+    { key: 'citizenWins', label: 'Мирн. П' },
+    { key: 'citizenWR', label: 'Мирн. WR' },
+    { key: 'citizenGames', label: 'Мирн. И' },
     { key: 'citizenAvg', label: 'Мирн. Ср' },
-    { key: 'citizenMax', label: 'Мирн. МАКС' },
-    { key: 'mafiaWins', label: 'Мафия П/И' },
+    { key: 'citizenMax', label: 'Мирн. М' },
+    // Столбцы для Мафии: разбиты на 5 (П, WR, И, Ср, М)
+    { key: 'mafiaWins', label: 'Мафия П' },
+    { key: 'mafiaWR', label: 'Мафия WR' },
+    { key: 'mafiaGames', label: 'Мафия И' },
     { key: 'mafiaAvg', label: 'Мафия Ср' },
-    { key: 'mafiaMax', label: 'Мафия МАКС' },
-    { key: 'donWins', label: 'Дон П/И' },
+    { key: 'mafiaMax', label: 'Мафия М' },
+    // Столбцы для Дона: разбиты на 5 (П, WR, И, Ср, М)
+    { key: 'donWins', label: 'Дон П' },
+    { key: 'donWR', label: 'Дон WR' },
+    { key: 'donGames', label: 'Дон И' },
     { key: 'donAvg', label: 'Дон Ср' },
-    { key: 'donMax', label: 'Дон МАКС' },
+    { key: 'donMax', label: 'Дон М' },
   ];
 
   // Ключ для localStorage: уникальный для пользователя (используем user.name или user.id, если доступно)
   const storageKey = `columnVisibility_${user?.id || user?.name || 'default'}`;
   const filterStorageKey = `filters_${user?.id || user?.name || 'default'}`;
+  const sortStorageKey = `sortConfig_${user?.id || user?.name || 'default'}`;
 
   // Инициализируем состояние видимости из localStorage или по умолчанию все видимы (кроме alwaysVisible)
   const [columnVisibility, setColumnVisibility] = useState(() => {
@@ -651,8 +664,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
   // Состояние для модального окна фильтров
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  // Состояние для сортировки: по умолчанию по totalPoints убыванию
-  const [sortConfig, setSortConfig] = useState({ key: 'totalPoints', direction: 'desc' });
+  // Состояние для сортировки: по умолчанию по totalPoints убыванию, сохраняется в localStorage
+  const [sortConfig, setSortConfig] = useState(() => {
+    const saved = localStorage.getItem(sortStorageKey);
+    return saved ? JSON.parse(saved) : { key: 'totalPoints', direction: 'desc' };
+  });
 
   // Сохраняем изменения в localStorage при обновлении columnVisibility
   useEffect(() => {
@@ -663,6 +679,11 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
   useEffect(() => {
     localStorage.setItem(filterStorageKey, JSON.stringify(filters));
   }, [filters, filterStorageKey]);
+
+  // Сохраняем sortConfig в localStorage при изменении
+  useEffect(() => {
+    localStorage.setItem(sortStorageKey, JSON.stringify(sortConfig));
+  }, [sortConfig, sortStorageKey]);
 
   // Функция для переключения видимости столбца
   const toggleColumnVisibility = (key) => {
@@ -754,6 +775,13 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
           case 'sheriffWins':
             fieldValue = player.wins?.sheriff || 0;
             break;
+          case 'sheriffWR':
+            const sheriffGamesA = player.gamesPlayed?.sheriff || 0;
+            fieldValue = sheriffGamesA > 0 ? (player.wins?.sheriff || 0) / sheriffGamesA : 0;
+            break;
+          case 'sheriffGames':
+            fieldValue = player.gamesPlayed?.sheriff || 0;
+            break;
           case 'sheriffAvg':
             const sheriffBonuses = player.role_plus?.sheriff || [];
             fieldValue = sheriffBonuses.length ? sheriffBonuses.reduce((sum, val) => sum + val, 0) / sheriffBonuses.length : 0;
@@ -764,6 +792,13 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             break;
           case 'citizenWins':
             fieldValue = player.wins?.citizen || 0;
+            break;
+          case 'citizenWR':
+            const citizenGamesA = player.gamesPlayed?.citizen || 0;
+            fieldValue = citizenGamesA > 0 ? (player.wins?.citizen || 0) / citizenGamesA : 0;
+            break;
+          case 'citizenGames':
+            fieldValue = player.gamesPlayed?.citizen || 0;
             break;
           case 'citizenAvg':
             const citizenBonuses = player.role_plus?.citizen || [];
@@ -776,6 +811,13 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
           case 'mafiaWins':
             fieldValue = player.wins?.mafia || 0;
             break;
+          case 'mafiaWR':
+            const mafiaGamesA = player.gamesPlayed?.mafia || 0;
+            fieldValue = mafiaGamesA > 0 ? (player.wins?.mafia || 0) / mafiaGamesA : 0;
+            break;
+          case 'mafiaGames':
+            fieldValue = player.gamesPlayed?.mafia || 0;
+            break;
           case 'mafiaAvg':
             const mafiaBonuses = player.role_plus?.mafia || [];
             fieldValue = mafiaBonuses.length ? mafiaBonuses.reduce((sum, val) => sum + val, 0) / mafiaBonuses.length : 0;
@@ -786,6 +828,13 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             break;
           case 'donWins':
             fieldValue = player.wins?.don || 0;
+            break;
+          case 'donWR':
+            const donGamesA = player.gamesPlayed?.don || 0;
+            fieldValue = donGamesA > 0 ? (player.wins?.don || 0) / donGamesA : 0;
+            break;
+          case 'donGames':
+            fieldValue = player.gamesPlayed?.don || 0;
             break;
           case 'donAvg':
             const donBonuses = player.role_plus?.don || [];
@@ -860,12 +909,10 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     setSortConfig({ key, direction });
   };
 
-  // Функции сортировки для каждого ключа (без изменений)
+  // Функции сортировки для каждого ключа
   const sortFunctions = {
-    // ... (остальные функции сортировки, как в оригинале)
     rank: (a, b) => {
-      // Сортировка по рангу: рассчитываем rank на основе totalPoints
-      const rankA = a.totalPoints; // Или другой логики, если rank не по totalPoints
+      const rankA = a.totalPoints;
       const rankB = b.totalPoints;
       return rankA - rankB;
     },
@@ -895,6 +942,14 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     deathsWith2Black: (a, b) => (a.deathsWith2Black || 0) - (b.deathsWith2Black || 0),
     deathsWith3Black: (a, b) => (a.deathsWith3Black || 0) - (b.deathsWith3Black || 0),
     sheriffWins: (a, b) => (a.wins?.sheriff || 0) - (b.wins?.sheriff || 0),
+    sheriffWR: (a, b) => {
+      const gamesA = a.gamesPlayed?.sheriff || 0;
+      const wrA = gamesA > 0 ? (a.wins?.sheriff || 0) / gamesA : 0;
+      const gamesB = b.gamesPlayed?.sheriff || 0;
+      const wrB = gamesB > 0 ? (b.wins?.sheriff || 0) / gamesB : 0;
+      return wrA - wrB;
+    },
+    sheriffGames: (a, b) => (a.gamesPlayed?.sheriff || 0) - (b.gamesPlayed?.sheriff || 0),
     sheriffAvg: (a, b) => {
       const bonuses = a.role_plus?.sheriff || [];
       const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
@@ -910,6 +965,14 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
       return maxA - maxB;
     },
     citizenWins: (a, b) => (a.wins?.citizen || 0) - (b.wins?.citizen || 0),
+    citizenWR: (a, b) => {
+      const gamesA = a.gamesPlayed?.citizen || 0;
+      const wrA = gamesA > 0 ? (a.wins?.citizen || 0) / gamesA : 0;
+      const gamesB = b.gamesPlayed?.citizen || 0;
+      const wrB = gamesB > 0 ? (b.wins?.citizen || 0) / gamesB : 0;
+      return wrA - wrB;
+    },
+    citizenGames: (a, b) => (a.gamesPlayed?.citizen || 0) - (b.gamesPlayed?.citizen || 0),
     citizenAvg: (a, b) => {
       const bonuses = a.role_plus?.citizen || [];
       const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
@@ -925,6 +988,14 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
       return maxA - maxB;
     },
     mafiaWins: (a, b) => (a.wins?.mafia || 0) - (b.wins?.mafia || 0),
+    mafiaWR: (a, b) => {
+      const gamesA = a.gamesPlayed?.mafia || 0;
+      const wrA = gamesA > 0 ? (a.wins?.mafia || 0) / gamesA : 0;
+      const gamesB = b.gamesPlayed?.mafia || 0;
+      const wrB = gamesB > 0 ? (b.wins?.mafia || 0) / gamesB : 0;
+      return wrA - wrB;
+    },
+    mafiaGames: (a, b) => (a.gamesPlayed?.mafia || 0) - (b.gamesPlayed?.mafia || 0),
     mafiaAvg: (a, b) => {
       const bonuses = a.role_plus?.mafia || [];
       const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
@@ -940,6 +1011,14 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
       return maxA - maxB;
     },
     donWins: (a, b) => (a.wins?.don || 0) - (b.wins?.don || 0),
+    donWR: (a, b) => {
+      const gamesA = a.gamesPlayed?.don || 0;
+      const wrA = gamesA > 0 ? (a.wins?.don || 0) / gamesA : 0;
+      const gamesB = b.gamesPlayed?.don || 0;
+      const wrB = gamesB > 0 ? (b.wins?.don || 0) / gamesB : 0;
+      return wrA - wrB;
+    },
+    donGames: (a, b) => (a.gamesPlayed?.don || 0) - (b.gamesPlayed?.don || 0),
     donAvg: (a, b) => {
       const bonuses = a.role_plus?.don || [];
       const avgA = bonuses.length ? bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length : 0;
@@ -978,24 +1057,38 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
   };
 
   // Модифицированная функция renderRoleStats: принимает массив видимых столбцов и рендерит только видимые
-  // Добавлен подсчёт винрейта по роли в формате "wins/games (wr%)"
+  // Теперь рендерит пять столбцов для каждой роли: wins, wr, games, avg, max
   const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass, roleKey) => {
-    const avgBonus = bonuses.length
-      ? (bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length).toFixed(2)
-      : "0.0";
-    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed(2): "0.0";
-    
-    // Подсчёт винрейта по роли
-    const roleWinrate = games > 0 ? (wins / games * 100).toFixed(0) + '%' : '0%';
-    const roleDisplay = `${wins}/${games} (${roleWinrate})`;
+    const wr = games > 0 ? (wins / games * 100).toFixed(0) + '%' : '0%';
+    const avgBonus = bonuses.length ? (bonuses.reduce((sum, val) => sum + val, 0) / bonuses.length).toFixed(2) : "0.00";
+    const maxBonus = bonuses.length ? Math.max(...bonuses).toFixed(2) : "0.00";
 
     return (
       <>
-        {columnVisibility[`${roleKey}Wins`] && <td className={`${styles.roleCell} ${colorClass}`}>{roleDisplay}</td>}
+        {columnVisibility[`${roleKey}Wins`] && <td className={`${styles.roleCell} ${colorClass}`}>{wins}</td>}
+        {columnVisibility[`${roleKey}WR`] && <td className={`${styles.roleCell} ${colorClass}`}>{wr}</td>}
+        {columnVisibility[`${roleKey}Games`] && <td className={`${styles.roleCell} ${colorClass}`}>{games}</td>}
         {columnVisibility[`${roleKey}Avg`] && <td className={`${styles.roleCell} ${colorClass}`}>{avgBonus}</td>}
         {columnVisibility[`${roleKey}Max`] && <td className={`${styles.roleCell} ${colorClass}`}>{maxBonus}</td>}
       </>
     );
+  };
+
+  // Пагинация: кнопки для каждой страницы
+  const renderPagination = () => {
+    const pages = [];
+    for (let i = 1; i <= totalPagesCalculated; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => onPageChange(i)}
+          className={i === currentPage ? `${styles.pageBtn} ${styles.pageActive}` : styles.pageBtn}
+        >
+          {i}
+        </button>
+      );
+    }
+    return pages;
   };
 
   return (
@@ -1046,12 +1139,12 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
                   ))}
                 </select>
                 <select id="operator">
-  <option value=">">&gt;</option>
-  <option value="<">&lt;</option>
-  <option value="=">=</option>
-  <option value="!=">!=</option>
-  {document.getElementById('field')?.value === 'player' && <option value="contains">содержит</option>}
-</select>
+                  <option value=">">&gt;</option>
+                  <option value="<">&lt;</option>
+                  <option value="=">=</option>
+                  <option value="!=">!=</option>
+                  {document.getElementById('field')?.value === 'player' && <option value="contains">содержит</option>}
+                </select>
                 <input type="text" id="value" placeholder="Значение" />
                 {filters.length > 0 && (
                   <select id="logical">
@@ -1102,7 +1195,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             {columnVisibility.totalCi && <th onClick={() => requestSort('totalCi')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCi').label} {sortConfig.key === 'totalCi' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.totalCb && <th onClick={() => requestSort('totalCb')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'totalCb').label} {sortConfig.key === 'totalCb' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.penalty && <th onClick={() => requestSort('penalty')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'penalty').label} {sortConfig.key === 'penalty' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
-            
+
             {/* Новые заголовки для столбцов смертей */}
             {columnVisibility.deaths && <th onClick={() => requestSort('deaths')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deaths').label} {sortConfig.key === 'deaths' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.deathsWith1Black && <th onClick={() => requestSort('deathsWith1Black')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deathsWith1Black').label} {sortConfig.key === 'deathsWith1Black' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
@@ -1110,18 +1203,26 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             {columnVisibility.deathsWith3Black && <th onClick={() => requestSort('deathsWith3Black')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'deathsWith3Black').label} {sortConfig.key === 'deathsWith3Black' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
             {columnVisibility.sheriffWins && <th onClick={() => requestSort('sheriffWins')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffWins').label} {sortConfig.key === 'sheriffWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.sheriffWR && <th onClick={() => requestSort('sheriffWR')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffWR').label} {sortConfig.key === 'sheriffWR' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.sheriffGames && <th onClick={() => requestSort('sheriffGames')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffGames').label} {sortConfig.key === 'sheriffGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.sheriffAvg && <th onClick={() => requestSort('sheriffAvg')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffAvg').label} {sortConfig.key === 'sheriffAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.sheriffMax && <th onClick={() => requestSort('sheriffMax')} className={`${styles.roleSheriff} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'sheriffMax').label} {sortConfig.key === 'sheriffMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
             {columnVisibility.citizenWins && <th onClick={() => requestSort('citizenWins')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenWins').label} {sortConfig.key === 'citizenWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.citizenWR && <th onClick={() => requestSort('citizenWR')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenWR').label} {sortConfig.key === 'citizenWR' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.citizenGames && <th onClick={() => requestSort('citizenGames')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenGames').label} {sortConfig.key === 'citizenGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.citizenAvg && <th onClick={() => requestSort('citizenAvg')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenAvg').label} {sortConfig.key === 'citizenAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.citizenMax && <th onClick={() => requestSort('citizenMax')} className={`${styles.roleCitizen} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'citizenMax').label} {sortConfig.key === 'citizenMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
             {columnVisibility.mafiaWins && <th onClick={() => requestSort('mafiaWins')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaWins').label} {sortConfig.key === 'mafiaWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.mafiaWR && <th onClick={() => requestSort('mafiaWR')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaWR').label} {sortConfig.key === 'mafiaWR' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.mafiaGames && <th onClick={() => requestSort('mafiaGames')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaGames').label} {sortConfig.key === 'mafiaGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.mafiaAvg && <th onClick={() => requestSort('mafiaAvg')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaAvg').label} {sortConfig.key === 'mafiaAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.mafiaMax && <th onClick={() => requestSort('mafiaMax')} className={`${styles.roleMafia} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'mafiaMax').label} {sortConfig.key === 'mafiaMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
 
             {columnVisibility.donWins && <th onClick={() => requestSort('donWins')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWins').label} {sortConfig.key === 'donWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.donWR && <th onClick={() => requestSort('donWR')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWR').label} {sortConfig.key === 'donWR' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.donGames && <th onClick={() => requestSort('donGames')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donGames').label} {sortConfig.key === 'donGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donAvg && <th onClick={() => requestSort('donAvg')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donAvg').label} {sortConfig.key === 'donAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donMax && <th onClick={() => requestSort('donMax')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donMax').label} {sortConfig.key === 'donMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
           </tr>
@@ -1141,70 +1242,39 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
 
             const winrate = totalGames > 0 ? `${(totalWins / totalGames * 100).toFixed(0)}% (${totalWins}/${totalGames})` : '0% (0/0)';
 
-            const totalCi = p.totalCi !== undefined ? parseFloat(p.totalCi) : 0.0;
-            const totalCb = p.totalCb !== undefined ? parseFloat(p.totalCb) : 0.0;
+            const totalCi = p.totalCi !== undefined ? parseFloat(p.totalCi) : 0.00;
+            const totalCb = p.totalCb !== undefined ? parseFloat(p.totalCb) : 0.00;
 
             return (
               <tr key={p.id || p.nickname || i} className={p.name === user?.name ? styles.currentUserRow : ''}>
                 {columnVisibility.rank && <td>{rank}</td>}
-                {columnVisibility.player && (
-                  <td>
-                    <span
-                      className={styles.clickableName}
-                      onClick={() => handlePlayerClick(p.id)}
-                      title={p.name || p.nickname}
-                    >
-                      {(p.name || p.nickname || "—").length > 10 && isSolo
-                        ? (p.name || p.nickname).slice(0, 10) + '...'
-                        : (p.name || p.nickname || "—")}
-                    </span>
-                  </td>
-                )}
-                {columnVisibility.totalPoints && <td>{p.totalPoints.toFixed(2) || 0}</td>}
+                {columnVisibility.player && <td onClick={() => handlePlayerClick(p.id)} className={styles.clickable}>{p.name || p.nickname}</td>}
+                {columnVisibility.totalPoints && <td>{p.totalPoints}</td>}
                 {columnVisibility.winrate && <td>{winrate}</td>}
-                {columnVisibility.bonuses && <td>{(totalBonuses / ((gamesPlayed.sheriff || 0) + (gamesPlayed.citizen || 0) + (gamesPlayed.mafia || 0) + (gamesPlayed.don || 0))).toFixed(2)}/{totalBonuses}</td>}
+                {columnVisibility.bonuses && <td>{totalGames > 0 ? (totalBonuses / totalGames).toFixed(2) : "0.00"}</td>}
                 {columnVisibility.totalCi && <td>{totalCi.toFixed(2)}</td>}
                 {columnVisibility.totalCb && <td>{totalCb.toFixed(2)}</td>}
-                {columnVisibility.penalty && <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>}
-                
-                {/* Новые ячейки для столбцов смертей */}
-                {columnVisibility.deaths && <td>{p.deaths || 0}</td>}
-                {columnVisibility.deathsWith1Black && <td>{p.deathsWith1Black || 0}</td>}
-                {columnVisibility.deathsWith2Black && <td>{p.deathsWith2Black || 0}</td>}
-                {columnVisibility.deathsWith3Black && <td>{p.deathsWith3Black || 0}</td>}
-
-                {renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff, 'sheriff')}
-                {renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen, 'citizen')}
-                {renderRoleStats(wins.mafia, gamesPlayed.mafia, role_plus.mafia, styles.roleMafia, 'mafia')}
-                {renderRoleStats(wins.don, gamesPlayed.don, role_plus.don, styles.roleDon, 'don')}
+{columnVisibility.penalty && <td>{((p.total_sk_penalty || 0) + (p.total_jk_penalty || 0)).toFixed(2)}</td>}
+{columnVisibility.deaths && <td>{p.deaths || 0}</td>}
+{columnVisibility.deathsWith1Black && <td>{p.deathsWith1Black || 0}</td>}
+{columnVisibility.deathsWith2Black && <td>{p.deathsWith2Black || 0}</td>}
+{columnVisibility.deathsWith3Black && <td>{p.deathsWith3Black || 0}</td>}
+{renderRoleStats(wins.sheriff, gamesPlayed.sheriff, role_plus.sheriff, styles.roleSheriff, 'sheriff')}
+{renderRoleStats(wins.citizen, gamesPlayed.citizen, role_plus.citizen, styles.roleCitizen, 'citizen')}
+{renderRoleStats(wins.mafia, gamesPlayed.mafia, role_plus.mafia, styles.roleMafia, 'mafia')}
+{renderRoleStats(wins.don, gamesPlayed.don, role_plus.don, styles.roleDon, 'don')}
               </tr>
             );
           })}
         </tbody>
       </table>
-
-      {totalPagesCalculated > 1 && (
-        <nav className={styles.pagination}>
-          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>‹</button>
-          {[...Array(totalPagesCalculated)].map((_, i) => {
-            const page = i + 1;
-            return (
-              <button
-                key={page}
-                onClick={() => onPageChange(page)}
-                className={page === currentPage ? styles.pageActive : styles.pageBtn}
-              >
-                {page}
-              </button>
-            );
-          })}
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPagesCalculated} className={styles.pageBtn}>›</button>
-        </nav>
-      )}
+      <div className={styles.pagination}>
+        {renderPagination()}
+      </div>
     </div>
   );
-}
+};
+
+export  {DetailedStatsTable};
 
 
-
-export {DetailedStatsTable}

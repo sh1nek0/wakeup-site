@@ -491,6 +491,34 @@
 }
 
 
+.pageBtn {
+  background: #252525;
+  color: #ededed;
+  border: 2px solid #3a3a3a;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  user-select: none;
+  min-width: 40px;
+  transition: border-color 0.2s, transform 0.12s;
+}
+
+.pageBtn:hover,
+.pageActive {
+  border-color: #ff7a1a;
+  transform: translateY(-1px);
+}
+
+.pageActive { background-color: #3a3a3a; }
+.pageArrow { font-weight: 800; }
+.pageBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  border-color: #3a3a3a;
+}
+
+
 /* =========================
    ДЕТАЛЬНАЯ СТАТИСТИКА
    ========================= */
