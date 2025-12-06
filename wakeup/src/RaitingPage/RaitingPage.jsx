@@ -587,6 +587,7 @@ export default function RatingPage() {
 }
 
 
+
 function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChange, user, isSolo = 1 }) {
   const navigate = useNavigate();
   console.log(data);
@@ -1082,6 +1083,14 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
     if (playerId) navigate(`/profile/${playerId}`);
   };
 
+  // Улучшенная проверка пагинации: если currentPage > totalPagesCalculated, сбрасываем на ПОСЛЕДНЮЮ страницу (не на первую)
+  // Это сработает автоматически после сортировки/фильтрации, когда totalPagesCalculated изменится
+  useEffect(() => {
+    if (currentPage > totalPagesCalculated && totalPagesCalculated > 0) {
+      onPageChange(totalPagesCalculated); // Сброс на последнюю доступную страницу
+    }
+  }, [totalPagesCalculated, currentPage, onPageChange]); // Зависимости: реагируем на изменения totalPagesCalculated и currentPage
+
   // Модифицированная функция renderRoleStats: принимает массив видимых столбцов и рендерит только видимые
   // Теперь рендерит пять столбцов для каждой роли: wins, wr, games, avg, max
   const renderRoleStats = (wins = 0, games = 0, bonuses = [], colorClass, roleKey) => {
@@ -1210,7 +1219,7 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
         </div>
       )}
 
-      <table className={styles.detailedStatsTable}>
+      <table key={JSON.stringify(sortConfig)} className={styles.detailedStatsTable}>
         <thead>
           <tr>
             {columnVisibility.rank && <th onClick={() => requestSort('rank')} className={styles.sortableTh}>{allColumns.find(c => c.key === 'rank').label} {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
@@ -1252,53 +1261,113 @@ function DetailedStatsTable({ data, currentPage = 1, totalPages = 1, onPageChang
             {columnVisibility.donWins && <th onClick={() => requestSort('donWins')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWins').label} {sortConfig.key === 'donWins' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donWR && <th onClick={() => requestSort('donWR')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donWR').label} {sortConfig.key === 'donWR' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donGames && <th onClick={() => requestSort('donGames')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donGames').label} {sortConfig.key === 'donGames' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
-          {columnVisibility.donAvg && <th onClick={() => requestSort('donAvg')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donAvg').label} {sortConfig.key === 'donAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
+            {columnVisibility.donAvg && <th onClick={() => requestSort('donAvg')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donAvg').label} {sortConfig.key === 'donAvg' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
             {columnVisibility.donMax && <th onClick={() => requestSort('donMax')} className={`${styles.roleDon} ${styles.sortableTh}`}>{allColumns.find(c => c.key === 'donMax').label} {sortConfig.key === 'donMax' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}</th>}
           </tr>
         </thead>
         <tbody>
-          {paginatedData.map((player, index) => (
-            <tr key={player.id || index}>
-              {columnVisibility.rank && <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>}
-              {columnVisibility.player && <td className={styles.playerCell} onClick={() => handlePlayerClick(player.id)}>{player.name || player.nickname || 'Unknown'}</td>}
-              {columnVisibility.totalPoints && <td>{player.totalPoints || 0}</td>}
-              {columnVisibility.totalGames && <td>{Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0)}</td>}
-              {columnVisibility.totalWins && <td>{Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0)}</td>}
-              {columnVisibility.winrate && <td>{(() => {
-                const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
-                const totalWins = Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0);
-                return totalGames > 0 ? (totalWins / totalGames * 100).toFixed(0) + '%' : '0%';
-              })()}</td>}
-              {columnVisibility.bonusesSum && <td>{Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0)}</td>}
-              {columnVisibility.bonusesAvg && <td>{(() => {
-                const totalBonuses = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
-                const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
-                return totalGames > 0 ? (totalBonuses / totalGames).toFixed(2) : "0.00";
-              })()}</td>}
-              {columnVisibility.totalCi && <td>{player.totalCi || 0}</td>}
-              {columnVisibility.totalCb && <td>{player.totalCb || 0}</td>}
-              {columnVisibility.penalty && <td>{(player.total_sk_penalty || 0) + (player.total_jk_penalty || 0)}</td>}
-              {/* Новые ячейки для смертей */}
-              {columnVisibility.deaths && <td>{player.deaths || 0}</td>}
-              {columnVisibility.deathsWith1Black && <td>{player.deathsWith1Black || 0}</td>}
-              {columnVisibility.deathsWith2Black && <td>{player.deathsWith2Black || 0}</td>}
-              {columnVisibility.deathsWith3Black && <td>{player.deathsWith3Black || 0}</td>}
-              {/* Рендеринг статистики для ролей */}
-              {renderRoleStats(player.wins?.sheriff || 0, player.gamesPlayed?.sheriff || 0, player.role_plus?.sheriff || [], styles.roleSheriff, 'sheriff')}
-              {renderRoleStats(player.wins?.citizen || 0, player.gamesPlayed?.citizen || 0, player.role_plus?.citizen || [], styles.roleCitizen, 'citizen')}
-              {renderRoleStats(player.wins?.mafia || 0, player.gamesPlayed?.mafia || 0, player.role_plus?.mafia || [], styles.roleMafia, 'mafia')}
-              {renderRoleStats(player.wins?.don || 0, player.gamesPlayed?.don || 0, player.role_plus?.don || [], styles.roleDon, 'don')}
+          {paginatedData.length > 0 ? (
+            paginatedData.map((player, index) => {
+              const rank = (currentPage - 1) * itemsPerPage + index + 1;
+              const sheriffBonuses = player.role_plus?.sheriff || [];
+              const citizenBonuses = player.role_plus?.citizen || [];
+              const mafiaBonuses = player.role_plus?.mafia || [];
+              const donBonuses = player.role_plus?.don || [];
+              const totalGames = Object.values(player.gamesPlayed || {}).reduce((sum, val) => sum + val, 0);
+              const totalWins = Object.values(player.wins || {}).reduce((sum, val) => sum + val, 0);
+              const winrate = totalGames > 0 ? (totalWins / totalGames * 100).toFixed(0) + '%' : '0%';
+              const bonusesSum = Object.values(player.role_plus || {}).flat().reduce((sum, val) => sum + val, 0);
+              const bonusesAvg = totalGames > 0 ? (bonusesSum / totalGames).toFixed(2) : "0.00";
+              const penaltyTotal = (player.total_sk_penalty || 0) + (player.total_jk_penalty || 0);
+
+              return (
+                <tr key={player.id || index}>
+                  {columnVisibility.rank && <td>{rank}</td>}
+                  {columnVisibility.player && (
+                    <td onClick={() => handlePlayerClick(player.id)} className={styles.playerCell}>
+                      {player.name || player.nickname || 'Неизвестно'}
+                    </td>
+                  )}
+                  {columnVisibility.totalPoints && <td>{player.totalPoints || 0}</td>}
+                  {columnVisibility.totalGames && <td>{totalGames}</td>}
+                  {columnVisibility.totalWins && <td>{totalWins}</td>}
+                  {columnVisibility.winrate && <td>{winrate}</td>}
+                  {columnVisibility.bonusesSum && <td>{bonusesSum}</td>}
+                  {columnVisibility.bonusesAvg && <td>{bonusesAvg}</td>}
+                  {columnVisibility.totalCi && <td>{player.totalCi || 0}</td>}
+                  {columnVisibility.totalCb && <td>{player.totalCb || 0}</td>}
+                  {columnVisibility.penalty && <td className={styles.penaltyCell}>{penaltyTotal > 0 ? `-${penaltyTotal}` : 0}</td>}
+
+                  {/* Новые ячейки для столбцов смертей */}
+                  {columnVisibility.deaths && <td>{player.deaths || 0}</td>}
+                  {columnVisibility.deathsWith1Black && <td>{player.deathsWith1Black || 0}</td>}
+                  {columnVisibility.deathsWith2Black && <td>{player.deathsWith2Black || 0}</td>}
+                  {columnVisibility.deathsWith3Black && <td>{player.deathsWith3Black || 0}</td>}
+
+                  {/* Рендер ролевых статистик */}
+                  {renderRoleStats(
+                    player.wins?.sheriff || 0,
+                    player.gamesPlayed?.sheriff || 0,
+                    sheriffBonuses,
+                    styles.roleSheriff,
+                    'sheriff'
+                  )}
+                  {renderRoleStats(
+                    player.wins?.citizen || 0,
+                    player.gamesPlayed?.citizen || 0,
+                    citizenBonuses,
+                    styles.roleCitizen,
+                    'citizen'
+                  )}
+                  {renderRoleStats(
+                    player.wins?.mafia || 0,
+                    player.gamesPlayed?.mafia || 0,
+                    mafiaBonuses,
+                    styles.roleMafia,
+                    'mafia'
+                  )}
+                  {renderRoleStats(
+                    player.wins?.don || 0,
+                    player.gamesPlayed?.don || 0,
+                    donBonuses,
+                    styles.roleDon,
+                    'don'
+                  )}
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={allColumns.length} className={styles.noData}>Нет данных для отображения</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
+
       {/* Пагинация */}
-      <div className={styles.pagination}>
-        {renderPagination()}
-      </div>
+      {totalPagesCalculated > 1 && (
+        <div className={styles.pagination}>
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={styles.pageBtn}
+          >
+            &lt;
+          </button>
+          {renderPagination()}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPagesCalculated}
+            className={styles.pageBtn}
+          >
+            &gt;
+          </button>
+        </div>
+      )}
     </div>
   );
-};
+}
+
 
 
 
