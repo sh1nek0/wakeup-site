@@ -4,7 +4,7 @@ import CCC from '../EventPrew/CCC-prew.png';
 import { NavLink } from "react-router-dom";
 import { AuthContext } from "../AuthContext";
 
-function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
+function EventCardDetailed({ title, dateRange, location, capacity, imageUrl ,type}) {
   const [imageOk, setImageOk] = useState(true);
 
   return (
@@ -14,6 +14,7 @@ function EventCardDetailed({ title, dateRange, location, capacity, imageUrl }) {
         <div className={styles.headerRow}>
           <h3 className={styles.title}>{title}</h3>
           <div className={styles.locationUnderTitle}>{location}</div>
+            <div className={styles.locationUnderTitle}>{type=="solo" ?"Личный" :"Парный"}</div>
         </div>
         {capacity && <div className={styles.meta}>{capacity}</div>}
       </div>
@@ -59,7 +60,8 @@ export default function EventsPage() {
       .then(data => {
         const eventsWithImages = data.events.map(event => ({
           ...event,
-          imageUrl: CCC, 
+          imageUrl: event.avatar || CCC, 
+          type: event.type,
           dateRange: event.dates,
           capacity: `(${event.participants_count}/${event.participants_limit}) человек`
         }));

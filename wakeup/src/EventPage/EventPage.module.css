@@ -89,7 +89,7 @@
 .card {
   position: relative;
   display: flex;
-  height: 190px;
+  height: 150px;
   background: var(--card);
   margin: 0 0 14px 0;
   overflow: hidden;                 /* диагональ не вылезает */
@@ -136,11 +136,11 @@
 /* диагональная оранжевая полоса */
 .orangeStripe {
   position: absolute;
-  left: 59%;
+  left: 60%;
   width: 14px;
   height: 100%;
   background: var(--stripe);
-  transform: skewX(-30deg);
+  transform: skewX(-40deg);
   z-index: 2;
   opacity: .98;
 }

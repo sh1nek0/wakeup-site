@@ -130,6 +130,7 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
     db.commit()
     return {"message": "Профиль обновлен успешно"}
 
+
 @router.get("/get_player_suggestions")
 async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
     return get_player_suggestions_logic(query, db)

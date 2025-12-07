@@ -15,7 +15,20 @@ const stubAvatar = "data:image/svg+xml;utf8," +
      </svg>`
   );
 
-export default function Game() {
+// Функция из ProfilePage для форматирования размера файла
+const humanFileSize = (bytes) => {
+  const thresh = 1024;
+  if (Math.abs(bytes) < thresh) return bytes + " B";
+  const units = ["KB", "MB", "GB", "TB"];
+  let u = -1;
+  do {
+    bytes /= thresh;
+    ++u;
+  } while (Math.abs(bytes) >= thresh && u < units.length - 1);
+  return bytes.toFixed(1) + " " + units[u];
+};
+
+export default function Event() {
   const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
   const isAdmin = user?.role === 'admin';
   const { eventId } = useParams();
@@ -83,7 +96,7 @@ export default function Game() {
 
   const updateEditedField = (field, value) => {
     setEditedFields(prev => ({ ...prev, [field]: value }));
-    console.log(value)
+    console.log(value);
   };
 
   const getDates = () => editedFields.dates ?? eventData.dates ?? [];
@@ -197,7 +210,7 @@ export default function Game() {
       const res = await fetch(`/api/getEvent/${eventId}`, { headers });
       if (!res.ok) throw new Error("Ошибка загрузки данных ивента");
       const data = await res.json();
-      console.log(data)
+      console.log(data);
       setEventData(data);
       setParticipants(data.participants || []);
       setTeams(data.teams || []);
@@ -205,7 +218,7 @@ export default function Game() {
       setUserRegistrationStatus(data.user_registration_status || 'none');
       setExclusionsText(data.seating_exclusions || "");
     } catch (err) {
-    
+      console.error("Ошибка загрузки ивента:", err);
     } finally {
       setLoading(false);
     }
@@ -409,6 +422,117 @@ export default function Game() {
   };
 
   // ------------------------------
+  // Новое: Состояние для аватара мероприятия
+  // ------------------------------
+  const [eventAvatarFile, setEventAvatarFile] = useState(null);
+  const [eventAvatarPreview, setEventAvatarPreview] = useState(null);
+  const [uploadingEventAvatar, setUploadingEventAvatar] = useState(false);
+  const [uploadEventAvatarError, setUploadEventAvatarError] = useState(null);
+  const MAX_BYTES = 2 * 1024 * 1024; // 2MB
+
+  // ------------------------------
+  // Новое: Функции для обработки аватара мероприятия
+  // ------------------------------
+  const onPickEventAvatar = (file) => {
+    setUploadEventAvatarError(null);
+    setEventAvatarFile(null);
+    setEventAvatarPreview(null);
+
+    if (!file) return;
+    if (file.type !== "image/png") {
+      setUploadEventAvatarError("Допустим только PNG-файл.");
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setUploadEventAvatarError(
+        `Файл слишком большой (${humanFileSize(file.size)}). Лимит: ${humanFileSize(MAX_BYTES)}.`
+      );
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setEventAvatarFile(file);
+    setEventAvatarPreview(url);
+  };
+
+  const uploadEventAvatar = async () => {
+    if (!isAdmin) return;
+    if (!token) {
+      setUploadEventAvatarError("Необходима авторизация для загрузки файла.");
+      return;
+    }
+    if (!eventAvatarFile) {
+      setUploadEventAvatarError("Сначала выберите PNG-файл.");
+      return;
+    }
+    setUploadingEventAvatar(true);
+    setUploadEventAvatarError(null);
+    try {
+      const form = new FormData();
+      form.append("avatar", eventAvatarFile);
+
+      const res = await fetch(`/api/event/${eventId}/avatar`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      if (!res.ok) {
+        let msg = "Ошибка загрузки файла.";
+        try {
+          const j = await res.json();
+          msg = j.detail || j.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      setEventAvatarFile(null);
+      setEventAvatarPreview(null);
+      setEventData((prev) => ({ ...prev, avatar: data.url }));
+      showMessage("Аватар мероприятия успешно загружен.");
+    } catch (e) {
+      setUploadEventAvatarError(e.message);
+    } finally {
+      setUploadingEventAvatar(false);
+    }
+  };
+
+  const handleDeleteEventAvatar = async () => {
+    if (!isAdmin || !eventData.avatar) return;
+    if (!window.confirm("Вы уверены, что хотите удалить аватар мероприятия?")) return;
+
+    setUploadingEventAvatar(true);
+    setUploadEventAvatarError(null);
+    try {
+      const res = await fetch(`/api/event/${eventId}/avatar`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        let msg = "Ошибка удаления аватара.";
+        try {
+          const j = await res.json();
+          msg = j.detail || j.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+      
+      setEventData((prev) => ({ ...prev, avatar: null }));
+      setEventAvatarPreview(null);
+      showMessage("Аватар мероприятия успешно удален.");
+    } catch (e) {
+      setUploadEventAvatarError(e.message);
+    } finally {
+      setUploadingEventAvatar(false);
+    }
+  };
+
+  // ------------------------------
   // TEST DATA for tables (personal)
   // ------------------------------
   const pageSize = 10;
@@ -576,28 +700,73 @@ export default function Game() {
     return team.members.some(m => m.id === user.id);
   };
 
+  // Новое: Источник аватара мероприятия
+  const eventAvatarSrc = eventAvatarPreview || eventData.avatar || stubAvatar;
+
   return (
     <section className={styles.pageWrap}>
       {successMessage && <div className={styles.notificationSuccess}>{successMessage}</div>}
       {errorMessage && <div className={styles.notificationError}>{errorMessage}</div>}
 
       <header className={styles.header}>
-  <h1 className={styles.title}>
-    {isEditing ? (
-      <input
-        type="text"
-        value={editedFields.title ?? eventData.title ?? ""}
-        onChange={(e) => updateEditedField("title", e.target.value)}
-        style={{ width: '100%', fontSize: '2rem' }}
-      />
-    ) : (
-      eventData.title
-    )}
-  </h1>
-  {isAdmin && !isEditing && (
-    <button onClick={startEditing} className={styles.editButton}>Редактировать событие</button>
-  )}
-</header>
+        {isEditing && (
+        <img
+          src={eventAvatarSrc}
+          alt="Аватар мероприятия"
+          className={styles.eventAvatar}  // Добавьте CSS для стилизации, например: width: 60px; height: 60px; border-radius: 50%; margin-right: 10px;
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = stubAvatar;
+          }}
+        />)}
+        <h1 className={styles.title}>
+          {isEditing ? (
+            <input
+              type="text"
+              value={editedFields.title ?? eventData.title ?? ""}
+              onChange={(e) => updateEditedField("title", e.target.value)}
+              style={{ width: '100%', fontSize: '2rem' }}
+            />
+          ) : (
+            eventData.title
+          )}
+        </h1>
+        {isAdmin && !isEditing && (
+          <button onClick={startEditing} className={styles.editButton}>Редактировать событие</button>
+        )}
+      </header>
+
+      {/* Новое: Секция загрузки аватара в режиме редактирования */}
+      {isAdmin && isEditing && (
+        <div className={styles.uploadEventAvatarBox}>  {/* Добавьте CSS для стилизации, аналогично ProfilePage */}
+          <label className={styles.fileLabel}>
+            <input
+              type="file"
+              accept="image/png"
+              onChange={(e) => onPickEventAvatar(e.target.files?.[0] || null)}
+            />
+            Выбрать PNG для аватара мероприятия
+          </label>
+          {eventAvatarPreview && (
+            <div className={styles.hint}>
+              Предпросмотр — нажмите «Загрузить»
+            </div>
+          )}
+          {eventAvatarPreview && (
+            <button onClick={uploadEventAvatar} disabled={uploadingEventAvatar || !eventAvatarFile} className={styles.loadbutton}>
+              {uploadingEventAvatar ? "Загрузка…" : "Загрузить аватар"}
+            </button>
+          )}
+          
+          {eventData.avatar && !eventAvatarPreview && (
+            <button onClick={handleDeleteEventAvatar} disabled={uploadingEventAvatar} className={styles.deleteButton}>
+              {uploadingEventAvatar ? "Удаление..." : "Удалить аватар"}
+            </button>
+          )}
+
+          {uploadEventAvatarError && <div className={styles.errorText}>{uploadEventAvatarError}</div>}
+        </div>
+      )}
 
 <div className={styles.topGrid}>
   <div className={styles.infoGrid}>

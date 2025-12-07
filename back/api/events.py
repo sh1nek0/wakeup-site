@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException,File, UploadFile, Form
 from sqlalchemy.orm import Session, selectinload
 import json
 import uuid
@@ -21,7 +21,7 @@ try:
 except Exception:
     HAS_PULP = False
 
-
+from pathlib import Path
 from core.security import get_current_user, get_optional_current_user, get_db
 from db.models import Event, Team, Registration, User, Notification, Game
 from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
@@ -235,7 +235,8 @@ async def get_events(db: Session = Depends(get_db)):
         Event.type,
         Event.participants_limit,
         Event.participants_count,
-        Event.created_at
+        Event.created_at,
+        Event.avatar
     ).order_by(Event.created_at.desc()).all()
 
     events_list = []
@@ -253,6 +254,7 @@ async def get_events(db: Session = Depends(get_db)):
             "type": event.type,
             "participants_limit": event.participants_limit,
             "participants_count": event.participants_count,
+            "avatar":event.avatar
         })
     
     return {"events": events_list}
@@ -613,7 +615,8 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
         "user_registration_status": user_registration_status,
         "games": games_list,
         "games_are_hidden": event.games_are_hidden,
-        "seating_exclusions": event.seating_exclusions or ""
+        "seating_exclusions": event.seating_exclusions or "",
+        "avatar": event.avatar
     }
 
 @router.delete("/deleteTeam/{team_id}")
@@ -1517,4 +1520,54 @@ async def get_player_stats(
         "event_id": event_id,
         "total_games": len(games)
     }
+
+
+AVATARS_DIR = Path("/data/avatars/events")
+AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
+@router.post("/event/{event_id}/avatar")
+async def upload_event_avatar(
+    event_id: str,  # Изменено: str, чтобы избежать 422 при нечисловом eventId
+    avatar: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Логирование для отладки (уберите в продакшене)
+    print(f"Received request: event_id={event_id}, user={current_user.id if current_user else None}, avatar_filename={avatar.filename if avatar else 'None'}")
+
+    # Проверка прав: только админ
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="У вас нет прав для загрузки аватара события")
+
+    # Поиск события
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено")
+
+    # Проверка типа файла (только PNG)
+    if avatar.content_type != "image/png":
+        raise HTTPException(status_code=400, detail="Допустим только PNG-файл")
+
+    # Чтение файла и проверка размера (макс 2MB)
+    try:
+        file_content = await avatar.read()
+        if len(file_content) > 2 * 1024 * 1024:  # 2MB
+            raise HTTPException(status_code=400, detail="Файл слишком большой (макс 2MB)")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка чтения файла: {str(e)}")
+
+    # Сохранение файла
+    file_path = AVATARS_DIR / f"{event_id}.png"
+    try:
+        with open(file_path, "wb") as buffer:
+            buffer.write(file_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения файла: {str(e)}")
+
+    # Обновление поля avatar в БД (предполагаем, что avatar хранит относительный путь)
+    event.avatar = f"/data/avatars/events/{event_id}.png"  # Или полный URL, если используете CDN
+    db.commit()
+
+    return {"message": "Аватар события успешно загружен", "url": event.avatar}
+
 

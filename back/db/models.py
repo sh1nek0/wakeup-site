@@ -49,6 +49,7 @@ class Event(Base):
     # --- НОВЫЕ ПОЛЯ ---
     games_are_hidden = Column(Boolean, default=False, nullable=False)
     seating_exclusions = Column(Text, nullable=True) # JSON-строка со списком никнеймов
+    avatar=Column(String,nullable=True)
 
 class Team(Base):
     __tablename__ = "teams"
