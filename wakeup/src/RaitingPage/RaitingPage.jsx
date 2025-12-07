@@ -23,7 +23,34 @@ export default function RatingPage() {
   const itemsPerPage = 10;
 
   const [gamesCurrentPage, setGamesCurrentPage] = useState(1);
-  const gamesPerPage = 10;
+  const [gamesPerPage, setGamesPerPage] = useState(8); // Значение по умолчанию
+
+  useEffect(() => {
+    const updateGamesPerPage = () => {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setGamesPerPage(4); // Маленький экран (мобильные)
+      } else if (width < 1024) {
+        setGamesPerPage(6); // Средний экран (планшеты)
+      } else if (width < 1280) {
+        setGamesPerPage(8); // Маленькие ПК (1024-1279px)
+      } else if (width < 1920) {
+        setGamesPerPage(8); // Средние ПК (1280-1919px)
+      } else {
+        setGamesPerPage(10); // Большие ПК (1920px и выше, например, 4K)
+      }
+    };
+
+    // Установить начальное значение
+    updateGamesPerPage();
+
+    // Добавить слушатель изменения размера окна
+    window.addEventListener('resize', updateGamesPerPage);
+
+    // Очистить слушатель при размонтировании
+    return () => window.removeEventListener('resize', updateGamesPerPage);
+  }, [gamesPerPage]);
+
 
   const [detailedStatsCurrentPage, setDetailedStatsCurrentPage] = useState(1);
   const detailedStatsItemsPerPage = 10;
