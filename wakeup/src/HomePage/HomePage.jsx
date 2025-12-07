@@ -20,7 +20,7 @@ import mafImg from "../images/maf.png";
 import sherifImg from "../images/sherif.png";
 import mirImg from "../images/mir.png";
 import donImg from "../images/don.png";
-import CCC_prew from "../EventPrew/CCC-prew.png";
+import CCC_prew from "../EventPrew/CCC-PREW-Home.png";
 import Junior_prew from "../EventPrew/Junior.png";
 import Dec_prew from "../EventPrew/Dec-main.png";
 
