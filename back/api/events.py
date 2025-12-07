@@ -9,7 +9,7 @@ from datetime import datetime, timezone  # Добавлено timezone для к
 import math
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
-
+from core.config import AVATAR_DIR
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1522,8 +1522,7 @@ async def get_player_stats(
     }
 
 
-AVATARS_DIR = Path("/data/avatars/events")
-AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @router.post("/event/{event_id}/avatar")
 async def upload_event_avatar(
@@ -1557,7 +1556,7 @@ async def upload_event_avatar(
         raise HTTPException(status_code=400, detail=f"Ошибка чтения файла: {str(e)}")
 
     # Сохранение файла
-    file_path = AVATARS_DIR / f"{event_id}.png"
+    file_path = AVATAR_DIR/"events" / f"{event_id}.png"
     try:
         with open(file_path, "wb") as buffer:
             buffer.write(file_content)
