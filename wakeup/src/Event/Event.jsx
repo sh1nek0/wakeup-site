@@ -556,6 +556,24 @@ export default function Event() {
   // Командная агрегация
   // ------------------------------
   
+  const handleDeletePlayer = async (userId, eventId) => {
+  if (!isAdmin || !window.confirm(`Вы уверены, что хотите удалить этого игрока из события?`)) return;
+  try {
+    const response = await fetch(`/api/deletePlayer/${userId}/Event/${eventId}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || "Ошибка удаления игрока");
+    showMessage(data.message);
+    // Обновляем данные события после удаления
+    await fetchEventData();
+  } catch (error) {
+    showMessage(`Ошибка: ${error.message}`, true);
+  }
+}
+
+
 
   const aggregatedTeamData = useMemo(() => {
     if (!teams || !playersStatsSorted) return [];  // Изменено
@@ -768,187 +786,169 @@ export default function Event() {
         </div>
       )}
 
-<div className={styles.topGrid}>
-  <div className={styles.infoGrid}>
-    <div className={styles.infoCard}>
-      <div className={styles.caption}>Даты проведения</div>
-      <div className={styles.value}>
-        {isEditing ? (
-          <div>
-            {getDates().map((date, index) => (
-              <div key={index} style={{ marginBottom: '5px' }}>
+      <div className={styles.topGrid}>
+        <div className={styles.infoGrid}>
+          <div className={styles.infoCard}>
+            <div className={styles.caption}>Даты проведения</div>
+            <div className={styles.value}>
+              {isEditing ? (
+                <div>
+                  {getDates().map((date, index) => (
+                    <div key={index} style={{ marginBottom: '5px' }}>
+                      <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => updateDate(index, e.target.value)}
+                      />
+                      <button onClick={() => removeDate(index)} style={{ marginLeft: '10px' }}>Удалить</button>
+                    </div>
+                  ))}
+                  <button onClick={addDate}>Добавить дату</button>
+                </div>
+              ) : (
+                formatDates(eventData.dates)
+              )}
+            </div>
+          </div>
+
+          {/* ------------------ Место ------------------ */}
+          <div className={styles.infoCard}>
+            <div className={styles.caption}>Место</div>
+            <div className={styles.value}>
+              {isEditing ? (
                 <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => updateDate(index, e.target.value)}
+                  type="text"
+                  value={editedFields.location ?? eventData.location ?? ""}
+                  onChange={(e) => updateEditedField("location", e.target.value)}
                 />
-                <button onClick={() => removeDate(index)} style={{ marginLeft: '10px' }}>Удалить</button>
-              </div>
-            ))}
-            <button onClick={addDate}>Добавить дату</button>
+              ) : (
+                eventData.location
+              )}
+            </div>
           </div>
-        ) : (
-          formatDates(eventData.dates)
-        )}
-      </div>
-    </div>
 
-    {/* ------------------ Место ------------------ */}
-    <div className={styles.infoCard}>
-      <div className={styles.caption}>Место</div>
-      <div className={styles.value}>
-        {isEditing ? (
-          <input
-            type="text"
-            value={editedFields.location ?? eventData.location ?? ""}
-            onChange={(e) => updateEditedField("location", e.target.value)}
-          />
-        ) : (
-          eventData.location
-        )}
-      </div>
-    </div>
+          {/* ------------------ Тип ивента ------------------ */}
+          <div className={styles.infoCard}>
+            <div className={styles.caption}>Тип ивента</div>
+            <div className={styles.value}>
+              {isEditing ? (
+                <select
+                  value={editedFields.type ?? eventData.type ?? ""}
+                  onChange={(e) => updateEditedField("type", e.target.value)}
+                >
+                  <option value="solo">Личный</option>
+                  <option value="pair">Парный</option>
+                  <option value="team">Командный</option>
+                </select>
+              ) : (
+                typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный"
+              )}
+            </div>
+          </div>
 
-    {/* ------------------ Тип ивента ------------------ */}
-    <div className={styles.infoCard}>
-      <div className={styles.caption}>Тип ивента</div>
-      <div className={styles.value}>
-        {isEditing ? (
-          <select
-            value={editedFields.type ?? eventData.type ?? ""}
-            onChange={(e) => updateEditedField("type", e.target.value)}
+          {/* ------------------ Участники ------------------ */}
+          <div className={styles.infoCard}>
+            <div className={styles.caption}>Участники</div>
+            <div className={styles.value}>
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={editedFields.participants_limit ?? eventData.participantsLimit ?? 0}
+                  onChange={(e) => updateEditedField("participants_limit", parseInt(e.target.value) || 0)}
+                />
+              ) : (
+                `${eventData.participantsCount ?? 0} из ${eventData.participantsLimit ?? 0}`
+              )}
+            </div>
+          </div>
+
+          {/* ------------------ Взнос ------------------ */}
+          {isEditing && (
+            <div className={styles.infoCard}>
+              <div className={styles.caption}>Взнос</div>
+              <div className={styles.value}>
+                <input
+                  type="number"
+                  value={editedFields.fee ?? eventData.fee ?? 0}
+                  onChange={(e) => updateEditedField("fee", parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ------------------ Валюта ------------------ */}
+          {isEditing && (
+            <div className={styles.infoCard}>
+              <div className={styles.caption}>Валюта</div>
+              <div className={styles.value}>
+                <input
+                  type="text"
+                  value={editedFields.currency ?? eventData.currency ?? ""}
+                  onChange={(e) => updateEditedField("currency", e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className={styles.discussBtn}
+            onClick={() => showMessage("Обсуждение скоро появится")}
           >
-            <option value="solo">Личный</option>
-            <option value="pair">Парный</option>
-            <option value="team">Командный</option>
-          </select>
-        ) : (
-          typeNormalized === "solo" ? "Личный" : typeNormalized === "pair" ? "Парный" : "Командный"
-        )}
-      </div>
-    </div>
-
-    {/* ------------------ Участники ------------------ */}
-    <div className={styles.infoCard}>
-      <div className={styles.caption}>Участники</div>
-      <div className={styles.value}>
-        {isEditing ? (
-          <input
-            type="number"
-            value={editedFields.participants_limit ?? eventData.participantsLimit ?? 0}
-            onChange={(e) => updateEditedField("participants_limit", parseInt(e.target.value) || 0)}
-          />
-        ) : (
-          `${eventData.participantsCount ?? 0} из ${eventData.participantsLimit ?? 0}`
-        )}
-      </div>
-    </div>
-
-    {/* ------------------ Взнос ------------------ */}
-    {isEditing && (
-      <div className={styles.infoCard}>
-        <div className={styles.caption}>Взнос</div>
-        <div className={styles.value}>
-          <input
-            type="number"
-            value={editedFields.fee ?? eventData.fee ?? 0}
-            onChange={(e) => updateEditedField("fee", parseFloat(e.target.value) || 0)}
-          />
+            💬 Перейти к обсуждению
+          </button>
         </div>
-      </div>
-    )}
-
-    {/* ------------------ Валюта ------------------ */}
-    {isEditing && (
-      <div className={styles.infoCard}>
-        <div className={styles.caption}>Валюта</div>
-        <div className={styles.value}>
-          <input
-            type="text"
-            value={editedFields.currency ?? eventData.currency ?? ""}
-            onChange={(e) => updateEditedField("currency", e.target.value)}
-          />
-        </div>
-      </div>
-    )}
-
-    <button
-      type="button"
-      className={styles.discussBtn}
-      onClick={() => showMessage("Обсуждение скоро появится")}
-    >
-      💬 Перейти к обсуждению
-    </button>
-  </div>
 
 
-  <aside className={styles.rightCol}>
-    <PersonCard 
-  user={eventData.gs} 
-  isEdit={isEditing} 
-  onChange={(user, role) => { 
-    updateEditedField('gs_name', user?.nickname); 
-    updateEditedField('gs_role', role); 
-    updateEditedField('gs_avatar',user?.photoUrl)
-  }} 
-  token={token} 
-  defaultRole="GS" 
-/>
- <PersonCard 
-  user={eventData.org} 
-  isEdit={isEditing} 
-  onChange={(user, role) => { 
-    updateEditedField('org_name', user?.nickname); 
-    updateEditedField('org_role', role); 
-    updateEditedField('org_avatar',user?.photoUrl)
-  }} 
-  token={token} 
-  defaultRole="Организатор" 
-/>
-    
-    <div className={styles.feeCard}>
-      <div className={styles.caption}>Стоимость участия</div>
-      <div className={styles.fee}>
-        {eventData.fee?.toLocaleString()} {eventData.currency}
-      </div>
-      <button
-        type="button"
-        className={isRegButtonDisabled ? styles.primaryBtnDisabled : styles.primaryBtn}
-        onClick={handleRegister}
-        disabled={isRegButtonDisabled}
-      >
-        {regButtonText}
-      </button>
-    </div>
-  </aside>
-
-   {isEditing && (
-    <div className={styles.editActions}>
-      <button onClick={saveEvent} className={styles.saveButton}>Сохранить</button>
-      <button onClick={cancelEditing} className={styles.cancelButton}>Отмена</button>
-    </div>
-  )}
-</div>
-
-      {isAdmin && pendingRegistrations.length > 0 && (
-        <section className={styles.adminSection}>
-          <h2 className={styles.h2}>Заявки на участие ({pendingRegistrations.length})</h2>
-          <div className={styles.pendingList}>
-            {pendingRegistrations.map(reg => (
-              <div key={reg.registration_id} className={styles.pendingItem}>
-                <div className={styles.pendingUserInfo}>
-                  <img src={reg.user.avatar || stubAvatar} alt={reg.user.nick} className={styles.memberAvatar} />
-                  <span>{reg.user.nick} ({reg.user.club})</span>
-                </div>
-                <div className={styles.pendingActions}>
-                  <button onClick={() => handleManageRegistration(reg.registration_id, 'approve')} className={styles.approveBtn}>Одобрить</button>
-                  <button onClick={() => handleManageRegistration(reg.registration_id, 'reject')} className={styles.rejectBtn}>Отклонить</button>
-                </div>
-              </div>
-            ))}
+        <aside className={styles.rightCol}>
+          <PersonCard 
+        user={eventData.gs} 
+        isEdit={isEditing} 
+        onChange={(user, role) => { 
+          updateEditedField('gs_name', user?.nickname); 
+          updateEditedField('gs_role', role); 
+          updateEditedField('gs_avatar',user?.photoUrl)
+        }} 
+        token={token} 
+        defaultRole="GS" 
+      />
+      <PersonCard 
+        user={eventData.org} 
+        isEdit={isEditing} 
+        onChange={(user, role) => { 
+          updateEditedField('org_name', user?.nickname); 
+          updateEditedField('org_role', role); 
+          updateEditedField('org_avatar',user?.photoUrl)
+        }} 
+        token={token} 
+        defaultRole="Организатор" 
+      />
+          
+          <div className={styles.feeCard}>
+            <div className={styles.caption}>Стоимость участия</div>
+            <div className={styles.fee}>
+              {eventData.fee?.toLocaleString()} {eventData.currency}
+            </div>
+            <button
+              type="button"
+              className={isRegButtonDisabled ? styles.primaryBtnDisabled : styles.primaryBtn}
+              onClick={handleRegister}
+              disabled={isRegButtonDisabled}
+            >
+              {regButtonText}
+            </button>
           </div>
-        </section>
-      )}
+        </aside>
+
+        {isEditing && (
+          <div className={styles.editActions}>
+            <button onClick={saveEvent} className={styles.saveButton}>Сохранить</button>
+            <button onClick={cancelEditing} className={styles.cancelButton}>Отмена</button>
+          </div>
+        )}
+      </div>
+
+  
 
       {/* Tabs for standings & nominations */}
       <section className={styles.tabsWrap}>
@@ -1073,6 +1073,15 @@ export default function Event() {
                 <img src={p.avatar || stubAvatar} className={styles.qualifiedAvatar} alt={p.nick} />
                 <div className={styles.qualifiedNick}>{p.nick}</div>
                 <div className={styles.qualifiedFrom}>{p.club || "—"}</div>
+                {isAdmin && 
+                            (<div 
+                              onClick={() => handleDeletePlayer(p.id, eventId)} 
+                              style={{ cursor: 'pointer', color: 'red', fontSize: '20px' }}
+                              title="Удалить игрока"
+                            >
+                              x
+                            </div>
+                          )}
               </div>
             ))}
           </div>
@@ -1114,7 +1123,7 @@ export default function Event() {
           <div className={styles.tabPanel} role="tabpanel">
             <h2 className={styles.h2}>Командный зачёт</h2>
             <DetailedStatsTable
-              data={aggregatedTeamData.slice((teamPage-1)*pageSize, teamPage*pageSize)}
+              data={aggregatedTeamData}
               currentPage={teamPage}
               totalPages={Math.ceil(aggregatedTeamData.length / pageSize)}
               onPageChange={setTeamPage}

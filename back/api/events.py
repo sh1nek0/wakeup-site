@@ -122,6 +122,59 @@ async def manage_team_invite_logic(team_id: str, action: str, current_user: User
     db.commit()
     return {"message": "Вы приняли приглашение в команду."}
 
+@router.delete("/deletePlayer/{user_id}/Event/{event_id}")
+async def delete_player_from_event(
+    user_id: str,
+    event_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Проверка прав: только админ может удалять игроков
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="У вас нет прав для выполнения этого действия")
+    
+    # Поиск регистрации по user_id и event_id
+    registration = db.query(Registration).filter(
+        Registration.user_id == user_id,
+        Registration.event_id == event_id
+    ).first()
+    if not registration:
+        raise HTTPException(status_code=404, detail="Регистрация игрока на событие не найдена")
+    
+    # Получение события для уведомлений и обновления счетчика
+    event = registration.event
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено")
+    
+    # Если регистрация была одобрена, уменьшаем счетчик участников
+    if registration.status == "approved":
+        event.participants_count -= 1
+    
+    # Удаление уведомлений админов, связанных с этой регистрацией
+    db.query(Notification).filter(
+        Notification.related_id == registration.id,
+        Notification.type == "registration_request"
+    ).delete(synchronize_session=False)
+    
+    # Создание уведомления для удаленного пользователя
+    create_notification(
+        db,
+        recipient_id=user_id,
+        type="registration_removed",
+        message=f"Вы были удалены из события '{event.title}' администратором.",
+        sender_id=current_user.id,
+        related_id=event.id,
+        commit=False  # Не коммитим здесь, чтобы сделать все в одном транзакте
+    )
+    
+    # Удаление самой регистрации
+    db.delete(registration)
+    
+    # Коммит всех изменений
+    db.commit()
+    
+    return {"message": "Игрок успешно удален из события"}
+
 @router.post("/createTeam")
 async def create_team(request: CreateTeamRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
    

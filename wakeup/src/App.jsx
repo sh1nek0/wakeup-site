@@ -16,6 +16,7 @@ import PlayersListPage from "./PlayersListPage/PlayersListPage.jsx";
 import GameWidget from "./gameWidget/gameWidget.jsx";
 import NotificationsPage from "./NotificationsPage/NotificationsPage.jsx";
 import GameResultsTable from './resultWidget/resultWidget.jsx';
+import SpeechRecognizer from './speackDetacted/SpeechRecognizer.jsx';
 
 // --- AuthContext ---
 export const AuthContext = createContext(null);
@@ -117,9 +118,6 @@ export function App() {
   (location.pathname.startsWith('/Event/') && location.pathname.endsWith('/resultWidget'));
 
 
-  useEffect(() => {
-    document.title = "WakeUp Mafia";
-  }, []);
 
   return (
     <AuthProvider>
@@ -136,6 +134,7 @@ export function App() {
           <Route path="/Event/:eventId/Game/:gameId" element={<PlayersTable />} />
           <Route path="/Event/:eventId/Game/:gameId/gameWidget" element={<GameWidget />} />
           <Route path='/Event/:eventId/Game/:gameId/resultWidget' element={<GameResultsTable />} />
+          <Route path='/TEST/' element={<SpeechRecognizer/>} />
           <Route path="/profile/:profileId" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
