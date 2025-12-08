@@ -1100,7 +1100,7 @@ export default function Event() {
   <div className={styles.tabPanel} role="tabpanel">
     <h2 className={styles.h2}>Личный зачёт</h2>
     <DetailedStatsTable
-      data={personalPageData}  // Уже пагенированные данные
+      data={playersStatsSorted}  // Уже пагенированные данные
       currentPage={personalPage}
       totalPages={personalTotalPages}  // Общее количество страниц
       onPageChange={setPersonalPage}
