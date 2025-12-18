@@ -63,7 +63,6 @@ class Team(Base):
     event = relationship("Event", backref="teams")
     creator = relationship("User")
 
-
 class Registration(Base):
     __tablename__ = "registrations"
     id = Column(String, primary_key=True, index=True)
@@ -77,7 +76,7 @@ class Registration(Base):
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(String, primary_key=True, index=True)
-    recipient_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"),  nullable=False, index=True)
     sender_id = Column(String, ForeignKey("users.id"), nullable=True)
     type = Column(String, nullable=False)
     message = Column(Text, nullable=False)

@@ -5,6 +5,7 @@ const SpeechRecognizer = () => {
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState('');
   const recognitionRef = useRef(null);
+  const isStoppedManuallyRef = useRef(false); // Используем ref, чтобы избежать замыканий в useEffect
 
   useEffect(() => {
     // Проверяем поддержку API
@@ -31,13 +32,19 @@ const SpeechRecognizer = () => {
 
     recognition.onresult = (event) => {
       let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      let interimTranscript = '';
+
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
           finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
         }
       }
-      setTranscript(prev => prev + finalTranscript); // Добавляем финальный текст
+
+      // Обновляем транскрипт с финальным и промежуточным текстом
+      setTranscript(finalTranscript + interimTranscript);
     };
 
     recognition.onerror = (event) => {
@@ -47,6 +54,14 @@ const SpeechRecognizer = () => {
 
     recognition.onend = () => {
       setIsListening(false);
+      // Если остановка не была ручной, перезапускаем распознавание
+      if (!isStoppedManuallyRef.current) {
+        setTimeout(() => {
+          if (recognitionRef.current) {
+            recognitionRef.current.start();
+          }
+        }, 100); // Небольшая задержка для избежания бесконечных циклов
+      }
     };
 
     // Очистка при размонтировании
@@ -59,12 +74,14 @@ const SpeechRecognizer = () => {
 
   const startListening = () => {
     if (recognitionRef.current && !isListening) {
+      isStoppedManuallyRef.current = false; // Сбрасываем флаг ручной остановки
       recognitionRef.current.start();
     }
   };
 
   const stopListening = () => {
     if (recognitionRef.current && isListening) {
+      isStoppedManuallyRef.current = true; // Устанавливаем флаг ручной остановки
       recognitionRef.current.stop();
     }
   };
@@ -80,9 +97,7 @@ const SpeechRecognizer = () => {
       </button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <p><strong>Распознанный текст:</strong></p>
-      <div style={{ border: '1px solid #ccc', padding: '10px', minHeight: '50px' }}>
-        {transcript || 'Здесь появится текст...'}
-      </div>
+      
     </div>
   );
 };

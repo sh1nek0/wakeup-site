@@ -2,19 +2,27 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from apscheduler.schedulers.background import BackgroundScheduler
-import uvicorn
-from sqlalchemy import inspect, text  # Добавлено для проверки и добавления столбцов
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from api import auth, games, users, events, notifications
-from db.base import DATABASE_URL, Base, engine  # Добавил Base и engine для работы с моделями
+from db.base import DATABASE_URL, Base, engine, SessionLocal
 
-app = FastAPI()
 
-# CORS middleware
+ROOT_PATH = os.getenv("ROOT_PATH", "")  # по умолчанию пусто для локали
+
+app = FastAPI(
+    root_path=ROOT_PATH
+)
+
+# -------------------- CORS --------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,97 +31,122 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- ИЗМЕНЕНИЕ: Подключаем роутеры БЕЗ префикса ---
+# -------------------- ROUTERS --------------------
 app.include_router(auth.router)
 app.include_router(games.router)
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(notifications.router)
 
-# Раздача статики (аватары)
+# -------------------- STATIC FILES --------------------
 app.mount("/data", StaticFiles(directory="data"), name="data")
 
-# --- Логика резервного копирования ---
+# -------------------- BACKUP LOGIC --------------------
 def backup_database():
     if not DATABASE_URL.startswith("sqlite:///"):
-        print("Резервное копирование настроено только для SQLite.")
+        print("Резервное копирование поддерживается только для SQLite")
         return
 
-    db_path_str = DATABASE_URL.split("///")[1]
-    db_path = Path(db_path_str)
-    
+    db_path = Path(DATABASE_URL.replace("sqlite:///", ""))
+
     if not db_path.exists():
-        print(f"Файл базы данных не найден по пути: {db_path}")
+        print(f"Файл БД не найден: {db_path}")
         return
-    
+
     backup_dir = db_path.parent / "backup"
     backup_dir.mkdir(exist_ok=True)
-    
-    timestamp = datetime.now().strftime("%Y-%m-%d")
-    backup_filename = f"{timestamp}.db"
-    backup_path = backup_dir / backup_filename
-    
+
+    backup_file = backup_dir / f"{datetime.now():%Y-%m-%d}.db"
+
     try:
-        shutil.copy2(db_path, backup_path)
-        print(f"Резервная копия базы данных успешно создана: {backup_path}")
+        shutil.copy2(db_path, backup_file)
+        print(f"Бэкап БД создан: {backup_file}")
     except Exception as e:
-        print(f"Ошибка при создании резервной копии: {e}")
+        print(f"Ошибка резервного копирования: {e}")
 
-# --- НОВАЯ ФУНКЦИЯ: Проверка и добавление недостающих столбцов ---
-def add_missing_columns():
-    """
-    Проверяет существующие столбцы в таблицах БД и добавляет недостающие на основе моделей SQLAlchemy.
-    Работает только для SQLite. Для продакшена используйте Alembic.
-    """
-    if not DATABASE_URL.startswith("sqlite:///"):
-        print("Добавление столбцов настроено только для SQLite.")
-        return
-
-    inspector = inspect(engine)
-    
-    with engine.connect() as conn:
-        for table_name, table in Base.metadata.tables.items():
-            # Получаем список существующих столбцов в таблице
-            try:
-                existing_columns = {col['name'] for col in inspector.get_columns(table_name)}
-            except Exception as e:
-                print(f"Ошибка при получении столбцов для таблицы {table_name}: {e}")
-                continue
-            
-            # Проверяем каждый столбец из модели
-            for column in table.columns:
-                if column.name not in existing_columns:
-                    # Формируем SQL для добавления столбца
-                    column_type = str(column.type).upper()  # Например, "INTEGER", "VARCHAR(255)"
-                    nullable = "" if column.nullable else " NOT NULL"
-                    default = f" DEFAULT {column.default.arg}" if column.default else ""
-                    
-                    alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column.name} {column_type}{nullable}{default}"
-                    
-                    try:
-                        conn.execute(text(alter_sql))
-                        print(f"Добавлен столбец '{column.name}' в таблицу '{table_name}'.")
-                    except Exception as e:
-                        print(f"Ошибка при добавлении столбца '{column.name}' в '{table_name}': {e}")
 
 scheduler = BackgroundScheduler()
 
-@app.on_event("startup")
-def start_scheduler():
-    # Создаем таблицы при старте, если их нет
-    Base.metadata.create_all(bind=engine)
-    
-    # Добавляем недостающие столбцы
-    add_missing_columns()
-    
-    scheduler.add_job(backup_database, 'cron', hour=8, minute=0)
-    scheduler.start()
-    print("Планировщик резервного копирования запущен.")
+# -------------------- SQLITE MIGRATION --------------------
+def migrate_notifications_nullable(db: Session):
+    result = db.execute(text("PRAGMA table_info(notifications)")).fetchall()
 
+    recipient_col = next(
+        (col for col in result if col[1] == "recipient_id"),
+        None
+    )
+
+    # col[3] == notnull (1 = NOT NULL, 0 = NULLABLE)
+    if recipient_col and recipient_col[3] == 0:
+        print("Миграция notifications не требуется")
+        return
+
+    print("Выполняется миграция notifications.recipient_id -> NULLABLE")
+
+    # ВАЖНО: SQLite требует executescript
+    raw_conn = db.connection().connection
+    cursor = raw_conn.cursor()
+
+    cursor.executescript("""
+    BEGIN;
+
+    CREATE TABLE notifications_new (
+        id TEXT PRIMARY KEY,
+        recipient_id TEXT NULL,
+        sender_id TEXT NULL,
+        type TEXT NOT NULL,
+        message TEXT NOT NULL,
+        related_id TEXT,
+        is_read BOOLEAN,
+        actions TEXT,
+        created_at DATETIME
+    );
+
+    INSERT INTO notifications_new
+    SELECT * FROM notifications;
+
+    DROP TABLE notifications;
+    ALTER TABLE notifications_new RENAME TO notifications;
+
+    COMMIT;
+    """)
+
+    cursor.close()
+    print("Миграция notifications успешно завершена")
+
+
+# -------------------- STARTUP --------------------
+@app.on_event("startup")
+def on_startup():
+    # Создание таблиц
+    Base.metadata.create_all(bind=engine)
+
+    # Миграция
+    db = SessionLocal()
+    try:
+        migrate_notifications_nullable(db)
+    finally:
+        db.close()
+
+    # Планировщик бэкапов
+    scheduler.add_job(backup_database, "cron", hour=8, minute=0)
+    scheduler.start()
+
+    print("Приложение успешно запущено")
+
+
+# -------------------- SHUTDOWN --------------------
 @app.on_event("shutdown")
-def shutdown_scheduler():
+def on_shutdown():
     scheduler.shutdown()
-    print("Планировщик резервного копирования остановлен.")
- 
+    print("Приложение остановлено")
+
+
+# -------------------- ENTRYPOINT --------------------
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, workers=1)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )

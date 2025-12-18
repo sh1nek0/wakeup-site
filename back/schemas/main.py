@@ -162,3 +162,7 @@ class DemoteUserRequest(BaseModel):
 
 class GetUsersPhotosRequest(BaseModel):
     nicknames: List[str]  # Список ников
+
+class DeleteUser(BaseModel):
+    nickname: str | None = None
+    userId: str 

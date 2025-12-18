@@ -14,7 +14,7 @@ import os
 from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
 from db.models import User, Game, Registration, Notification
-from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest, GetUsersPhotosRequest
+from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest, GetUsersPhotosRequest, DeleteUser
 from services.calculations import calculate_all_game_points # --- ИЗМЕНЕНИЕ ---
 from services.search import get_player_suggestions_logic
 
@@ -129,6 +129,36 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
     user_to_update.site2 = request.site2
     db.commit()
     return {"message": "Профиль обновлен успешно"}
+
+
+@router.delete("/deleteUser")
+async def delete_user(
+    request: DeleteUser,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Проверка прав
+    if current_user.id != request.userId and current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="У вас нет прав для удаления этого пользователя"
+        )
+
+    user = db.query(User).filter(User.id == request.userId).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Пользователь не найден"
+        )
+
+    db.delete(user)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Пользователь {user.nickname} удалён"
+    }
 
 
 @router.get("/get_player_suggestions")
