@@ -164,5 +164,5 @@ class GetUsersPhotosRequest(BaseModel):
     nicknames: List[str]  # Список ников
 
 class DeleteUser(BaseModel):
-    nickname: str | None = None
+    nickname: Optional[str] = None
     userId: str 
