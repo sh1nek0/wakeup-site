@@ -539,57 +539,72 @@ export default function RatingPage() {
                   })}
                 </section>
 
-                {gamesTotalPages > 0 && (
-                  <nav
-                    className={styles.pagination}
-                    aria-label="Пейджинг игр"
-                  >
-                    <button
-                      onClick={() =>
-                        handleGamesPageChange(gamesCurrentPage - 1)
-                      }
-                      disabled={gamesCurrentPage === 1}
-                      className={`${styles.pageBtn} ${styles.pageArrow}`}
-                      type="button"
-                      aria-label="Предыдущая страница"
-                    >
-                      ‹
-                    </button>
-                    {[...Array(gamesTotalPages)].map((_, i) => {
-                      const p = i + 1;
-                      const isActive = p === gamesCurrentPage;
-                      return (
-                        <button
-                          key={p}
-                          onClick={() => handleGamesPageChange(p)}
-                          className={`${styles.pageBtn} ${
-                            isActive ? styles.pageActive : ''
-                          }`}
-                          aria-current={isActive ? 'page' : undefined}
-                          type="button"
-                          aria-label={`Страница ${p}`}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-                    <button
-                      onClick={() =>
-                        handleGamesPageChange(gamesCurrentPage + 1)
-                      }
-                      disabled={gamesCurrentPage === gamesTotalPages}
-                      className={`${styles.pageBtn} ${styles.pageArrow}`}
-                      type="button"
-                      aria-label="Следующая страница"
-                    >
-                      ›
-                    </button>
-                  </nav>
-                )}
+              {gamesTotalPages > 0 && (
+<nav className={styles.pagination} aria-label="Пейджинг игр">
+  {/* Кнопка "назад" */}
+  <button
+    onClick={() => handleGamesPageChange(gamesCurrentPage - 1)}
+    disabled={gamesCurrentPage === 1}
+    className={`${styles.pageBtn} ${styles.pageArrow}`}
+    type="button"
+    aria-label="Предыдущая страница"
+  >
+    ‹
+  </button>
+
+  {/* Рендер страниц */}
+  {(() => {
+    const pages = [];
+    let startPage = 1;
+    let endPage = gamesTotalPages;
+
+    if (gamesTotalPages > 7) {
+      // Делаем окно из 7 кнопок
+      startPage = Math.max(gamesCurrentPage - 3, 1);
+      endPage = Math.min(startPage + 6, gamesTotalPages);
+
+      // Корректировка, если окно уходит за пределы
+      if (endPage - startPage < 6) {
+        startPage = Math.max(endPage - 6, 1);
+      }
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      const isActive = p === gamesCurrentPage;
+      pages.push(
+        <button
+          key={p}
+          onClick={() => handleGamesPageChange(p)}
+          className={`${styles.pageBtn} ${isActive ? styles.pageActive : ''}`}
+          aria-current={isActive ? 'page' : undefined}
+          type="button"
+          aria-label={`Страница ${p}`}
+        >
+          {p}
+        </button>
+      );
+    }
+
+    return pages;
+  })()}
+
+  {/* Кнопка "вперед" */}
+  <button
+    onClick={() => handleGamesPageChange(gamesCurrentPage + 1)}
+    disabled={gamesCurrentPage === gamesTotalPages}
+    className={`${styles.pageBtn} ${styles.pageArrow}`}
+    type="button"
+    aria-label="Следующая страница"
+  >
+    ›
+  </button>
+</nav>
+              )}
               </>
             )}
           </div>
         )}
+
         {activeTab === 'Статистика' && (
           <section
             className={styles.statsWrapper}
