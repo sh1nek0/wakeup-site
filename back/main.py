@@ -19,7 +19,7 @@ from db.base import DATABASE_URL, Base, engine, SessionLocal
 ROOT_PATH = os.getenv("ROOT_PATH", "")  # по умолчанию пусто для локали
 
 app = FastAPI(
-    root_path=ROOT_PATH
+    
 )
 
 # -------------------- CORS --------------------
