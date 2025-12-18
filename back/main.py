@@ -16,7 +16,11 @@ from api import auth, games, users, events, notifications
 from db.base import DATABASE_URL, Base, engine, SessionLocal
 
 
-app = FastAPI()
+ROOT_PATH = os.getenv("ROOT_PATH", "")  # по умолчанию пусто для локали
+
+app = FastAPI(
+    root_path=ROOT_PATH
+)
 
 # -------------------- CORS --------------------
 app.add_middleware(
