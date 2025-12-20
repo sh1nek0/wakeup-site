@@ -277,7 +277,7 @@ const Game = () => {
   const [selectedVoteValue, setSelectedVoteValue] = useState(null);
   const [firstVoteValue, setFirstVoteValue] = useState(null);
   const [showSecondRow, setShowSecondRow] = useState(false);
-
+const [log, setLog] = useState([]);
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [maxTime, setMaxTime] = useState(null);
@@ -408,13 +408,16 @@ const Game = () => {
     };
   }, []);
 
+
+
+
   // Голосование
   const [votes, setVotes] = useState([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState(null);
   const [isCounting, setIsCounting] = useState(false);
   const [round, setRound] = useState(1);
   const [firstRoundCandidates, setFirstRoundCandidates] = useState([]);
-
+  console.log(votes)
   // Итоги/фазы
   const [currentDay, setCurrentDay] = useState('Д.1');
   const [votingResults, setVotingResults] = useState({});
@@ -430,6 +433,34 @@ const Game = () => {
   const [tableNumber, setTableNumber] = useState('');
   const [breakdownSource, setBreakdownSource] = useState('none');
   const [breakdownPlayerNumber, setBreakdownPlayerNumber] = useState('');
+  const [isDetecting, setIsDetecting] = useState(false);
+  const recognitionRef = useRef(null);
+  const [detectedText, setDetectedText] = useState('');
+
+  // 📦 Предполагается, что в компоненте уже есть useState, useRef и votes/setVotes
+
+const [activeSpeaker, setActiveSpeaker] = useState(null); // игрок, у которого "минута"
+const activeSpeakerRef = useRef(activeSpeaker);
+const [nominatedInCurrentMinute, setNominatedInCurrentMinute] = useState([]); // кого уже пробовали выставить в этой минуте
+
+useEffect(() => {
+  // Обновляем реф, когда активный спикер меняется
+  activeSpeakerRef.current = activeSpeaker;
+}, [activeSpeaker]); // Этот код будет выполнен, когда activeSpeaker изменится
+
+
+// Хук для отслеживания изменений в activeSpeaker
+useEffect(() => {
+  if (activeSpeaker !== null) {
+    console.log(`Активный спикер обновлен: ${activeSpeaker}`);
+    // Здесь проверяем, нужно ли начать процесс номинирования
+    if (detectedText.includes('выставляю')) {
+      console.log('🔍 Запуск номинирования');
+      detectNominationFromSpeech(detectedText);
+    }
+  }
+}, [activeSpeaker, detectedText]);
+
 
   // --- ИЗМЕНЕНИЕ: ГЛАВНЫЙ ФИКС ---
   // Этот useEffect следит за выбором "Слома" и очищает номер игрока, если выбран "Нет слома".
@@ -442,6 +473,7 @@ const Game = () => {
 
   // показ ролей
   const [visibleRole, setVisibleRole] = useState(true)
+
 
   // Загрузка/ошибки
   const [loading, setLoading] = useState(true);
@@ -1072,12 +1104,180 @@ const handleUpdateVotingResults = (day, newVotes) => {
     [day]: { ...prev[day], votes: newVotes }
   }));
 };
+
 const handleUpdateShootingResults = (day, newResult) => {
   setShootingResults(prev => ({
     ...prev,
     [day]: { ...prev[day], result: newResult }
   }));
 };
+
+
+const detectNominationFromSpeech = (text) => {
+  if (activeSpeaker === null) {
+    console.log('⚠ Сначала нужно указать, у кого минута');
+    return;
+  }
+
+  console.log('🔍 Проверка номинации...');
+
+  // Проверяем, если текст содержит команду "выставляю"
+  if (text.includes('выставляю')) {
+    const wordToDigit = {
+      'один': 1, 'два': 2, 'три': 3, 'четыре': 4, 'пять': 5,
+      'шесть': 6, 'семь': 7, 'восемь': 8, 'девять': 9, 'десять': 10
+    };
+
+    const lowerText = text.toLowerCase();
+    let detectedNumbers = [];
+
+    console.log(`🔍 Обработка текста: "${lowerText}"`);
+
+    // Логируем все числовые строки в текстах с ключевыми словами
+    Object.entries(wordToDigit).forEach(([word, digit]) => {
+      if (lowerText.includes(word)) {  // Проверяем, содержится ли слово в тексте
+        detectedNumbers.push(digit);
+        console.log(`🔍 Найдено текстовое число: ${digit}`);
+      }
+    });
+
+    // Проверка на случай, если число указано цифрой (например, "1")
+    const numberMatches = lowerText.match(/\b([1-9]|10)\b/g); // Ищем только числа от 1 до 10
+    if (numberMatches) {
+      // Преобразуем все найденные числа в уникальный список
+      detectedNumbers = [
+        ...new Set([
+          ...detectedNumbers,
+          ...numberMatches.map(num => parseInt(num, 10))  // Преобразуем строку в число
+        ])
+      ];
+      console.log(`🔍 Найденные числовые значения: ${detectedNumbers.join(', ')}`);
+    }
+
+    // Фильтруем только те номера, которые в допустимом диапазоне и ещё не номинированы
+    const validPlayers = detectedNumbers.filter(id => {
+      return id >= 1 && id <= 10 && !nominatedInCurrentMinute.includes(id);
+    });
+
+    // Если такие игроки есть, добавляем их в список номинированных и обновляем массив votes
+    if (validPlayers.length > 0) {
+      setNominatedInCurrentMinute((prev) => {
+        const newNominated = [...prev];
+        validPlayers.forEach((playerId) => {
+          if (!newNominated.includes(playerId)) {
+            newNominated.push(playerId);
+            // Добавляем игрока в массив голосования
+            setVotes((prevVotes) => {
+              if (!prevVotes.some((vote) => vote.playerId === playerId)) {
+                return [...prevVotes, { playerId, votesCount: 0 }];
+              }
+              return prevVotes;
+            });
+          }
+        });
+        return newNominated;
+      });
+
+      console.log(`🎙️ Игроки ${validPlayers.join(', ')} выставлены на голосование`);
+    } else {
+      console.log('⚠ Все указанные игроки уже выставлены или недопустимы');
+    }
+  }
+};
+
+
+// Функция для запуска детекции речи
+const toggleSpeechDetection = () => {
+  if (isDetecting) {
+    recognitionRef.current?.stop();
+    setIsDetecting(false);
+    setActiveSpeaker(null);  // Обнуляем активного спикера при завершении детекции
+    return;
+  }
+
+  if (!('webkitSpeechRecognition' in window)) {
+    alert('Ваш браузер не поддерживает распознавание речи');
+    return;
+  }
+
+  const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'ru-RU';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        const transcript = event.results[i][0].transcript.trim().toLowerCase();
+        setDetectedText(transcript);
+        console.log(`🎧 Распознано: "${transcript}"`);
+
+        // Завершение речи по ключевому слову
+        if (transcript.includes('спасибо') || transcript.includes('пас')) {
+          console.log('🛑 Речь завершена по ключевому слову');
+          setActiveSpeaker(null);  // Обнуляем активного спикера
+          setNominatedInCurrentMinute([]);  // Сбрасываем номинированных
+          return;
+        }
+
+        // Проверяем команду "игрок номер X ваша минута"
+        const matchDigit = transcript.match(/игрок номер (\d{1,2}|один|два|три|четыре|пять|шесть|семь|восемь|девять|десять) ваша минута/);
+        if (matchDigit) {
+          let speakerId;
+
+          // Проверяем, если найдено числовое значение
+          if (/^\d+$/.test(matchDigit[1])) {
+            speakerId = parseInt(matchDigit[1], 10);
+          } else {
+            // Если найдено текстовое число, преобразуем его в цифру
+            const wordToDigit = {
+              'один': 1, 'два': 2, 'три': 3, 'четыре': 4, 'пять': 5,
+              'шесть': 6, 'семь': 7, 'восемь': 8, 'девять': 9, 'десять': 10
+            };
+            speakerId = wordToDigit[matchDigit[1]];
+          }
+
+          console.log('Обнаружен номер игрока:', speakerId);
+
+          if (speakerId) {
+            setActiveSpeaker(speakerId);  // Обновляем активного спикера
+            setNominatedInCurrentMinute([]);  // Сбрасываем номинированных
+            console.log(`🎙️ Минута игрока ${speakerId}`);
+            return;
+          } else {
+            console.log('Не удалось извлечь действительный номер игрока');
+          }
+        } else {
+          console.log('Команда "игрок номер X ваша минута" не распознана');
+        }
+
+        // Проверка номинации по фразе "выставляю"
+        detectNominationFromSpeech(transcript);
+      }
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech error:', event.error);
+    setIsDetecting(false);
+    console.log(`❌ Ошибка речи: ${event.error}`);
+  };
+
+  recognition.onend = () => {
+    setIsDetecting(false);
+    setActiveSpeaker(null);  
+    console.log('🛑 Детекция остановлена');
+  };
+
+  recognition.start();
+  recognitionRef.current = recognition;
+  setIsDetecting(true);
+  console.log('▶️ Детекция запущена');
+};
+
+
+
 
 
 
@@ -1209,6 +1409,16 @@ const handleUpdateShootingResults = (day, newResult) => {
                       className={styles.breakdownInput}
                     />
                   </div>
+                  
+                  <button
+  type="button"
+  onClick={toggleSpeechDetection}
+  disabled={isPenaltyTime || isReadOnly}
+  className={styles.clearBtn}
+>
+  {isDetecting ? '🛑 Завершить детекцию' : '🎙 Начать детекцию'}
+</button>
+
 
                   <div className={styles.obsInputsContainer}>
                     <input

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException,File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException,File, UploadFile, Query
 from sqlalchemy.orm import Session, selectinload
 import json
 import uuid
@@ -1321,21 +1321,26 @@ def calculate_ci(x: int, n: int) -> float:
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
     event_id: str,
+    location: str | None = Query(default=None),
     db: Session = Depends(get_db)
-):    
-    # Специальная логика для event_id == "1": включаем игры с event_id == "1" или null
+):
+    # Получаем игры
     if event_id == "1":
-        games = db.query(Game).filter(or_(Game.event_id == event_id, Game.event_id.is_(None))).all()
+        query = db.query(Game).filter(or_(Game.event_id == event_id, Game.event_id.is_(None)))
     else:
-        # Для других event_id проверяем существование события
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="Событие не найдено.")
-        games = db.query(Game).filter(Game.event_id == event_id).all()
+        query = db.query(Game).filter(Game.event_id == event_id)
     
+    if location:
+        query = query.filter(Game.location == location)
+    
+    games = query.all()
     if not games:
         return {"players": [], "message": "Нет игр в событии."}
 
+    # Собираем user_ids
     user_ids: set = set()
     for game in games:
         if game.data:
@@ -1344,26 +1349,19 @@ async def get_player_stats(
                 if "players" in data:
                     for p in data["players"]:
                         user_id = p.get("userId")
-                        if user_id:  # Теперь поддерживаем строки и числа
+                        if user_id:
                             if isinstance(user_id, str) and user_id.isdigit():
                                 user_ids.add(int(user_id))
                             else:
-                                # Если строка не цифры (e.g., "user_xxx"), добавляем как есть (адаптируйте под вашу БД)
                                 user_ids.add(user_id)
             except json.JSONDecodeError:
                 continue
 
-    # Запрос пользователей: адаптируйте, если user.id строковый
-    db_users_query = db.query(User).filter(
-        # Для числовых: User.id.in_(числа)
-        # Для строковых: используйте or_ или отдельный фильтр
-        # Пример: предполагаем, что User.id может быть int или str; используйте raw SQL если нужно
-        User.id.in_(user_ids)  # Если все int, ок; иначе скорректируйте
-    )
-    db_users = db_users_query.all()
-    user_map: Dict[Any, User] = {u.id: u for u in db_users}  # Ключ может быть str или int
+    # Получаем пользователей из БД
+    db_users = db.query(User).filter(User.id.in_(user_ids)).all()
+    user_map: Dict[Any, User] = {u.id: u for u in db_users}
 
-    # Маппинг ролей из данных (русские) в английские ключи для компонента
+    # Маппинг ролей
     role_mapping = {
         "шериф": "sheriff",
         "мирный": "citizen",
@@ -1372,21 +1370,21 @@ async def get_player_stats(
     }
 
     player_totals: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-        "total_plus_only": 0.0, 
-        "games_count": 0, 
-        "total_best_move_bonus": 0.0, 
+        "total_plus_only": 0.0,
+        "games_count": 0,
+        "total_best_move_bonus": 0.0,
         "total_minus": 0.0,
         "bestMovesWithBlack": 0,
         "jk_count": 0,
-        "sk_count": 0,  # Добавлено для подсчёта sk
-        "wins": defaultdict(int),  # wins по ролям
-        "gamesPlayed": defaultdict(int),  # gamesPlayed по ролям
-        "role_plus": defaultdict(list),  # списки плюсов по ролям
+        "sk_count": 0,
+        "wins": defaultdict(int),
+        "gamesPlayed": defaultdict(int),
+        "role_plus": defaultdict(list),
         "user_id": None,
-        "deaths": 0,  # Новое: общее количество смертей (если игрок был в nominated_ids)
-        "deathsWith1Black": 0,  # Новое: смерти с 1 чёрным среди nominated_ids
-        "deathsWith2Black": 0,  # Новое: смерти с 2 чёрными среди nominated_ids
-        "deathsWith3Black": 0,  # Новое: смерти с 3 чёрными среди nominated_ids
+        "deaths": 0,
+        "deathsWith1Black": 0,
+        "deathsWith2Black": 0,
+        "deathsWith3Black": 0,
     })
 
     for game in games:
@@ -1397,29 +1395,25 @@ async def get_player_stats(
             if "players" not in data:
                 continue
             
-            # Извлекаем badgeColor для всей игры
             badge_color = data.get("badgeColor", None)
-            print(f"Game {game.gameId}: badgeColor = {badge_color}")  # Debug
-            
-            # player_roles: используем str(id) для ключей (поддержка str/int)
+
+            # Маппинг ролей игроков
             player_roles: Dict[str, str] = {}
             for p in data["players"]:
-                player_id = str(p.get("id", ""))  # str для consistency
+                player_id = str(p.get("id", ""))
                 role = p.get("role", "")
                 player_roles[player_id] = role
-            
+
             for p in data["players"]:
                 player_name = p.get("name", "").strip()
                 if not player_name:
                     continue
-                
                 player_key = player_name
-                
+
                 user_id = p.get("userId")
                 if user_id:
-                    player_totals[player_key]["user_id"] = user_id  # Храним как есть (str или int)
-                
-                
+                    player_totals[player_key]["user_id"] = user_id
+
                 if player_totals[player_key]["user_id"] in user_map:
                     db_user = user_map[player_totals[player_key]["user_id"]]
                     db_name = (db_user.nickname or db_user.name or "").strip()
@@ -1427,52 +1421,48 @@ async def get_player_stats(
                         player_key = db_name
                         if player_name in player_totals:
                             player_totals[player_key] = player_totals.pop(player_name)
-                
+
                 player_totals[player_key]["name"] = player_key
-                
                 role = p.get("role", "")
                 english_role = role_mapping.get(role, "")
-                
+
                 if english_role:
                     player_totals[player_key]["gamesPlayed"][english_role] += 1
-                    
-                    # Новая логика победы на основе badgeColor (для всей игры)
+
+                    # Победа по badgeColor
                     win_condition = False
                     if badge_color == "red" and role in ["мирный", "шериф"]:
                         win_condition = True
                     elif badge_color == "black" and role in ["мафия", "дон"]:
                         win_condition = True
-                    
+
                     if win_condition:
                         player_totals[player_key]["wins"][english_role] += 1
-                        print(f"Win for {player_key} as {english_role} in {game.gameId}")  # Debug
-                    
+
                     plus_value = p.get("plus", 0.0)
                     if isinstance(plus_value, (int, float)):
                         player_totals[player_key]["role_plus"][english_role].append(plus_value)
                         player_totals[player_key]["total_plus_only"] += plus_value
-                
+
                 player_totals[player_key]["games_count"] += 1
-                
-                # Логика best_move (адаптирована для str id, с исправлением для индексов)
+
+                # Логика best_move
                 best_move = p.get("best_move", "").strip()
                 has_black_in_best_move = False
                 if best_move:
                     try:
-                        # Парсим nominated_strs из best_move (e.g., "1 2 3" → ['1','2','3'])
                         nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
                         if len(nominated_strs) != 3:
                             continue
-                        # Исправление: предполагаем, что числа - 1-based индексы игроков в массиве players
                         nominated_ids = []
                         for s in nominated_strs:
                             try:
-                                idx = int(s) - 1  # 1-based -> 0-based
+                                idx = int(s) - 1
                                 if 0 <= idx < len(data["players"]):
-                                    nominated_ids.append(data["players"][idx]["id"])  # Реальный id игрока
+                                    nominated_ids.append(data["players"][idx]["id"])
                             except ValueError:
                                 continue
-                        # Теперь nominated_ids содержит реальные id (str), как в player_roles
+
                         mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(str(nid), "") in ["мафия", "дон"])
                         bonus = 0.0
                         if mafia_don_count == 3:
@@ -1482,12 +1472,11 @@ async def get_player_stats(
                         elif mafia_don_count == 1:
                             bonus = 0.0
                         player_totals[player_key]["total_best_move_bonus"] += bonus
-                        # Добавлено: плюсы по роли для best_move_bonus
                         if english_role and bonus > 0:
                             player_totals[player_key]["role_plus"][english_role].append(bonus)
                         if mafia_don_count >= 1:
                             has_black_in_best_move = True
-                        # Упрощение: если есть best_move, считаем что игрок умер, и считаем mafia_don_count среди nominated_ids
+
                         player_totals[player_key]["deaths"] += 1
                         if mafia_don_count == 1:
                             player_totals[player_key]["deathsWith1Black"] += 1
@@ -1497,19 +1486,19 @@ async def get_player_stats(
                             player_totals[player_key]["deathsWith3Black"] += 1
                     except ValueError:
                         continue
-                
+
                 sk_count = p.get("sk", 0)
                 if isinstance(sk_count, (int, float)) and sk_count > 0:
                     player_totals[player_key]["sk_count"] += int(sk_count)
                     player_totals[player_key]["total_minus"] += -0.5 * sk_count
-                
+
                 jk_count = p.get("jk", 0)
                 if isinstance(jk_count, (int, float)) and jk_count > 0:
                     player_totals[player_key]["jk_count"] += int(jk_count)
-                
+
                 if has_black_in_best_move:
                     player_totals[player_key]["bestMovesWithBlack"] += 1
-        
+
         except json.JSONDecodeError:
             continue
 
@@ -1521,45 +1510,39 @@ async def get_player_stats(
         total_plus = details["total_plus_only"]
         total_best_move_bonus = details["total_best_move_bonus"]
         total_minus = details["total_minus"]
-        
+
         m = details["jk_count"]
         cy = 0.5 * m * (m + 1) if m > 0 else 0.0
         total_minus += -cy
-        
+
         total_bonus = total_plus + total_best_move_bonus + total_minus
-        
+
         x = details["bestMovesWithBlack"]
         n = details["games_count"]
         ci = calculate_ci(x, n)
-        
-        # Штрафы отдельно
+
         total_sk_penalty = 0.5 * details["sk_count"]
         total_jk_penalty = cy
-        
-        # Общее количество побед
         total_wins = sum(details["wins"].values())
-        
-        # Изменение: добавляем +2.5 за каждую победу и +ci к total_bonus
+
         total_bonus += 2.5 * total_wins + ci
-        
-        # Преобразуем defaultdict в обычные dict для JSON
+
         wins = dict(details["wins"])
         gamesPlayed = dict(details["gamesPlayed"])
-        role_plus = {k: [float(v) for v in val] for k, val in details["role_plus"].items()}  # float для JSON
-        
+        role_plus = {k: [float(v) for v in val] for k, val in details["role_plus"].items()}
+
         response_players.append({
-            "id": details["user_id"],  # Для handlePlayerClick (str или int)
+            "id": details["user_id"],
             "name": details["name"],
-            "nickname": details["name"],  # На случай, если компонент использует nickname
+            "nickname": details["name"],
             "totalPoints": round(total_bonus, 2),
             "wins": wins,
             "gamesPlayed": gamesPlayed,
             "role_plus": role_plus,
-            "totalCi": round(ci, 2),  # Предполагаем, что totalCi - это ci
-            "totalCb": round(total_best_move_bonus, 2),  # Предполагаем, что totalCb - best_move_bonus
+            "totalCi": round(ci, 2),
+            "totalCb": round(total_best_move_bonus, 2),
             "total_sk_penalty": round(total_sk_penalty, 2),
             "total_jk_penalty": round(total_jk_penalty, 2),
-            # Новые поля
             "deaths": details["deaths"],
             "deathsWith1Black": details["deathsWith1Black"],
             "deathsWith2Black": details["deathsWith2Black"],
@@ -1573,8 +1556,6 @@ async def get_player_stats(
         "event_id": event_id,
         "total_games": len(games)
     }
-
-
 
 
 @router.post("/event/{event_id}/avatar")
