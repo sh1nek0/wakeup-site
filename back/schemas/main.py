@@ -105,7 +105,7 @@ class Event(BaseModel):
     id: str = Field(..., description="Идентификатор события")
     title: str = Field(..., description="Название события")
     dates: List[datetime] = Field(..., description="Список дат проведения события")
-    location: str = Field(..., description="Локация события")
+    location: Optional[str] = Field(..., description="Локация события")
     type: str = Field(..., description="Тип события")
     participants_limit: int = Field(..., description="Максимальное количество участников")
     participants_count: int = Field(0, description="Текущее количество участников")

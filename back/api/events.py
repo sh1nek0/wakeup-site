@@ -29,6 +29,7 @@ from db.models import Event, Team, Registration, User, Notification, Game
 from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
 from api.notifications import create_notification
 from collections import defaultdict
+from typing import Optional
 
 router = APIRouter()
 
@@ -1323,7 +1324,7 @@ def calculate_ci(x: int, n: int) -> float:
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
     event_id: str,
-    location: str | None = Query(default=None),
+    location: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
     # Получаем игры
