@@ -535,6 +535,31 @@
 .redText{ color:#ff5a5a; }
 .blackText{ color:#000; }
 
+.btnWrap{
+  display: flex;
+  gap: 10px;
+}
+
+.thInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thIcon {
+  line-height: 1;
+}
+
+.thLabel {
+  line-height: 1;
+}
+
+.thArrow {
+  margin-left: 6px;
+}
+
+
+
 /* =========================
    МОДАЛКИ / УВЕДОМЛЕНИЯ
    ========================= */
@@ -676,6 +701,18 @@
   }
   .tabBtn{
     font-size: 10px;
+  }
+  .pageBtn{
+    padding: 2px 3px;
+    min-width: 30px;
+  }
+
+  .pageArrow{
+    padding: 2px 3px;
+  }
+
+  .pagination{
+    gap:5px
   }
 
 

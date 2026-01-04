@@ -1277,11 +1277,6 @@ const toggleSpeechDetection = () => {
 };
 
 
-
-
-
-
-
   return (
     <>
       {serverUnavailable && (

@@ -11,6 +11,8 @@ from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from core.config import AVATAR_DIR
 import logging
+from sqlalchemy import distinct, func, or_
+
 
 logger = logging.getLogger(__name__)
 
@@ -1334,7 +1336,9 @@ async def get_player_stats(
         query = db.query(Game).filter(Game.event_id == event_id)
     
     if location:
-        query = query.filter(Game.location == location)
+        loc_expr = func.trim(func.json_extract(Game.data, "$.location"), '"')
+        query = query.filter(loc_expr == location)
+
     
     games = query.all()
     if not games:
@@ -1604,3 +1608,36 @@ async def upload_event_avatar(
     return {"message": "Аватар события успешно загружен", "url": event.avatar}
 
 
+@router.get("/events/{event_id}/location")
+async def get_location(event_id: str, db: Session = Depends(get_db)):
+    # валидируем событие, если это не "1"
+    if event_id != "1":
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Событие не найдено.")
+
+    # строим фильтр
+    base_filter = (
+        or_(Game.event_id == event_id, Game.event_id.is_(None))
+        if event_id == "1"
+        else (Game.event_id == event_id)
+    )
+
+    rows = (
+        db.query(
+            distinct(func.json_extract(Game.data, "$.location")).label("location")
+        )
+        .filter(base_filter)   
+        .all()
+    )
+
+    locations = []
+    for r in rows:
+        loc = r.location
+        if loc in (None, "", "null"):
+            continue
+        if isinstance(loc, str):
+            loc = loc.strip('"')
+        locations.append(loc)
+
+    return {"event_id": event_id, "locations": locations}
