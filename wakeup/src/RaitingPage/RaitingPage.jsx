@@ -695,7 +695,6 @@ function DetailedStatsTable({
   const abortRef = useRef(null);
   const reqIdRef = useRef(0);
 
-  // ✅ все колонки (я вернул базовые + роли, чтобы НЕ падало и работали фильтры/сортировки/видимость)
   const allColumns = useMemo(
     () => [
       // base
@@ -747,7 +746,6 @@ function DetailedStatsTable({
     [isSolo]
   );
 
-  // ✅ безопасные геттеры — чтобы НИКОГДА не падало на .label/.title/.icon
   const getCol = (key) => allColumns.find((c) => c.key === key);
   const getLabel = (key) => getCol(key)?.label ?? key;
   const getTitle = (key) => getCol(key)?.title ?? key;
@@ -788,7 +786,6 @@ function DetailedStatsTable({
       }
       return changed ? next : prev;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allColumns]);
 
   const [filters, setFilters] = useState(() => {
@@ -1628,7 +1625,7 @@ function DetailedStatsTable({
       {totalPagesCalculated > 1 && (
         <div className={styles.pagination}>
           <button onClick={() => onPageChange?.(currentPage - 1)} disabled={currentPage === 1} className={styles.pageBtn} type="button">
-            &lt;
+            ‹
           </button>
           {renderPagination()}
           <button
@@ -1637,7 +1634,7 @@ function DetailedStatsTable({
             className={styles.pageBtn}
             type="button"
           >
-            &gt;
+            ›
           </button>
         </div>
       )}

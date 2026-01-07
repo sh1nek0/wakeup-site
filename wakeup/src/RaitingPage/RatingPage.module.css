@@ -674,6 +674,22 @@
   .heroTitle{
     font-size: 15px;
   }
+
+    .tabBtn{
+    font-size: 10px;
+  }
+  .pageBtn{
+    padding: 2px 3px;
+    min-width: 30px;
+  }
+
+  .pageArrow{
+    padding: 2px 3px;
+  }
+
+  .pagination{
+    gap:5px
+  }
   
 }
 

@@ -254,4 +254,21 @@
   .leftBlock { clip-path: none; padding: 14px 14px 10px; }
   .rightBlock { clip-path: none; height: 180px; flex-basis: auto; }
   .orangeStripe { display: none; }
+  
+  .tabBtn{
+    font-size: 10px;
+  }
+  .pageBtn{
+    padding: 2px 3px;
+    min-width: 30px;
+  }
+
+  .pageArrow{
+    padding: 2px 3px;
+  }
+
+  .pagination{
+    gap:5px
+  }
+
 }

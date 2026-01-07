@@ -41,6 +41,7 @@ app.include_router(notifications.router)
 # -------------------- STATIC FILES --------------------
 app.mount("/data", StaticFiles(directory="data"), name="data")
 
+
 # -------------------- BACKUP LOGIC --------------------
 def backup_database():
     if not DATABASE_URL.startswith("sqlite:///"):
