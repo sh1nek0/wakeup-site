@@ -1135,9 +1135,10 @@ useEffect(() => {
 
     if (currentPhase === "nominating") {
       setCurrentPhase("voting");
+
     } else if (currentPhase === "voting") {
       setCurrentPhase("shooting");
-     
+     switchScene("Ночь")
     } else if (currentPhase === "shooting") {
       setCurrentPhase("don");
     } else if (currentPhase === "don") {
@@ -1146,6 +1147,7 @@ useEffect(() => {
       if (currentIndex < days.length - 1) {
         setCurrentDay(days[currentIndex + 1]);
         setCurrentPhase("nominating");
+        switchScene("День")
         
       }
     }
@@ -1165,7 +1167,7 @@ useEffect(() => {
       setCurrentPhase("sheriff");
     } else if (currentPhase === "shooting") {
       setCurrentPhase("voting");
-     switchScene("Ночь")
+      switchScene("День")
     } else if (currentPhase === "voting") {
       setCurrentPhase("nominating");
      
