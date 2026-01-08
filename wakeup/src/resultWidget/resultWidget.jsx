@@ -93,6 +93,54 @@ if (!event || !game) {
     }
   }, [gameData]);
 
+    // === Загрузка gameState с сервера (как в gameWidget) ===
+  useEffect(() => {
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+
+    // gameId может быть:
+    // - game_XXXX
+    // - event_XXXX_YYYY
+    // - просто число
+    const gameId =
+      pathParts.find((p) => /^game_[A-Za-z0-9_]+$/.test(p)) ||
+      pathParts.find((p) => /^event_[A-Za-z0-9]+_[A-Za-z0-9_]+$/.test(p)) ||
+      pathParts.find((p) => /^\d+$/.test(p));
+
+    if (!gameId) {
+      console.error("Не удалось определить gameId из URL", { pathParts });
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const load = async () => {
+      try {
+        const url = `/api/gameState?gameId=${encodeURIComponent(gameId)}`;
+        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const parsed = await res.json();
+
+        // чтобы не было лишних ререндеров
+        setGameData((prev) =>
+          JSON.stringify(prev) !== JSON.stringify(parsed) ? parsed : prev
+        );
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          console.error("Ошибка загрузки gameState:", err);
+        }
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 1000);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, []);
+
+
   // === Вычисления внутри useMemo — вызываются всегда ===
   const rows = useMemo(() => {
     if (!gameData || !gameData.players) return [];
