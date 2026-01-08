@@ -41,6 +41,7 @@ app.include_router(notifications.router)
 app.include_router(ws_agent.router)
 
 
+
 # -------------------- STATIC FILES --------------------
 app.mount("/data", StaticFiles(directory="data"), name="data")
 

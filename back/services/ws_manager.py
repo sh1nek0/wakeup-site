@@ -1,8 +1,8 @@
+# services/ws_manager.py
+import asyncio
 from dataclasses import dataclass
 from typing import Dict, Optional
-import asyncio
 from fastapi import WebSocket
-
 
 @dataclass
 class AgentConnection:
@@ -11,32 +11,44 @@ class AgentConnection:
     nickname: str
     client_id: str
 
+@dataclass
+class ControlConnection:
+    websocket: WebSocket
+    user_id: str
+    nickname: str
+    control_id: str
 
 class WSAgentManager:
     def __init__(self):
-        self._agents: Dict[str, AgentConnection] = {}
+        self._agents: Dict[str, AgentConnection] = {}   # client_id -> agent
+        self._controls: Dict[str, ControlConnection] = {}  # control_id -> control
         self._lock = asyncio.Lock()
 
-    async def connect(self, conn: AgentConnection):
+    async def connect_agent(self, conn: AgentConnection):
         async with self._lock:
             self._agents[conn.client_id] = conn
 
-    async def disconnect(self, client_id: str):
+    async def disconnect_agent(self, client_id: str):
         async with self._lock:
             self._agents.pop(client_id, None)
 
-    async def send(self, client_id: str, payload: dict) -> bool:
+    async def connect_control(self, conn: ControlConnection):
         async with self._lock:
-            agent = self._agents.get(client_id)
-        if not agent:
-            return False
+            self._controls[conn.control_id] = conn
 
-        await agent.websocket.send_json(payload)
-        return True
+    async def disconnect_control(self, control_id: str):
+        async with self._lock:
+            self._controls.pop(control_id, None)
+
+    async def get_agent(self, client_id: str) -> Optional[AgentConnection]:
+        async with self._lock:
+            return self._agents.get(client_id)
 
     async def list_agents(self):
         async with self._lock:
-            return list(self._agents.keys())
-
+            return [
+                {"clientId": a.client_id, "nickname": a.nickname, "userId": a.user_id}
+                for a in self._agents.values()
+            ]
 
 ws_agent_manager = WSAgentManager()
