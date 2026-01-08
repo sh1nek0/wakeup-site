@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext, useRef, useLayoutEffect } from 
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import styles from "./GamePage.module.css";
 import { AuthContext } from "../AuthContext";
-import OBSWebSocket from "obs-websocket-js";
 import SuggestionInput from "../components/SuggestionInput/SuggestionInput";
 
 /* ==========================
@@ -318,6 +317,98 @@ const Game = () => {
   const mode = queryParams.get("mode");
   const isReadOnly = !isAdmin || mode === "view";
 
+  const controlWsRef = useRef(null);
+const [controlConnected, setControlConnected] = useState(false);
+const [agents, setAgents] = useState([]);
+const [selectedAgentId, setSelectedAgentId] = useState("");
+const [obsHost, setObsHost] = useState("127.0.0.1");
+const [obsPort, setObsPort] = useState("4455");
+const [obsPass, setObsPass] = useState("");
+const [obsStatus, setObsStatus] = useState(""); // строка статуса для UI
+
+const makeReqId = () =>
+  (window.crypto?.randomUUID?.() || String(Date.now()) + "_" + Math.random());
+
+const buildControlWsUrl = () => {
+  // чтобы работало и на проде и локально:
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  const host = window.location.host;
+  return `${proto}://${host}/ws/control?token=${encodeURIComponent(token || "")}`;
+};
+
+const controlSend = (obj) => {
+  const ws = controlWsRef.current;
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify(obj));
+};
+
+const listAgents = () => {
+  controlSend({ type: "list_agents", reqId: makeReqId() });
+};
+
+const sendToAgent = (clientId, payload) => {
+  controlSend({ type: "send", reqId: makeReqId(), clientId, payload });
+};
+
+// Подключение к /ws/control
+useEffect(() => {
+  if (!isAdmin || !token) return;
+
+  const wsUrl = buildControlWsUrl();
+  const ws = new WebSocket(wsUrl);
+  controlWsRef.current = ws;
+
+  ws.onopen = () => {
+    setControlConnected(true);
+    setObsStatus("✅ CONTROL WS connected");
+    // сразу загрузим агентов
+    listAgents();
+  };
+
+  ws.onclose = () => {
+    setControlConnected(false);
+    setObsStatus("🔌 CONTROL WS disconnected");
+  };
+
+  ws.onerror = () => {
+    setControlConnected(false);
+    setObsStatus("❌ CONTROL WS error");
+  };
+
+  ws.onmessage = (e) => {
+    let msg = null;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === "list_agents_ok") {
+      setAgents(Array.isArray(msg.agents) ? msg.agents : []);
+      // если агент ещё не выбран — выберем первого
+      const first = msg.agents?.[0]?.clientId;
+      if (!selectedAgentId && first) setSelectedAgentId(first);
+      return;
+    }
+
+    // сюда прилетят ответы от агента, если ты на сервере их пробрасываешь в control
+    if (msg.type === "agent_event") {
+      // пример: {type:"agent_event", clientId:"pc-1", payload:{type:"connect_obs_ok"...}}
+      const p = msg.payload || {};
+      if (p.type === "connect_obs_ok") setObsStatus("✅ OBS connected on agent");
+      if (p.type === "connect_obs_error") setObsStatus("❌ OBS connect error: " + (p.error || ""));
+      if (p.type === "set_scene_ok") setObsStatus("✅ Scene switched");
+      if (p.type === "set_scene_error") setObsStatus("❌ Scene error: " + (p.error || ""));
+      return;
+    }
+
+    // fallback
+    // console.log("CONTROL MSG", msg);
+  };
+
+  return () => {
+    try { ws.close(); } catch {}
+    controlWsRef.current = null;
+  };
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isAdmin, token]);
+
   const roles = ["мирный", "мафия", "дон", "шериф"];
   const locations = ["МИЭТ", "МФТИ"];
 
@@ -444,6 +535,22 @@ const Game = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  const switchScene = async (sceneName) => {
+  if (!isAdmin || isReadOnly) return;
+  if (!selectedAgentId) {
+    console.warn("Нет выбранного агента");
+    return;
+  }
+
+  // отправляем команду агенту
+  sendToAgent(selectedAgentId, {
+    type: "set_scene",
+    reqId: makeReqId(),
+    payload: { sceneName },
+  });
+}
+
   useLayoutEffect(() => {
     recalcTabHeight();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -519,98 +626,7 @@ const Game = () => {
   // LocalStorage helpers
   const getLocalStorageKey = () => `gameData-${eventId}-${gameId}`;
 
-  // OBS
-  const [obsAddress, setObsAddress] = useState("");
-  const [obsPassword, setObsPassword] = useState("");
-  const obsRef = useRef(null);
-  const connectToOBS = useRef(null);
 
-  const attemptConnectOBS = async (address, password) => {
-    if (!address || !password) {
-      if (obsRef.current) {
-        try {
-          await obsRef.current.disconnect();
-          console.log("🔌 Отключено от OBS");
-        } catch (err) {
-          console.error("Ошибка отключения от OBS:", err);
-        }
-        obsRef.current = null;
-      }
-      return;
-    }
-
-    if (obsRef.current) {
-      try {
-        await obsRef.current.disconnect();
-      } catch (err) {
-        // ignore
-      }
-    }
-
-    let fullAddress = address.trim();
-    if (!fullAddress.startsWith("ws://") && !fullAddress.startsWith("wss://")) {
-      fullAddress = "ws://" + fullAddress;
-    }
-
-    const obs = new OBSWebSocket();
-    obsRef.current = obs;
-
-    try {
-      await obs.connect(fullAddress, password);
-      console.log("✅ Подключено к OBS:", fullAddress);
-    } catch (err) {
-      console.error("Ошибка подключения к OBS:", err);
-      obsRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (connectToOBS.current) clearTimeout(connectToOBS.current);
-    connectToOBS.current = setTimeout(() => {
-      attemptConnectOBS(obsAddress, obsPassword);
-    }, 500);
-
-    return () => {
-      if (connectToOBS.current) clearTimeout(connectToOBS.current);
-    };
-  }, [obsAddress, obsPassword]);
-
-  useEffect(() => {
-    return () => {
-      if (obsRef.current) obsRef.current.disconnect().catch(console.error);
-    };
-  }, []);
-
-  const switchScene = async (sceneName) => {
-    if (!obsRef.current) {
-      console.warn("OBS не инициализирован, невозможно переключить сцену");
-      return;
-    }
-
-    try {
-      if (!obsRef.current.identified) {
-        const address = obsAddress;
-        const password = obsPassword;
-        if (!address || !password) {
-          console.warn("Адрес или пароль OBS не указаны, невозможно подключиться");
-          return;
-        }
-
-        let fullAddress = address.trim();
-        if (!fullAddress.startsWith("ws://") && !fullAddress.startsWith("wss://")) {
-          fullAddress = "ws://" + fullAddress;
-        }
-
-        await obsRef.current.connect(fullAddress, password);
-        console.log("✅ Подключено к OBS для переключения сцены:", fullAddress);
-      }
-
-      await obsRef.current.call("SetCurrentProgramScene", { sceneName });
-      console.log(`✅ Сцена переключена на "${sceneName}"`);
-    } catch (err) {
-      console.error(`❌ Ошибка переключения сцены на "${sceneName}":`, err);
-    }
-  };
 
   // Speech recognition
   const [isDetecting, setIsDetecting] = useState(false);
@@ -1121,7 +1137,7 @@ const Game = () => {
       setCurrentPhase("voting");
     } else if (currentPhase === "voting") {
       setCurrentPhase("shooting");
-      switchScene("Ночь");
+     
     } else if (currentPhase === "shooting") {
       setCurrentPhase("don");
     } else if (currentPhase === "don") {
@@ -1130,7 +1146,7 @@ const Game = () => {
       if (currentIndex < days.length - 1) {
         setCurrentDay(days[currentIndex + 1]);
         setCurrentPhase("nominating");
-        switchScene("День");
+        
       }
     }
   };
@@ -1149,10 +1165,10 @@ const Game = () => {
       setCurrentPhase("sheriff");
     } else if (currentPhase === "shooting") {
       setCurrentPhase("voting");
-      switchScene("День");
+     switchScene("Ночь")
     } else if (currentPhase === "voting") {
       setCurrentPhase("nominating");
-      switchScene("Ночь");
+     
     }
   };
 
@@ -1349,6 +1365,7 @@ const Game = () => {
       const nextIndex = days.indexOf(currentDay) + 1;
       if (nextIndex < days.length) setCurrentDay(days[nextIndex]);
       setCurrentPhase("nominating");
+
     }
   };
 
@@ -1576,25 +1593,94 @@ const Game = () => {
                 >
                   {isDetecting ? "🛑 Завершить детекцию" : "🎙 Начать детекцию"}
                 </button>
-
                 <div className={styles.obsInputsContainer}>
-                  <input
-                    type="text"
-                    value={obsAddress}
-                    onChange={(e) => setObsAddress(e.target.value)}
-                    placeholder="Адрес OBS (ws://127.0.0.1:4455)"
-                    disabled={isPenaltyTime || isReadOnly}
-                    className={styles.obsInput}
-                  />
-                  <input
-                    type="password"
-                    value={obsPassword}
-                    onChange={(e) => setObsPassword(e.target.value)}
-                    placeholder="Пароль OBS"
-                    disabled={isPenaltyTime || isReadOnly}
-                    className={styles.obsInput}
-                  />
-                </div>
+  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+    <span style={{ fontSize: 12, opacity: 0.8 }}>
+      Control: {controlConnected ? "online" : "offline"}
+    </span>
+
+    <button
+      type="button"
+      className={styles.clearBtn}
+      onClick={listAgents}
+      disabled={!controlConnected}
+    >
+      Обновить агентов
+    </button>
+
+    <select
+      value={selectedAgentId}
+      onChange={(e) => setSelectedAgentId(e.target.value)}
+      style={{ padding: 6, borderRadius: 6 }}
+    >
+      <option value="">— агент —</option>
+      {agents.map((a) => (
+        <option key={a.clientId} value={a.clientId}>
+          {a.clientId} ({a.nickname})
+        </option>
+      ))}
+    </select>
+  </div>
+
+  <div style={{ gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+    <input
+      type="text"
+      value={obsHost}
+      onChange={(e) => setObsHost(e.target.value)}
+      placeholder="OBS host (127.0.0.1)"
+      className={styles.obsInput}
+    />
+    <input
+      type="number"
+      value={obsPort}
+      onChange={(e) => setObsPort(e.target.value)}
+      placeholder="4455"
+      className={styles.obsInput}
+    />
+    <input
+      type="password"
+      value={obsPass}
+      onChange={(e) => setObsPass(e.target.value)}
+      placeholder="OBS password"
+      className={styles.obsInput}
+    />
+
+    <button
+      type="button"
+      className={styles.clearBtn}
+      onClick={() => {
+        sendToAgent(selectedAgentId, {
+          type: "connect_obs",
+          reqId: makeReqId(),
+          payload: { host: obsHost, port: Number(obsPort || 4455), password: obsPass }
+        });
+        setObsStatus("⏳ connecting OBS...");
+      }}
+    >
+      Connect OBS
+    </button>
+
+    <button
+      type="button"
+      className={styles.clearBtn}
+      onClick={() => {
+        sendToAgent(selectedAgentId, { type: "disconnect_obs", reqId: makeReqId() });
+        setObsStatus("🔌 disconnecting OBS...");
+      }}
+    >
+      Disconnect OBS
+    </button>
+  </div>
+
+  {obsStatus && (
+    <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9 }}>
+      {obsStatus}
+    </div>
+  )}
+</div>
+
+
+                
               </>
             )}
           </div>
