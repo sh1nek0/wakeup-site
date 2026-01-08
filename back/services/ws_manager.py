@@ -20,10 +20,18 @@ class ControlConnection:
 
 class WSAgentManager:
     def __init__(self):
-        self._agents: Dict[str, AgentConnection] = {}   # client_id -> agent
-        self._controls: Dict[str, ControlConnection] = {}  # control_id -> control
+        self._agents: Dict[str, AgentConnection] = {}
+        self._controls: Dict[str, ControlConnection] = {}
         self._lock = asyncio.Lock()
 
+    # --- алиасы под роутер ---
+    async def connect(self, conn: AgentConnection):
+        return await self.connect_agent(conn)
+
+    async def disconnect(self, client_id: str):
+        return await self.disconnect_agent(client_id)
+
+    # --- твои методы ---
     async def connect_agent(self, conn: AgentConnection):
         async with self._lock:
             self._agents[conn.client_id] = conn
