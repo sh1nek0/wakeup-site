@@ -1605,7 +1605,7 @@ useEffect(() => {
                   {isDetecting ? "🛑 Завершить детекцию" : "🎙 Начать детекцию"}
                 </button>
                 <div className={styles.obsInputsContainer}>
-  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+  
     <span style={{ fontSize: 12, opacity: 0.8 }}>
       Control: {controlConnected ? "online" : "offline"}
     </span>
@@ -1616,7 +1616,7 @@ useEffect(() => {
       onClick={listAgents}
       disabled={!controlConnected}
     >
-      Обновить агентов
+      🔃 Агенты
     </button>
 
     <select
@@ -1633,7 +1633,7 @@ useEffect(() => {
     </select>
   </div>
 
-  <div style={{ gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+  
     <input
       type="text"
       value={obsHost}
@@ -1675,7 +1675,6 @@ useEffect(() => {
             port: Number(obsPort || 4455),
             password: obsPass,
 
-            // 👇 НОВОЕ: URL-ы для браузер-сцен
             DAY_BROWSER_URL: `${baseUrl}/gameWidget`,
             NIGHT_BROWSER_URL: `${baseUrl}/gameWidget`,
             SUMMARY_GAME_URL: `${baseUrl}/resultWidget`,
@@ -1700,14 +1699,14 @@ useEffect(() => {
     >
       Disconnect OBS
     </button>
-  </div>
+  
 
   {obsStatus && (
     <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9 }}>
       {obsStatus}
     </div>
   )}
-</div>
+
 
 
                 

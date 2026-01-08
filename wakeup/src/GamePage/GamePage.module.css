@@ -90,6 +90,7 @@ body {
   border-radius: 8px;
   padding: 4px 8px;
   grid-column: span 2; /* Занимает две ячейки грида */
+  max-height: 38px;
 }
 .breakdownControl .roleDropdown {
   flex-grow: 1; /* Дропдаун занимает доступное место */
