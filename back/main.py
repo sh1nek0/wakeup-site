@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from api import auth, games, users, events, notifications
+from api import ws_agent
 from db.base import DATABASE_URL, Base, engine, SessionLocal
 
 
@@ -37,6 +38,8 @@ app.include_router(games.router)
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(notifications.router)
+app.include_router(ws_agent.router)
+
 
 # -------------------- STATIC FILES --------------------
 app.mount("/data", StaticFiles(directory="data"), name="data")

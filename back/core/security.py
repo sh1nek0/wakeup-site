@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Depends, HTTPException
+from fastapi import WebSocketException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -67,3 +68,38 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def ws_get_current_user(token: str):
+    if not token:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Not authenticated"
+        )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        nickname: str = payload.get("sub")
+        if nickname is None:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Invalid authentication credentials"
+            )
+    except JWTError:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Invalid authentication credentials"
+        )
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.nickname == nickname).first()
+    finally:
+        db.close()
+
+    if not user:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="User not found"
+        )
+
+    return user
