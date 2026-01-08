@@ -6,14 +6,12 @@ body {
 /* === Контейнер таблицы === */
 .tableWrapper {
   position: relative;
-  width: 95%;
-  max-width: 1100px;
+  max-width: 1500px;
   margin: 40px auto;
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 10px;
   box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
-  padding: 20px 30px;
   overflow-x: auto;
 }
 
@@ -79,7 +77,7 @@ body {
   font-weight: 800;
   font-size: 16px;
   color: #4fff88;
-  text-shadow: 0 0 6px rgba(79, 255, 136, 0.6);
+ 
 }
 
 /* === Негативные значения — красным === */
@@ -94,10 +92,10 @@ body {
 }
 
 .role мирный {
-  color: #ffb700;
+  color:#ff4444 ;
 }
 .role мафия {
-  color: #ff4444;
+  color: #ffb700;
 }
 .role дон {
   color: #9b59b6;

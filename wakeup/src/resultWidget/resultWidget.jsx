@@ -5,13 +5,13 @@ import defaultAvatar from "../NavBar/avatar.png";
 const getRoleColor = (role) => {
   switch ((role || "").toLowerCase()) {
     case "мирный":
-      return { color: "#FFD700" };
+      return { color: "#ff4444" };
     case "мафия":
       return { color: "#00FFFF" };
     case "дон":
       return { color: "#B266FF" };
     case "шериф":
-      return { color: "#FF0000" };
+      return { color: "#ffb700" };
     default:
       return { color: "#ccc" };
   }
