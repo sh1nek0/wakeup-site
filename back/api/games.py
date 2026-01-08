@@ -93,12 +93,14 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
         game_info["tableNumber"] = data.tableNumber
 
     game_json = json.dumps({
-        "players": data.players,
-        "fouls": data.fouls,
-        "gameInfo": game_info,
-        "badgeColor": data.badgeColor,
-        "location": data.location
-    }, ensure_ascii=False)
+    "players": data.players,
+    "fouls": data.fouls,
+    "gameInfo": game_info,
+    "currentDay": data.currentDay,
+    "currentPhase": data.currentPhase,
+    "badgeColor": data.badgeColor,
+    "location": data.location
+}, ensure_ascii=False)
 
     if existing_game:
         existing_game.data = game_json
@@ -481,3 +483,14 @@ async def get_player_games(nickname: str, db: Session = Depends(get_db)):
             continue
 
     return {"games": player_games_list}
+
+@router.get("/gameState")
+async def get_game_state(gameId: str, db: Session = Depends(get_db)):
+    game = db.query(Game).filter(Game.gameId == gameId).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    try:
+        return json.loads(game.data)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Corrupted game data")

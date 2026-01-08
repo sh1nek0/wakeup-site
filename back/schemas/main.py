@@ -12,6 +12,10 @@ class SaveGameData(BaseModel):
     location: Optional[str] = Field(None, description="Локация игры")
     tableNumber: Optional[int] = Field(None, description="Номер стола")
 
+    # ✅ ОПЦИОНАЛЬНЫЕ
+    currentDay: Optional[str] = Field(None, description="Текущий день игры")
+    currentPhase: Optional[str] = Field(None, description="Текущая фаза игры")
+
 class DeleteGameRequest(BaseModel):
     admin_nickname: str = Field(..., description="Никнейм админа для аутентификации")
     admin_password: str = Field(..., description="Пароль админа для аутентификации")

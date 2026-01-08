@@ -116,8 +116,7 @@ export default function EventsPage() {
     const mapped = (eventsRaw || []).map((event) => {
       const dates = Array.isArray(event?.dates) ? event.dates : [];
 
-      // берём "самую раннюю" дату для range (если тебе реально нужна earliest)
-      // но для сортировки "новые -> старые" логичнее брать самую позднюю дату события
+ 
       const earliestStr = dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : null;
       const latestStr = dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null;
 
