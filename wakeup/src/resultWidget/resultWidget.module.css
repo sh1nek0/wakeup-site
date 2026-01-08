@@ -6,7 +6,7 @@ body {
 /* === Контейнер таблицы === */
 .tableWrapper {
   position: relative;
-  max-width: 1500px;
+  max-width: 1800px;
   margin: 60px auto;
   background: #1a1a1a;
   border: 1px solid #333;
