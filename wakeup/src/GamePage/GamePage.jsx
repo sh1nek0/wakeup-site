@@ -336,6 +336,15 @@ const buildControlWsUrl = () => {
   return `${proto}://${host}/ws/control?token=${encodeURIComponent(token || "")}`;
 };
 
+const getBaseUrl = () => {
+  // текущий origin: https://site.com или http://localhost:3000
+  const origin = window.location.origin;
+  // путь до страницы игры (чтобы были eventId/gameId)
+  // Пример: /Event/123/Game/456
+  const basePath = `/Event/${eventId}/Game/${gameId}`;
+  return origin + basePath;
+};
+
 const controlSend = (obj) => {
   const ws = controlWsRef.current;
   if (!ws || ws.readyState !== 1) return;
@@ -1138,7 +1147,7 @@ useEffect(() => {
 
     } else if (currentPhase === "voting") {
       setCurrentPhase("shooting");
-     switchScene("Ночь")
+      switchScene("Ночь")
     } else if (currentPhase === "shooting") {
       setCurrentPhase("don");
     } else if (currentPhase === "don") {
@@ -1651,13 +1660,32 @@ useEffect(() => {
       type="button"
       className={styles.clearBtn}
       onClick={() => {
+        if (!selectedAgentId) {
+          setObsStatus("⚠️ Выбери агента");
+          return;
+        }
+
+        const baseUrl = getBaseUrl();
+
         sendToAgent(selectedAgentId, {
           type: "connect_obs",
           reqId: makeReqId(),
-          payload: { host: obsHost, port: Number(obsPort || 4455), password: obsPass }
+          payload: {
+            host: obsHost,
+            port: Number(obsPort || 4455),
+            password: obsPass,
+
+            // 👇 НОВОЕ: URL-ы для браузер-сцен
+            DAY_BROWSER_URL: `${baseUrl}/gameWidget`,
+            NIGHT_BROWSER_URL: `${baseUrl}/gameWidget`,
+            SUMMARY_GAME_URL: `${baseUrl}/resultWidget`,
+            SUMMARY_TOTAL_URL: `${baseUrl}/resultWidget`,
+          },
         });
+
         setObsStatus("⏳ connecting OBS...");
       }}
+      disabled={!controlConnected}
     >
       Connect OBS
     </button>
