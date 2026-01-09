@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useRef, useCallback  } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import styles from './RatingPage.module.css';
 import defaultAvatar from '../NavBar/avatar.png';
@@ -12,12 +12,36 @@ import GameCard from '../components/GameCard/GameCard';
 
 const tabs = ['ТОП', 'Игры', 'Статистика'];
 
+const TAB_MAP = {
+  top: 'ТОП',
+  games: 'Игры',
+  stats: 'Статистика',
+};
+
+const TAB_TO_QUERY = {
+  'ТОП': 'top',
+  'Игры': 'games',
+  'Статистика': 'stats',
+};
+
+
 export default function RatingPage() {
   const [activeTab, setActiveTab] = useState('ТОП');
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionsVisible, setIsSuggestionsVisible] = useState(false);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+
+  useEffect(() => {
+  const tabFromQuery = searchParams.get('tab');
+
+  if (tabFromQuery && TAB_MAP[tabFromQuery]) {
+    setActiveTab(TAB_MAP[tabFromQuery]);
+  }
+}, [searchParams]);
+
 
   const event_id="1"
 
@@ -379,7 +403,14 @@ export default function RatingPage() {
           {tabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setSearchParams(prev => {
+                  const params = new URLSearchParams(prev);
+                  params.set('tab', TAB_TO_QUERY[tab]);
+                  return params;
+                });
+              }}
               className={`${styles.tabBtn} ${
                 activeTab === tab ? styles.tabActive : ''
               }`}
@@ -1674,7 +1705,7 @@ function DetailedStatsTable({
             className={styles.pageBtn}
             type="button"
           >
-            &gt;
+            
           </button>
         </div>
       )}
