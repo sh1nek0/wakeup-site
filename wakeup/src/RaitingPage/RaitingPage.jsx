@@ -1705,7 +1705,7 @@ function DetailedStatsTable({
             className={styles.pageBtn}
             type="button"
           >
-            
+            ›
           </button>
         </div>
       )}
