@@ -528,7 +528,7 @@
   border:1px solid #2A2A2A; padding:.5rem; text-align:center;
 }
 .detailedStatsTable th{ background:#2A2A2A; color:#fff; font-weight:800; }
-.detailedStatsTable tbody tr{ background:#202020; }
+.detailedStatsTable tbody tr{  }
 .currentUserRow, .expandedRow{ background:#202020; font-size: 15px; }
 .detailedPagination .pageBtn{ font-size:.8rem; padding:.3rem .6rem; }
 
@@ -595,6 +595,16 @@
   font-weight:700; animation:slideIn .3s ease-out;
 }
 @keyframes slideIn{ from{ transform:translateX(100%); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+
+.oddRow {
+  background-color: #202020;
+}
+
+
+.evenRow {
+  background-color: #3a3a3a;
+}
+
 
 .link{ color:#FF7A1A; text-decoration: none; cursor:pointer; }
 .link:hover{ filter:brightness(1.1); text-decoration: underline; }

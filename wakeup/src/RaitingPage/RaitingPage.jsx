@@ -1555,64 +1555,104 @@ function DetailedStatsTable({
           </tr>
         </thead>
 
-        <tbody key={`${currentPage}-${selectedLocation ?? "all"}-${sortConfig.key}-${sortConfig.direction}-${JSON.stringify(filters)}`}>
-          {paginatedData.length > 0 ? (
-            paginatedData.map((player, index) => {
-              const rank = (currentPage - 1) * itemsPerPage + index + 1;
+       <tbody
+        key={`${currentPage}-${selectedLocation ?? "all"}-${sortConfig.key}-${sortConfig.direction}-${JSON.stringify(filters)}`}
+      >
+        {paginatedData.length > 0 ? (
+          paginatedData.map((player, index) => {
+            const rank = (currentPage - 1) * itemsPerPage + index + 1;
 
-              const sheriffBonuses = player?.role_plus?.sheriff || [];
-              const citizenBonuses = player?.role_plus?.citizen || [];
-              const mafiaBonuses = player?.role_plus?.mafia || [];
-              const donBonuses = player?.role_plus?.don || [];
+            const sheriffBonuses = player?.role_plus?.sheriff || [];
+            const citizenBonuses = player?.role_plus?.citizen || [];
+            const mafiaBonuses = player?.role_plus?.mafia || [];
+            const donBonuses = player?.role_plus?.don || [];
 
-              const totalGames = Object.values(player?.gamesPlayed || {}).reduce((sum, val) => sum + (val || 0), 0);
-              const totalWins = Object.values(player?.wins || {}).reduce((sum, val) => sum + (val || 0), 0);
-              const winrate = totalGames > 0 ? `${((totalWins / totalGames) * 100).toFixed(0)}%` : "0%";
+            const totalGames = Object.values(player?.gamesPlayed || {}).reduce(
+              (sum, val) => sum + (val || 0),
+              0
+            );
+            const totalWins = Object.values(player?.wins || {}).reduce(
+              (sum, val) => sum + (val || 0),
+              0
+            );
+            const winrate =
+              totalGames > 0 ? `${((totalWins / totalGames) * 100).toFixed(0)}%` : "0%";
 
-              const bonusesSum = Object.values(player?.role_plus || {}).flat().reduce((sum, val) => sum + (val || 0), 0);
-              const bonusesAvg = totalGames > 0 ? (bonusesSum / totalGames).toFixed(2) : "0.00";
+            const bonusesSum = Object.values(player?.role_plus || {})
+              .flat()
+              .reduce((sum, val) => sum + (val || 0), 0);
+            const bonusesAvg = totalGames > 0 ? (bonusesSum / totalGames).toFixed(2) : "0.00";
 
-              const penaltyTotal = (player?.total_sk_penalty || 0) + (player?.total_jk_penalty || 0);
+            const penaltyTotal = (player?.total_sk_penalty || 0) + (player?.total_jk_penalty || 0);
 
-              const rowKey = player?.id ?? player?.nickname ?? player?.name ?? index;
+            const rowKey = player?.id ?? player?.nickname ?? player?.name ?? index;
 
-              return (
-                <tr key={rowKey}>
-                  {columnVisibility.rank && <td>{rank}</td>}
+            // ✅ Чётность лучше считать по rank, чтобы "зебра" не сбивалась между страницами
+            const rowClass = rank % 2 === 0 ? styles.evenRow : styles.oddRow;
 
-                  {columnVisibility.player && (
-                    <td onClick={() => handlePlayerClick(player?.id)} className={styles.playerCell}>
-                      {player?.name || player?.nickname || "Неизвестно"}
-                    </td>
-                  )}
+            return (
+              <tr key={rowKey} className={rowClass}>
+                {columnVisibility.rank && <td>{rank}</td>}
 
-                  {columnVisibility.totalPoints && <td>{player?.totalPoints || 0}</td>}
-                  {columnVisibility.totalGames && <td>{totalGames}</td>}
-                  {columnVisibility.totalWins && <td>{totalWins}</td>}
-                  {columnVisibility.winrate && <td>{winrate}</td>}
-                  {columnVisibility.bonusesSum && <td>{bonusesSum}</td>}
-                  {columnVisibility.bonusesAvg && <td>{bonusesAvg}</td>}
-                  {columnVisibility.totalCi && <td>{player?.totalCi || 0}</td>}
-                  {columnVisibility.totalCb && <td>{player?.totalCb || 0}</td>}
+                {columnVisibility.player && (
+                  <td onClick={() => handlePlayerClick(player?.id)} className={styles.playerCell}>
+                    {player?.name || player?.nickname || "Неизвестно"}
+                  </td>
+                )}
 
-                  {columnVisibility.penalty && (
-                    <td className={styles.penaltyCell}>{penaltyTotal > 0 ? `-${penaltyTotal}` : 0}</td>
-                  )}
+                {columnVisibility.totalPoints && <td>{player?.totalPoints || 0}</td>}
+                {columnVisibility.totalGames && <td>{totalGames}</td>}
+                {columnVisibility.totalWins && <td>{totalWins}</td>}
+                {columnVisibility.winrate && <td>{winrate}</td>}
+                {columnVisibility.bonusesSum && <td>{bonusesSum}</td>}
+                {columnVisibility.bonusesAvg && <td>{bonusesAvg}</td>}
+                {columnVisibility.totalCi && <td>{player?.totalCi || 0}</td>}
+                {columnVisibility.totalCb && <td>{player?.totalCb || 0}</td>}
 
-                  {columnVisibility.deaths && <td>{player?.deaths || 0}</td>}
-                  {columnVisibility.deathsWith1Black && <td>{player?.deathsWith1Black || 0}</td>}
-                  {columnVisibility.deathsWith2Black && <td>{player?.deathsWith2Black || 0}</td>}
-                  {columnVisibility.deathsWith3Black && <td>{player?.deathsWith3Black || 0}</td>}
+                {columnVisibility.penalty && (
+                  <td className={styles.penaltyCell}>
+                    {penaltyTotal > 0 ? `-${penaltyTotal}` : 0}
+                  </td>
+                )}
 
-                  {/* роли */}
-                  {renderRoleStats(player?.wins?.sheriff || 0, player?.gamesPlayed?.sheriff || 0, sheriffBonuses, styles.roleSheriff, "sheriff")}
-                  {renderRoleStats(player?.wins?.citizen || 0, player?.gamesPlayed?.citizen || 0, citizenBonuses, styles.roleCitizen, "citizen")}
-                  {renderRoleStats(player?.wins?.mafia || 0, player?.gamesPlayed?.mafia || 0, mafiaBonuses, styles.roleMafia, "mafia")}
-                  {renderRoleStats(player?.wins?.don || 0, player?.gamesPlayed?.don || 0, donBonuses, styles.roleDon, "don")}
-                </tr>
-              );
-            })
-          ) : (
+                {columnVisibility.deaths && <td>{player?.deaths || 0}</td>}
+                {columnVisibility.deathsWith1Black && <td>{player?.deathsWith1Black || 0}</td>}
+                {columnVisibility.deathsWith2Black && <td>{player?.deathsWith2Black || 0}</td>}
+                {columnVisibility.deathsWith3Black && <td>{player?.deathsWith3Black || 0}</td>}
+
+                {/* роли */}
+                {renderRoleStats(
+                  player?.wins?.sheriff || 0,
+                  player?.gamesPlayed?.sheriff || 0,
+                  sheriffBonuses,
+                  styles.roleSheriff,
+                  "sheriff"
+                )}
+                {renderRoleStats(
+                  player?.wins?.citizen || 0,
+                  player?.gamesPlayed?.citizen || 0,
+                  citizenBonuses,
+                  styles.roleCitizen,
+                  "citizen"
+                )}
+                {renderRoleStats(
+                  player?.wins?.mafia || 0,
+                  player?.gamesPlayed?.mafia || 0,
+                  mafiaBonuses,
+                  styles.roleMafia,
+                  "mafia"
+                )}
+                {renderRoleStats(
+                  player?.wins?.don || 0,
+                  player?.gamesPlayed?.don || 0,
+                  donBonuses,
+                  styles.roleDon,
+                  "don"
+                )}
+              </tr>
+            );
+          })
+        ) : (
             <tr>
               <td colSpan={allColumns.length} className={styles.noData}>
                 Нет данных для отображения
@@ -1634,7 +1674,7 @@ function DetailedStatsTable({
             className={styles.pageBtn}
             type="button"
           >
-            ›
+            &gt;
           </button>
         </div>
       )}
