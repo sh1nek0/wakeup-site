@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Form, UploadFile, 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 import json
+from collections import defaultdict
 import logging
 import time
 import io
@@ -165,61 +166,89 @@ async def delete_user(
 async def get_player_suggestions(query: str, db: Session = Depends(get_db)):
     return get_player_suggestions_logic(query, db)
 
+
 @router.get("/getRating")
-async def get_rating(limit: int = Query(10, description="Количество элементов на странице"), offset: int = Query(0, description="Смещение для пагинации"), db: Session = Depends(get_db)):
+async def get_rating(
+    limit: int = Query(10, description="Количество элементов на странице"),
+    offset: int = Query(0, description="Смещение для пагинации"),
+    db: Session = Depends(get_db),
+):
     logger = logging.getLogger("uvicorn.error")
-    games = db.query(Game).filter(or_(Game.event_id.is_(None), Game.event_id == '1')).order_by(Game.created_at.asc()).all()
+
+    # Получаем игры
+    games = (
+        db.query(Game)
+        .filter(or_(Game.event_id.is_(None), Game.event_id == "1"))
+        .order_by(Game.created_at.asc())
+        .all()
+    )
+
+    # Получаем статистику по игрокам
+    player_stats = calculate_all_game_points(games, db)
+
+    # Получаем пользователей из базы данных
     raw_users = db.query(User).all()
     users = {u.nickname: u for u in raw_users if u.nickname}
     clubs = {name: u.club for name, u in users.items()}
-    
-    # --- ИЗМЕНЕНИЕ: Используем новую централизованную функцию ---
-    all_points = calculate_all_game_points(games)
-    
-    player_stats = {}
+    user_info = {name: {"user_id": u.id, "avatar": u.avatar} for name, u in users.items()}  # Маппинг user_id и avatar
 
+    # Создаём временный словарь для подсчёта игр по локациям
+    location_counts = defaultdict(lambda: {"МФТИ": 0, "МИЭТ": 0})
+
+    # Перебираем игры и считаем количество игр по локациям для каждого игрока
     for game in games:
         try:
             game_data = json.loads(game.data)
-            location = game_data.get("location", "").lower()
+            location = game_data.get("location", "").lower()  # Извлекаем локацию
 
+            # Перебираем игроков игры
             for player in game_data.get("players", []):
                 name = player.get("name")
-                if not name or not name.strip(): continue
-                
-                user = users.get(name)
-                final_points = all_points.get(name, {}).get(game.gameId, 0)
+                if not name or not name.strip():
+                    continue
 
+                # Если игрока нет в player_stats, пропускаем
                 if name not in player_stats:
-                    player_stats[name] = {
-                        "games": 0, "total_sum": 0,
-                        "user_id": user.id if user else None,
-                        "photo_url": user.avatar if user else None,
-                        "games_miet": 0,
-                        "games_mipt": 0,
-                    }
-                player_stats[name]["games"] += 1
-                player_stats[name]["total_sum"] += final_points
-                
+                    continue
+
+                # Подсчитываем количество игр по локациям
                 if "миэт" in location:
-                    player_stats[name]["games_miet"] += 1
+                    location_counts[name]["МИЭТ"] += 1
                 elif "мфти" in location:
-                    player_stats[name]["games_mipt"] += 1
+                    location_counts[name]["МФТИ"] += 1
 
         except (json.JSONDecodeError, TypeError) as je:
             logger.warning(f"JSON decode error for game {game.gameId}: {je}")
             continue
 
-    rating = [{
-        "name": name, "games": stats["games"], "points": stats["total_sum"],
-        "club": clubs.get(name), "id": stats["user_id"], "photoUrl": stats["photo_url"],
-        "rating_score": stats["total_sum"] / math.sqrt(stats["games"]) if stats["games"] > 0 else 0.0,
-        "games_miet": stats["games_miet"],
-        "games_mipt": stats["games_mipt"],
-    } for name, stats in player_stats.items() if stats["games"] > 0]
+    # Обновляем player_stats на основе подсчитанных данных
+    for name, counts in location_counts.items():
+        if name in player_stats:
+            player_stats[name]["games_miet"] = counts["МИЭТ"]
+            player_stats[name]["games_mipt"] = counts["МФТИ"]
 
+    # Формируем рейтинг игроков
+    rating = [
+        {
+            "name": name,
+            "games": stats["games"],
+            "points": stats["total_sum"],
+            "club": clubs.get(name),
+            "user_id": user_info.get(name, {}).get("user_id"),
+            "photoUrl": user_info.get(name, {}).get("avatar"),
+            "rating_score": stats["total_sum"] / math.sqrt(stats["games"]) if stats["games"] > 0 else 0.0,
+            "games_miet": stats.get("games_miet", 0),  # Получаем количество игр для МИЭТ
+            "games_mipt": stats.get("games_mipt", 0),  # Получаем количество игр для МФТИ
+        }
+        for name, stats in player_stats.items()
+        if stats["games"] > 0  # Только те, у кого есть хотя бы 1 игра
+    ]
+
+    # Сортируем по рейтингам (по убыванию)
     rating.sort(key=lambda x: x["rating_score"], reverse=True)
+
     return {"players": rating[offset: offset + limit], "total_count": len(rating)}
+
 
 @router.get("/getDetailedStats")
 async def get_detailed_stats(
