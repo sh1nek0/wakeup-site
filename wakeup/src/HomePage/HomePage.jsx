@@ -27,8 +27,8 @@ import Dec_prew from "../EventPrew/Dec-main.png";
 
 // Статические данные для UI (картинки, описания). Ссылки будут обновлены динамически.
 const staticTournamentsData = [
-  { id:2, title: "Cyber Couple Cup", desc: "Парный турнир с трехлетней историей проводимый в честь вечной дружбы и сотрудничества между Физтехом и МИЭТом", color: "#1f1f1f", img: CCC_prew, btn_text:"Зарегистрироваться", btn_to:"#" },
-  { id:3, title: "WakeUp.Junior", desc: "Первый шанс для молодых игроков в мафию почувстовать на себе дух соревнования и получить турьерный опыт", color: "#110C07", img: Junior_prew, btn_text:"Скоро регистрация", btn_to:"#"  },
+  { id:2, title: "Cyber Couple Cup", desc: "Парный турнир с трехлетней историей проводимый в честь вечной дружбы и сотрудничества между Физтехом и МИЭТом", color: "#1f1f1f", img: CCC_prew, btn_text:"Увидемся скоро", btn_to:"#" },
+  { id:3, title: "WakeUp.Junior", desc: "Первый шанс для молодых игроков в мафию почувстовать на себе дух соревнования и получить турьерный опыт", color: "#FDA9CA", img: Junior_prew, btn_text:"Зарегистрироваться", btn_to:"/Event/event_2a2b7e0cb6d6"  },
   { id:4, title: "Тематический", desc: "Стилистический турнир в личном зачете, погружающий в атмосферу выбранной темы", color: "#181312ff", img: rockcupImg, btn_text: "Скоро регистрация", btn_to:"#"   },
   { id:5, title: "Турнир десяти", desc: "Традиционный закрытый турнир WakeUp Mafia, претепевший модифиакции прохода", color: "#1a1d1cff", img: Dec_prew, btn_text:"Подробнее", btn_to:"/rating"   },
   { id:6, title: "Break the Silence", desc: "главный турнир года, попасть в который смогут только лучшие игроки сезона", color: "#272232ff", img: btsImg, btn_text:"Подробнее", btn_to:"/BTS"   }
@@ -45,7 +45,6 @@ const HomePage = () => {
   const { isAuthenticated, user, token, login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // ✅ Оборачиваем статические массивы в useMemo
   const staticTournaments = useMemo(() => staticTournamentsData, []);
   const roles = useMemo(() => rolesData, []);
 
