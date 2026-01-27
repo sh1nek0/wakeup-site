@@ -111,13 +111,17 @@ const PlayersListPage = () => {
 
                 <section className={styles.playersGrid}>
                     {paginatedPlayers.map((player) => {
-                        // --- ИЗМЕНЕНИЕ: Логика классов для фона ---
+                        
                         let cardBgClass = '';
                         if (player.club === 'WakeUp | MIET') {
                             cardBgClass = styles.bgMIET;
                         } else if (player.club === 'WakeUp | MIPT') {
                             cardBgClass = styles.bgMIPT;
-                        }
+                        } else if (player.club === 'Misis Mafia') {
+                            cardBgClass = styles.bgMisis;
+                        } else if (player.club === 'Триада Менделеева') {
+                            cardBgClass = styles.bgMend;
+                        } 
 
                         return (
                             // --- ИЗМЕНЕНИЕ: Новая структура карточки ---

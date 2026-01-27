@@ -38,6 +38,7 @@ async def get_users_photos(request: GetUsersPhotosRequest, db: Session = Depends
     
     return {"photos": result}
 
+
 def human_size(n: int) -> str:
     units = ["B", "KB", "MB", "GB"]
     i = 0
@@ -46,6 +47,7 @@ def human_size(n: int) -> str:
         f /= 1024
         i += 1
     return f"{f:.1f} {units[i]}"
+
 
 @router.get("/getUsers")
 async def get_users(event_id: str = None, db: Session = Depends(get_db)):
@@ -63,6 +65,7 @@ async def get_users(event_id: str = None, db: Session = Depends(get_db)):
         "id": user.id, "email": user.email, "nickname": user.nickname,
         "role": user.role, "club": user.club
     } for user in users]}
+
 
 @router.get("/getPlayersList")
 async def get_players_list(db: Session = Depends(get_db)):
@@ -86,6 +89,7 @@ async def get_players_list(db: Session = Depends(get_db)):
     } for user in users]
 
     return {"players": sorted(players_list, key=lambda p: p["game_count"], reverse=True)}
+
 
 @router.get("/getUser/{user_id}")
 async def get_user(user_id: str, db: Session = Depends(get_db)):
@@ -117,7 +121,7 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
     if not user_to_update:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"]
+    valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia","Триада Менделеева"]
     if request.club and request.club not in valid_clubs:
         raise HTTPException(status_code=400, detail="Недопустимое значение клуба")
 
@@ -422,6 +426,7 @@ async def get_detailed_stats(
         "average_points": average_points
     }
 
+
 @router.post("/profile/avatar", response_model=AvatarUploadResponse)
 async def upload_avatar(userId: str = Form(...), avatar: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if str(current_user.id) != str(userId) and current_user.role != "admin":
@@ -488,6 +493,7 @@ async def upload_avatar(userId: str = Form(...), avatar: UploadFile = File(...),
 
     return AvatarUploadResponse(url=url)
 
+
 @router.delete("/profile/avatar")
 async def delete_avatar(request: DeleteAvatarRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if str(current_user.id) != str(request.userId) and current_user.role != "admin":
@@ -517,6 +523,7 @@ async def delete_avatar(request: DeleteAvatarRequest, current_user: User = Depen
         print(f"Could not delete avatar file {old_avatar_url}: {e}")
 
     return {"message": "Аватар успешно удален"}
+
 
 @router.post("/update_credentials")
 async def update_credentials(request: UpdateCredentialsRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

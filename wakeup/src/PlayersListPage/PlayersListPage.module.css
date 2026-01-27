@@ -100,6 +100,18 @@
   border-color: #5844d4;
 }
 
+.bgMisis {
+  background: linear-gradient(135deg, #2e2e2e 70%, #5f5f62);
+  border-color: #5f5f62;
+}
+
+.bgMend {
+  background: linear-gradient(135deg, #2e2e2e 70%, #00e5e5);
+  border-color: #00e5e5;
+}
+
+
+
 .avatar {
   width: 120px; /* Увеличено фото */
   height: 120px; /* Увеличено фото */

@@ -50,7 +50,7 @@ const humanFileSize = (bytes) => {
   return bytes.toFixed(1) + " " + units[u];
 };
 
-const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"];
+const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia","Триада Менделеева"];
 const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"];
 
 

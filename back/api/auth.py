@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.post("/register")
 async def register(user: UserCreate, db: Session = Depends(get_db)):
-    valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой"]
+    valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia", "Триада Менделеева"]
     if user.club and user.club not in valid_clubs:
         raise HTTPException(status_code=400, detail="Недопустимое значение клуба")
 

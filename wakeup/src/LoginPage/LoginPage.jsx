@@ -181,6 +181,8 @@ const LoginPage = () => {
                   <option value="">Выберите клуб</option>
                   <option value="WakeUp | MIET">WakeUp | MIET</option>
                   <option value="WakeUp | MIPT">WakeUp | MIPT</option>
+                  <option value="Misis Mafia">Misis Mafia</option>
+                  <option value="Триада Менделеева">Триада Менделеева</option>
                   <option value="Другой">Другой</option>
                 </select>
               </div>

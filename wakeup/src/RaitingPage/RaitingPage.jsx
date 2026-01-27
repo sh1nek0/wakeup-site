@@ -480,7 +480,12 @@ export default function RatingPage() {
                       clubColorClass = styles.clubMIET;
                     } else if (player.club === 'WakeUp | MIPT') {
                       clubColorClass = styles.clubMIPT;
-                    }
+                    } else if (player.club === 'Misis Mafia') {
+                      clubColorClass = styles.clubMisis;
+                    } else if (player.club === 'Триада Менделеева') {
+                      clubColorClass = styles.clubMend;
+                    } 
+
 
                     return (
                       <article key={`${rank}-${index}`} className={styles.card}>
