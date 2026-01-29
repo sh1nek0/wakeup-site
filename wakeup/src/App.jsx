@@ -1,6 +1,6 @@
-import React, { useEffect, createContext, useState, useCallback, useContext } from 'react';
+import React, { useEffect, createContext, useState, useCallback, useContext } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { jwtDecode } from 'jwt-decode';
+import { jwtDecode } from "jwt-decode";
 
 import NavBar from "./NavBar/Navbar.jsx";
 import HomePage from "./HomePage/HomePage.jsx";
@@ -15,19 +15,20 @@ import PlayersTable from "./GamePage/GamePage.jsx";
 import PlayersListPage from "./PlayersListPage/PlayersListPage.jsx";
 import GameWidget from "./gameWidget/gameWidget.jsx";
 import NotificationsPage from "./NotificationsPage/NotificationsPage.jsx";
-import GameResultsTable from './resultWidget/resultWidget.jsx';
-import SpeechRecognizer from './speackDetacted/SpeechRecognizer.jsx';
+import GameResultsTable from "./resultWidget/resultWidget.jsx";
+import SpeechRecognizer from "./speackDetacted/SpeechRecognizer.jsx";
+import EventPlayerStatsTable from "./eventWidget/eventWidget.jsx";
 
 // --- AuthContext ---
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null); // Добавил состояние для токена
+  const [token, setToken] = useState(null);
 
-  const login = useCallback((userData, authToken) => { // Принимаем и юзера, и токен
+  const login = useCallback((userData, authToken) => {
     localStorage.setItem("token", authToken);
-    localStorage.setItem("user", JSON.stringify(userData)); // Сохраняем и юзера
+    localStorage.setItem("user", JSON.stringify(userData));
     setToken(authToken);
     setUser(userData);
   }, []);
@@ -42,20 +43,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
+
     if (storedToken && storedUser) {
       try {
-        // Проверяем токен на истечение срока, но основные данные берем из user
-        jwtDecode(storedToken); 
+        jwtDecode(storedToken);
         setUser(JSON.parse(storedUser));
         setToken(storedToken);
       } catch (e) {
         console.error("Ошибка декодирования токена или пользователя", e);
-        logout(); // Если что-то не так, чистим все
+        logout();
       }
     }
   }, [logout]);
 
-  // isAuthenticated теперь вычисляемое значение
   const isAuthenticated = !!token && !!user;
 
   return (
@@ -72,31 +72,26 @@ export function ApiProvider({ children }) {
   const { token, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const apiFetch = useCallback(async (url, options = {}) => {
-    const headers = { ...options.headers };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  const apiFetch = useCallback(
+    async (url, options = {}) => {
+      const headers = { ...options.headers };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const response = await fetch(url, { ...options, headers });
+      const response = await fetch(url, { ...options, headers });
 
-    if (response.status === 401) {
-      logout();
-      navigate('/login');
-      // Прерываем выполнение, чтобы избежать дальнейшей обработки в компонентах
-      throw new Error('Unauthorized'); 
-    }
+      if (response.status === 401) {
+        logout();
+        navigate("/login");
+        throw new Error("Unauthorized");
+      }
 
-    return response;
-  }, [token, logout, navigate]);
-
-  return (
-    <ApiContext.Provider value={{ apiFetch }}>
-      {children}
-    </ApiContext.Provider>
+      return response;
+    },
+    [token, logout, navigate]
   );
-}
 
+  return <ApiContext.Provider value={{ apiFetch }}>{children}</ApiContext.Provider>;
+}
 
 // --- Footer Info ---
 const footerData = {
@@ -113,16 +108,25 @@ const footerData = {
 export function App() {
   const location = useLocation();
 
- const hideNavbarAndFooter =
-  (location.pathname.startsWith('/Event/') && location.pathname.endsWith('/gameWidget')) ||
-  (location.pathname.startsWith('/Event/') && location.pathname.endsWith('/resultWidget'));
+  // ✅ Скрываем NavBar/Footer по последнему сегменту пути (без startsWith/endsWith)
+  // Работает и для:
+  // /Event/123/eventWidget
+  // /Event/123/eventWidget/
+  // /Event/123/Game/456/gameWidget
+  // /Event/123/Game/456/resultWidget
+  const lastSegment = location.pathname
+    .split("/")
+    .filter(Boolean)
+    .at(-1)
+    ?.toLowerCase();
 
-
+  const hideNavbarAndFooter = ["gamewidget", "resultwidget", "eventwidget"].includes(lastSegment);
 
   return (
     <AuthProvider>
       <ApiProvider>
         {!hideNavbarAndFooter && <NavBar />}
+
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/rating" element={<RatingPage />} />
@@ -131,13 +135,15 @@ export function App() {
           <Route path="/events" element={<EventsPage />} />
           <Route path="/BTS" element={<RoadToBreak />} />
           <Route path="/Event/:eventId" element={<Game />} />
+          <Route path="/Event/:eventId/eventWidget" element={<EventPlayerStatsTable />} />
           <Route path="/Event/:eventId/Game/:gameId" element={<PlayersTable />} />
           <Route path="/Event/:eventId/Game/:gameId/gameWidget" element={<GameWidget />} />
-          <Route path='/Event/:eventId/Game/:gameId/resultWidget' element={<GameResultsTable />} />
-          <Route path='/TEST/' element={<SpeechRecognizer/>} />
+          <Route path="/Event/:eventId/Game/:gameId/resultWidget" element={<GameResultsTable />} />
+          <Route path="/TEST/" element={<SpeechRecognizer />} />
           <Route path="/profile/:profileId" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
+
         {!hideNavbarAndFooter && <Footer data={footerData} />}
       </ApiProvider>
     </AuthProvider>

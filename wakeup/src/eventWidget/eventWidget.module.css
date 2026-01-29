@@ -1,0 +1,143 @@
+body {
+  background-color: #1f1f1f;
+  color: #fff;
+}
+
+/* === Контейнер таблицы === */
+.tableWrapper {
+  position: relative;
+  max-width: 1800px;
+  margin: 60px auto;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
+  overflow-x: auto;
+}
+
+/* === Заголовок === */
+.title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: #f28c3a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 20px;
+}
+
+/* === Таблица === */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #fff;
+}
+
+.table thead {
+  background: #2a2a2a;
+}
+
+.table th {
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f28c3a;
+  border-bottom: 2px solid #3a3a3a;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: 10px 14px;
+  font-size: 15px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.3s ease;
+}
+
+.table tr:hover td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* === Аватар === */
+.avatar {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(255, 111, 0, 0.5);
+}
+
+/* === Стиль итоговых очков === */
+.total {
+  font-weight: 800;
+  font-size: 16px;
+  color: #4fff88;
+ 
+}
+
+/* === Негативные значения — красным === */
+.table td.negative {
+  color: #ff5f5f;
+}
+
+/* === Сглаживание ролей (цветные роли) === */
+.role {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.role мирный {
+  color:#ff4444 ;
+}
+.role мафия {
+  color: #ffb700;
+}
+.role дон {
+  color: #9b59b6;
+}
+.role шериф {
+  color: #00bfff;
+}
+
+/* === Responsive адаптив === */
+@media (max-width: 800px) {
+  .tableWrapper {
+    padding: 16px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .table th,
+  .table td {
+    font-size: 13px;
+    padding: 8px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 500px) {
+  .tableWrapper {
+    padding: 12px;
+  }
+
+  .table th,
+  .table td {
+    padding: 6px;
+    font-size: 12px;
+  }
+
+  .title {
+    font-size: 16px;
+  }
+}
