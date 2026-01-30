@@ -518,6 +518,12 @@
       grid-template-columns: repeat(2, 0.5fr);
       gap: 5px;
   }
+  .qualifiedGrid{
+    display: grid;
+    grid-template-columns: repeat( 2, 1fr);
+    gap: 14px;
+
+  }
   .infoCard { min-height: 60px; padding-top:5px; padding-bottom: 0; }
   .caption {font-size: 12px; margin-top: 0; padding-bottom: 0; margin-bottom: 5px;}
   .value {font-size: 11px}
