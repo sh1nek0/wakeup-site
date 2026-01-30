@@ -639,51 +639,50 @@ export default function Event() {
   // ------------------------------
   // Лучшая номинация по ролям
   // ------------------------------
-  const roleNominations = useMemo(() => {
-    if (!playersStatsSorted || playersStatsSorted.length === 0) return [];  // Изменено
+    const roleNominations = useMemo(() => {
+    if (!playersStatsSorted || playersStatsSorted.length === 0) return [];
 
     const roles = ["sheriff", "citizen", "mafia", "don"];
-    return roles.map(role => {
-      let bestPlayer = null;
-      let bestScore = -Infinity;
 
-      for (const p of playersStatsSorted) {  // Изменено
-        const roleGames = p.gamesPlayed?.[role] || 0;
-        const roleBonus = (p.role_plus?.[role] || []).reduce((a,b)=>a+b, 0);
-        const score = roleBonus - 2.5 * roleGames;
+    return roles.map((role) => {
+      const top3 = playersStatsSorted
+        .map((p) => {
+          const roleGames = p.gamesPlayed?.[role] || 0;
+          const roleBonus = (p.role_plus?.[role] || []).reduce((a, b) => a + b, 0);
+          const score = roleBonus - 2.5 * roleGames;
 
-        if (score > bestScore) {
-          bestScore = score;
-          bestPlayer = { id: p.id, name: p.name, value: score.toFixed(1) };
-        }
-      }
+          return { id: p.id, name: p.name, value: Number(score.toFixed(2)) };
+        })
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 3);
 
-      return { role, winner: bestPlayer };
+      return { role, winners: top3 };
     });
-  }, [playersStatsSorted]);  // Изменено
+  }, [playersStatsSorted]);
+
+  // Изменено
 
   // ------------------------------
   // Лучшая общая номинация
   // ------------------------------
   const overallNomination = useMemo(() => {
-    if (!playersStatsSorted || playersStatsSorted.length === 0) return null;  // Изменено
+  if (!playersStatsSorted || playersStatsSorted.length === 0) return [];
 
-    let bestPlayer = null;
-    let bestScore = -Infinity;
+  return playersStatsSorted
+    .map((p) => {
+      const totalGames = Object.values(p.gamesPlayed || {}).reduce((a, b) => a + b, 0);
+      const totalBonus = Object.values(p.role_plus || {})
+        .flat()
+        .reduce((a, b) => a + b, 0);
 
-    for (const p of playersStatsSorted) {  // Изменено
-      const totalGames = Object.values(p.gamesPlayed || {}).reduce((a,b)=>a+b,0);
-      const totalBonus = Object.values(p.role_plus || {}).flat().reduce((a,b)=>a+b,0);
       const score = totalBonus - 2.5 * totalGames;
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestPlayer = { id: p.id, name: p.name, value: score.toFixed(1) };
-      }
-    }
+      return { id: p.id, name: p.name, value: Number(score.toFixed(1)) };
+    })
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
+}, [playersStatsSorted]);
 
-    return bestPlayer;
-  }, [playersStatsSorted]);  // Изменено
 
 
   const [teamPage, setTeamPage] = useState(1);
@@ -1134,65 +1133,73 @@ export default function Event() {
         )}
 
 
-        {activeTab === 'nomsSolo' && (
-          <div className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Номинации</h2>
+       {activeTab === "nomsSolo" && (
+  <div className={styles.tabPanel} role="tabpanel">
+    <h2 className={styles.h2}>Номинации</h2>
 
-            {/* Маппер ролей */}
-            {(() => {
-              const roleNames = {
-                sheriff: "Шериф",
-                citizen: "Мирный",
-                mafia: "Черный",
-                don: "Дон",
-              };
+    {(() => {
+      const roleNames = {
+        sheriff: "Шериф",
+        citizen: "Мирный",
+        mafia: "Черный",
+        don: "Дон",
+      };
 
-              return (
-                <div className={styles.nominationsGrid}>
-                  {/* Номинации по ролям */}
-                  {roleNominations.map(n => (
-                    <div key={n.role} className={styles.nominationCard}>
-                      <div className={styles.nominationTitle}>
-                        Лучший {roleNames[n.role] || n.role}
-                      </div>
-                      <div className={styles.nominationWinners}>
-                        {n.winner && (
-                          <button
-                            type="button"
-                            className={styles.winnerLink}
-                            onClick={() => navigate(`/profile/${n.winner.id}`)}
-                            title={n.winner.name}
-                          >
-                            {n.winner.name}{" "}
-                            <span className={styles.winnerValue}>({n.winner.value})</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+      const renderTop3 = (arr) => {
+        const list = Array.isArray(arr) ? arr.slice(0, 3) : [];
+        if (!list.length) return <div className={styles.empty}>—</div>;
 
-                  {/* MVP */}
-                  {overallNomination && (
-                    <div className={styles.nominationCard}>
-                      <div className={styles.nominationTitle}>MVP</div>
-                      <div className={styles.nominationWinners}>
-                        <button
-                          type="button"
-                          className={styles.winnerLink}
-                          onClick={() => navigate(`/profile/${overallNomination.id}`)}
-                          title={overallNomination.name}
-                        >
-                          {overallNomination.name}{" "}
-                          <span className={styles.winnerValue}>({overallNomination.value})</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        )}
+        return list.map((w, idx) => (
+          <button
+            key={w?.id ?? `${w?.name || "player"}-${idx}`}
+            type="button"
+            className={styles.winnerLink}
+            onClick={() => w?.id && navigate(`/profile/${w.id}`)}
+            title={w?.name || ""}
+          >
+            <span className={styles.winnerPlace}>{idx + 1}.</span>
+            <span className={styles.winnerName}>{w?.name ?? "—"}</span>
+            <span className={styles.winnerValue}>({w?.value ?? "0"})</span>
+          </button>
+        ));
+      };
+
+      const mvpTop3 = Array.isArray(overallNomination)
+        ? overallNomination
+        : overallNomination
+        ? [overallNomination]
+        : [];
+
+      return (
+        <div className={styles.nominationsGrid}>
+          {/* Номинации по ролям: ТОП-3 */}
+          {(roleNominations || []).map((n) => (
+            <div key={n.role} className={styles.nominationCard}>
+              <div className={styles.nominationTitle}>
+                Лучший {roleNames[n.role] || n.role}
+              </div>
+
+              <div className={styles.nominationWinners}>
+                {renderTop3(n.winners ?? (n.winner ? [n.winner] : []))}
+              </div>
+            </div>
+          ))}
+
+          {/* MVP: ТОП-3 */}
+          {mvpTop3.length > 0 && (
+            <div className={styles.nominationCard}>
+              <div className={styles.nominationTitle}>MVP</div>
+
+              <div className={styles.nominationWinners}>
+                {renderTop3(mvpTop3)}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    })()}
+  </div>
+)}
 
 
       </section>

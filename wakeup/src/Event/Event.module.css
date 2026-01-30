@@ -492,14 +492,74 @@
 .tabBtn:hover { background: #2a2a2a; }
 .tabActive { background: #ff6f00; color: #111; border-color: #ff6f00; }
 
-.nominationsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.nominationCard { border: 1px solid #323232; border-radius: 12px; padding: 12px; background: #1a1a1a; }
-.nominationTitle { font-weight: 600; margin-bottom: 8px; }
-.nominationWinners { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.winnerLink { background: none; border: none; color: #ffb36b; cursor: pointer; padding: 0; }
-.winnerLink:hover { text-decoration: underline; }
-.winnerValue { opacity: 0.9; }
-.nominationDesc { color: #bdbdbd; font-size: 0.95rem; }
+.nominationsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.nominationCard {
+  border: 1px solid #323232;
+  border-radius: 12px;
+  padding: 12px;
+  background: #1a1a1a;
+}
+
+.nominationTitle {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.nominationWinners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-left: 0;
+}
+
+/* Кнопка-строка победителя: 3 колонки (№ | имя | значение) */
+.winnerLink {
+  background: none;
+  border: none;
+  color: #ffb36b;
+  cursor: pointer;
+  padding: 0;
+
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  column-gap: 8px;
+  align-items: baseline;
+
+  width: 100%;
+  text-align: left;
+}
+
+.winnerLink:hover {
+  text-decoration: underline;
+}
+
+.winnerPlace {
+  color: #bdbdbd;
+  text-align: right;
+}
+
+.winnerName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.winnerValue {
+  opacity: 0.9;
+  justify-self: end;
+}
+
+.nominationDesc {
+  color: #bdbdbd;
+  font-size: 0.95rem;
+}
+
 
 
 /* =============== адаптив =============== */
