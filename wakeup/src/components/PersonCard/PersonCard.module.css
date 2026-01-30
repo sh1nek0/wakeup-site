@@ -16,7 +16,7 @@
   flex: 0 0 auto;
 }
 .personMeta { display: grid; gap: 4px; }
-.personName { font-weight: 800; font-size: 20px; }
+.personName { font-weight: 800; font-size: 15px; }
 .personRole { color: var(--muted); }
 
 /* Контейнер для режима редактирования (аналогично .personCard, но адаптирован для формы) */
@@ -45,6 +45,9 @@
 @media (max-width: 720px) {
   
   .personRole{
+    font-size: 10px;
+  }
+  .personName{
     font-size: 10px;
   }
 }

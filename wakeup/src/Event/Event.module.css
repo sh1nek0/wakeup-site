@@ -564,7 +564,7 @@
 
 /* =============== адаптив =============== */
 @media (max-width: 1024px) {
-  .topGrid { grid-template-columns: 1fr; }
+  .topGrid { grid-template-columns: 1fr;gap:5px }
   .infoGrid { grid-template-columns: 1fr 1fr; }
   .adminGrid { grid-template-columns: 1fr; }
   .adminActions { flex-direction: row; }
