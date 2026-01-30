@@ -895,7 +895,7 @@ export default function Event() {
               className={styles.discussBtn}
               onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScpjpfHxVzcNNr-Bitqyq-_FWoRTNr78PP4v9ctrzRJMigaRw/viewform?usp=publish-editor", "_blank", "noopener,noreferrer")}
           >
-            💬 Подать апеляцию
+            💬 Подать апелляцию
           </button>
         </div>
 
