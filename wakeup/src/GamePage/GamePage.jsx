@@ -1678,7 +1678,7 @@ useEffect(() => {
             DAY_BROWSER_URL: `${baseUrl}/gameWidget`,
             NIGHT_BROWSER_URL: `${baseUrl}/gameWidget`,
             SUMMARY_GAME_URL: `${baseUrl}/resultWidget`,
-            SUMMARY_TOTAL_URL: `https://wakeupmafia.site/Event/${eventId}/resultWidget`,
+            SUMMARY_TOTAL_URL: `https://wakeupmafia.site/Event/${eventId}/eventWidget`,
           },
         });
 

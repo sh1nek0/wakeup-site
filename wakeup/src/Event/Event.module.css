@@ -508,11 +508,50 @@
   .infoGrid { grid-template-columns: 1fr 1fr; }
   .adminGrid { grid-template-columns: 1fr; }
   .adminActions { flex-direction: row; }
+
 }
 @media (max-width: 720px) {
-  .infoGrid { grid-template-columns: 1fr; }
   .discussBtn { text-align: center; }
   .adminActions { flex-direction: column; }
+  .infoGrid{ 
+      display: grid;
+      grid-template-columns: repeat(2, 0.5fr);
+      gap: 5px;
+  }
+  .infoCard { min-height: 60px; padding-top:5px; padding-bottom: 0; }
+  .caption {font-size: 12px; margin-top: 0; padding-bottom: 0; margin-bottom: 5px;}
+  .value {font-size: 11px}
+  .rightCol{display: grid;
+      grid-template-columns: repeat(2, 0.5fr);
+      gap: 5px;
+
+  }
+  .rightCol > :nth-child(3){
+  grid-column: 1 / -1;
+}
+  .personCard{
+    min-height: 50px; padding-top:5px; padding-bottom: 0; 
+    max-width: 80px;
+  }
+  .personRole{
+    font-size: 10px;
+  }
+  .feeCard{
+    padding: 10px;
+    max-height: 110px;
+  }
+  .fee{
+    margin: 5px;
+    font-size: 15px;
+  }
+  .primaryBtn{
+    max-height: 45px;
+    border-radius: 0%;
+    padding: 0;
+    min-height: 40px;
+  }
+  
+  
 }
 
 /* =============== СТИЛИ УВЕДОМЛЕНИЙ =============== */
@@ -547,5 +586,11 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@media (max-width:600px) {
+  .infoCard{
+    height: 60px;
   }
 }

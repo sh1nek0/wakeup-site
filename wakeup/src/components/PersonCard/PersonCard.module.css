@@ -41,3 +41,10 @@
   color: var(--text);
   border-radius: 12px;
 }
+
+@media (max-width: 720px) {
+  
+  .personRole{
+    font-size: 10px;
+  }
+}
