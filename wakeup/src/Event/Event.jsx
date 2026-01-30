@@ -890,12 +890,12 @@ export default function Event() {
             </div>
           )}
 
-          <button
-            type="button"
-            className={styles.discussBtn}
-            onClick={() => showMessage("Обсуждение скоро появится")}
+            <button
+              type="button"
+              className={styles.discussBtn}
+              onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScpjpfHxVzcNNr-Bitqyq-_FWoRTNr78PP4v9ctrzRJMigaRw/viewform?usp=publish-editor", "_blank", "noopener,noreferrer")}
           >
-            💬 Перейти к обсуждению
+            💬 Подать апеляцию
           </button>
         </div>
 
