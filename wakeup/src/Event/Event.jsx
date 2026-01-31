@@ -84,6 +84,55 @@ export default function Event() {
 
   const [editedEvent, setEditedEvent] = useState({});
 
+  const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
+  const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
+  const [activeTab, setActiveTab] = useState('player');
+  // ВАЖНО: activeTab лучше объявить до return, но после загрузки данных тоже ок
+
+  // Список разрешённых табов (чтобы не ставить невозможные)
+  const allowedTabs = useMemo(() => {
+    const tabs = ['player', 'games', 'solo', 'nomsSolo'];
+
+    if (typeNormalized === 'pair' || typeNormalized === 'team') tabs.push('team');
+    if (showTeamTabs) tabs.push('teamStat');
+    if (isAdmin) tabs.push('admin');
+
+    return tabs;
+  }, [typeNormalized, showTeamTabs, isAdmin]);
+
+  // 1) Читать tab из query и применять
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const qTab = sp.get('tab');
+
+    if (qTab && allowedTabs.includes(qTab) && qTab !== activeTab) {
+      setActiveTab(qTab);
+      return;
+    }
+
+    // Если таб невалидный/недоступный — можно аккуратно откатить на player
+    if (qTab && !allowedTabs.includes(qTab) && activeTab !== 'player') {
+      setActiveTab('player');
+    }
+  }, [location.search, allowedTabs, activeTab]);
+
+  // 2) Менять таб и синхронить URL
+  const setTab = (tab) => {
+    if (!allowedTabs.includes(tab)) return;
+
+    setActiveTab(tab);
+
+    const sp = new URLSearchParams(location.search);
+    sp.set('tab', tab);
+
+    navigate(
+      { pathname: location.pathname, search: `?${sp.toString()}` },
+      { replace: true } // чтобы не засорять историю браузера
+    );
+  };
+
+
+
   const startEditing = () => {
     setEditedFields({});
     setIsEditing(true);
@@ -687,9 +736,7 @@ export default function Event() {
 
   const [teamPage, setTeamPage] = useState(1);
 
-  const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
-  const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
-  const [activeTab, setActiveTab] = useState('player');
+  
 
   if (loading || statsLoading) return <div>Загрузка...</div>;  // Изменено: ждем и статистику
 
@@ -955,7 +1002,7 @@ export default function Event() {
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'player' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('player')}
+            onClick={() => setTab('player')}
             aria-selected={activeTab === 'player'}
             role="tab"
           >
@@ -966,7 +1013,7 @@ export default function Event() {
             <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'team' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('team')}
+            onClick={() => setTab('team')}
             aria-selected={activeTab === 'team'}
             role="tab"
           >
@@ -977,7 +1024,7 @@ export default function Event() {
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'games' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('games')}
+            onClick={() => setTab('games')}
             aria-selected={activeTab === 'games'}
             role="tab"
           >
@@ -987,7 +1034,7 @@ export default function Event() {
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'solo' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('solo')}
+            onClick={() => setTab('solo')}
             aria-selected={activeTab === 'solo'}
             role="tab"
           >
@@ -998,7 +1045,7 @@ export default function Event() {
             <button
               type="button"
               className={`${styles.tabBtn} ${activeTab === 'teamStat' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('teamStat')}
+              onClick={() => setTab('teamStat')}
               aria-selected={activeTab === 'teamStat'}
               role="tab"
             >
@@ -1009,7 +1056,7 @@ export default function Event() {
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'nomsSolo' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('nomsSolo')}
+            onClick={() => setTab('nomsSolo')}
             aria-selected={activeTab === 'nomsSolo'}
             role="tab"
           >
@@ -1019,7 +1066,7 @@ export default function Event() {
            {isAdmin && <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'admin' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('admin')}
+            onClick={() => setTab('admin')}
             aria-selected={activeTab === 'admin'}
             role="tab"
           >
