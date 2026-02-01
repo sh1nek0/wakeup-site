@@ -147,7 +147,7 @@ if (!event || !game) {
     const { players = [], gameInfo = {} } = gameData;
     const winner = gameInfo?.winner || "red";
 
-    return players.map((p) => {
+    return players.map((p, index) => {
       const jk = Number(p.jk) || 0;
       const sk = Number(p.sk) || 0;
       const plus = Number(p.plus) || 0;
@@ -159,6 +159,7 @@ if (!event || !game) {
       if (winner === "black" && (role === "мафия" || role === "дон")) total += 2.5;
 
       return {
+        rank: index + 1,
         ...p,
         jk,
         sk,
@@ -169,13 +170,14 @@ if (!event || !game) {
     });
   }, [gameData]);
 
+
   // === Отрисовка ===
   if (!gameData) {
     return <div className={styles.loading}>Загрузка данных игры...</div>;
   }
 
   const winner = gameData.gameInfo?.winner || "red";
-
+  console.log(rows)
   return (
     <div className={styles.tableWrapper}>
       <h2 className={styles.title}>
@@ -199,7 +201,7 @@ if (!event || !game) {
             const roleStyle = getRoleColor(p.role);
             return (
               <tr key={p.id}>
-                <td>{p.id}</td>
+                <td>{p.rank}</td>
                 <td>
                   <img src={photoUrl} alt={p.name} className={styles.avatar} />
                 </td>

@@ -6,7 +6,7 @@ function extractEventIdFromPath(pathname) {
   const parts = pathname.split("/").filter(Boolean);
 
   const fromEventPrefix = parts.find((p) => /^event_[A-Za-z0-9]+$/.test(p));
-  if (fromEventPrefix) return fromEventPrefix.replace(/^event_/, "");
+  if (fromEventPrefix) return fromEventPrefix;
 
   const numeric = parts.find((p) => /^\d+$/.test(p));
   if (numeric) return numeric;
@@ -42,6 +42,7 @@ export default function EventPlayerStatsTable() {
       return;
     }
 
+    console.log(eventId)
     const controller = new AbortController();
     const API_BASE = "/api";
 
