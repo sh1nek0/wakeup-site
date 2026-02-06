@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
 class SaveGameData(BaseModel):
@@ -11,8 +11,6 @@ class SaveGameData(BaseModel):
     eventId: str = Field(..., description="ID события для привязки")
     location: Optional[str] = Field(None, description="Локация игры")
     tableNumber: Optional[int] = Field(None, description="Номер стола")
-
-    # ✅ ОПЦИОНАЛЬНЫЕ
     currentDay: Optional[str] = Field(None, description="Текущий день игры")
     currentPhase: Optional[str] = Field(None, description="Текущая фаза игры")
 
@@ -170,3 +168,18 @@ class GetUsersPhotosRequest(BaseModel):
 class DeleteUser(BaseModel):
     nickname: Optional[str] = None
     userId: str 
+
+UserIdLike = Union[str, int]  # чтобы принимал и "1" и 1
+
+class ValidatePlayerIn(BaseModel):
+    name: str = Field(..., description="Ник игрока (должен совпасть с users.nickname)")
+    userId: Optional[UserIdLike] = Field(None, description="users.id (строка), но может прийти числом")
+    id: Optional[int] = Field(None, description="номер игрока в игре (1..10)")
+
+class ValidatePlayersRequest(BaseModel):
+    players: List[ValidatePlayerIn]
+
+class ValidatePlayersResponse(BaseModel):
+    ok: bool
+    errors: List[str] = []
+    details: List[Dict[str, Any]] = []

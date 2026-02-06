@@ -1327,7 +1327,6 @@ async def get_player_stats(
     location: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    # Получаем игры
     if event_id == "1":
         query = db.query(Game).filter(or_(Game.event_id == event_id, Game.event_id.is_(None)))
     else:

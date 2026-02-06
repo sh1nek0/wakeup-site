@@ -11,19 +11,157 @@ from PIL import Image
 from typing import Optional
 import math
 import os
+import unicodedata
+import re
+
 
 from core.security import get_current_user, get_db, verify_password, get_password_hash, create_access_token
 from core.config import AVATAR_DIR, MAX_AVATAR_SIZE, PNG_SIGNATURE
 from db.models import User, Game, Registration, Notification
-from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest, GetUsersPhotosRequest, DeleteUser
+from schemas.main import UpdateProfileRequest, AvatarUploadResponse, DeleteAvatarRequest, UpdateCredentialsRequest, DemoteUserRequest, GetUsersPhotosRequest, DeleteUser, ValidatePlayersRequest, ValidatePlayersResponse
+
 from services.calculations import calculate_all_game_points # --- ИЗМЕНЕНИЕ ---
 from services.search import get_player_suggestions_logic
 
 router = APIRouter()
 
 
+ZERO_WIDTH = "".join([
+    "\u200b",  # zero width space
+    "\u200c",  # zero width non-joiner
+    "\u200d",  # zero width joiner
+    "\ufeff",  # BOM
+])
 
-# Новый эндпоинт
+def normalize_nick(s: Optional[str]) -> str:
+    if not s:
+        return ""
+    # NFKC приводит разные юникод-формы к канону (полезно для кириллицы/латиницы)
+    s = unicodedata.normalize("NFKC", s)
+
+    # NBSP и похожие пробелы -> обычный пробел
+    s = s.replace("\u00A0", " ").replace("\u202F", " ")
+
+    # убрать zero-width
+    for ch in ZERO_WIDTH:
+        s = s.replace(ch, "")
+
+    # схлопнуть пробелы
+    s = s.strip()
+    s = re.sub(r"\s+", " ", s)
+
+    # регистр
+    s = s.lower()
+
+    # опционально: ё -> е (если у вас бывает)
+    s = s.replace("ё", "е")
+
+    return s
+
+
+@router.post("/validatePlayers", response_model=ValidatePlayersResponse)
+async def validate_players(
+    request: ValidatePlayersRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    players = request.players or []
+    errors: List[str] = []
+    details: List[Dict[str, Any]] = []
+
+    if not players:
+        return {"ok": True, "errors": [], "details": []}
+
+    # 1) Проверка слотов id (1..10) + дубли
+    seen_slots = set()
+    for p in players:
+        if p.id is None or not isinstance(p.id, int):
+            errors.append(f"{p.name}: id (слот) пустой или не число")
+            continue
+        if p.id < 1 or p.id > 10:
+            errors.append(f"{p.name}: id (слот) вне диапазона 1..10 ({p.id})")
+            continue
+        if p.id in seen_slots:
+            errors.append(f"{p.name}: дублируется id (слот) = {p.id}")
+        seen_slots.add(p.id)
+
+    # 2) Подготовим список имён
+    raw_names = [p.name for p in players if p.name and str(p.name).strip()]
+    norm_names = [normalize_nick(x) for x in raw_names if normalize_nick(x)]
+
+    # 3) Быстрый поиск "как есть" по nickname
+    users_direct = db.query(User).filter(User.nickname.in_(raw_names)).all()
+    by_direct_nick = {u.nickname: u for u in users_direct}
+
+    # 4) Fallback: нормализованный матчинг в питоне
+    # Если у тебя пользователей не миллионы — это ок. Обычно их сотни/тысячи.
+    all_users = None
+    norm_map: Dict[str, User] = {}
+    if norm_names:
+        all_users = db.query(User).all()
+        for u in all_users:
+            key = normalize_nick(u.nickname)
+            if key and key not in norm_map:
+                norm_map[key] = u
+
+    # 5) Валидация каждого игрока: СТРОГО блокируем
+    for p in players:
+        row = {
+            "name": p.name,
+            "userId": p.userId,
+            "id": p.id,
+            "status": "ok",
+            "problems": [],
+            "suggestedUserId": None,
+            "debug": {  # можешь убрать потом
+                "normalized_name": normalize_nick(p.name),
+            }
+        }
+
+        # slot
+        if p.id is None or not isinstance(p.id, int):
+            row["status"] = "bad"
+            row["problems"].append("id (слот) пустой или не число")
+        elif p.id < 1 or p.id > 10:
+            row["status"] = "bad"
+            row["problems"].append("id (слот) вне диапазона 1..10")
+
+        # name
+        if not p.name or not str(p.name).strip():
+            row["status"] = "bad"
+            row["problems"].append("name пустой")
+            details.append(row)
+            errors.append("Есть игрок с пустым name")
+            continue
+
+        # найти юзера по нику: сначала direct, затем normalized
+        u = by_direct_nick.get(p.name)
+        if not u:
+            u = norm_map.get(normalize_nick(p.name))
+
+        if not u:
+            row["status"] = "bad"
+            row["problems"].append("пользователь не найден по nickname (даже после нормализации)")
+        else:
+            row["suggestedUserId"] = u.id
+
+            incoming_uid = "" if p.userId is None else str(p.userId).strip()
+            if not incoming_uid:
+                row["status"] = "bad"
+                row["problems"].append(f"userId пустой (ожидается {u.id})")
+            elif incoming_uid != str(u.id):
+                row["status"] = "bad"
+                row["problems"].append(f"userId не совпадает (пришло {incoming_uid}, в базе {u.id})")
+
+        if row["status"] == "bad":
+            errors.append(f"{p.name}: " + ", ".join(row["problems"]))
+
+        details.append(row)
+
+    ok = all(d["status"] == "ok" for d in details)
+    return {"ok": ok, "errors": errors, "details": details}
+
+
 @router.post("/getUsersPhotos")
 async def get_users_photos(request: GetUsersPhotosRequest, db: Session = Depends(get_db)):
     """

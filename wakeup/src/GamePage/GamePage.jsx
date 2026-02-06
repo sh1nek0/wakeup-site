@@ -860,6 +860,29 @@ useEffect(() => {
     return { ok: true, msg: data?.message };
   };
 
+  async function validatePlayersBeforeSave(payload) {
+  const players = (payload?.players || payload?.gameData?.players || []).map((p) => ({
+    name: p.name || p.nickname || p.fullName || "",
+    userId: p.userId ?? null,
+    id: p.id ?? null,
+  }));
+
+  const res = await fetch("/api/validatePlayers", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    body: JSON.stringify({ players }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`validate failed: ${res.status} ${txt}`);
+  }
+  return res.json(); // { ok, errors, details }
+}
+
   // ✅ AUTOSAVE (исправленный, без дублей localStorage, с cleanup и индикатором)
   const autosaveTimerRef = useRef(null);
   const autosaveAbortRef = useRef(null);
@@ -1386,31 +1409,87 @@ useEffect(() => {
   };
   const handleCancelClear = () => setShowConfirmModal(false);
 
-  const handleSave = async () => {
-    if (isReadOnly) {
-      showMessage("Нельзя сохранить изменения в режиме просмотра.", true);
+  const applyValidationFixesToPayload = (payload, validation) => {
+  const players =
+    Array.isArray(payload?.players) ? payload.players :
+    Array.isArray(payload?.gameData?.players) ? payload.gameData.players :
+    null;
+
+  if (!Array.isArray(players)) return payload;
+
+  // Ключ лучше делать (slot id + name), чтобы не промахнуться при одинаковых именах
+  const fixes = new Map(
+    (validation?.details || [])
+      .filter((d) => d && (d.id != null || d.name))
+      .map((d) => [`${d.id ?? ""}::${String(d.name ?? "").trim()}`, d])
+  );
+
+  const nextPlayers = players.map((p) => {
+    const key = `${p?.id ?? ""}::${String(p?.name ?? "").trim()}`;
+    const d = fixes.get(key);
+    if (!d) return p;
+
+    // Обновляем userId, если сервер подсказал правильный
+    if (d.status === "bad" && d.suggestedUserId) {
+      return { ...p, userId: d.suggestedUserId };
+    }
+    return p;
+  });
+
+  if (Array.isArray(payload.players)) {
+    return { ...payload, players: nextPlayers };
+  }
+  return { ...payload, gameData: { ...payload.gameData, players: nextPlayers } };
+};
+
+const handleSave = async () => {
+  if (isReadOnly) {
+    showMessage("Нельзя сохранить изменения в режиме просмотра.", true);
+    return;
+  }
+
+  setIsSaving(true);
+  let payload = buildGamePayload();
+
+  try {
+    // 1) Первая проверка
+    let validation = await validatePlayersBeforeSave(payload);
+
+    // 2) Если есть bad, но сервер дал suggestedUserId — подставляем и проверяем ещё раз
+    if (!validation.ok) {
+      const canAutoFix = (validation.details || []).some(
+        (d) => d?.status === "bad" && d?.suggestedUserId
+      );
+
+      if (canAutoFix) {
+        payload = applyValidationFixesToPayload(payload, validation);
+        validation = await validatePlayersBeforeSave(payload);
+      }
+    }
+
+    // 3) Если всё ещё не ок — блокируем сохранение
+    if (!validation.ok) {
+      const preview = (validation.errors || []).slice(0, 5).join("\n");
+      showMessage(`Не могу сохранить: проблемы с ID.\n${preview}`, true);
       return;
     }
 
-    setIsSaving(true);
-    const payload = buildGamePayload();
-
-    try {
-      const { ok, msg } = await postGameState(payload, { silent: false });
-      if (ok) {
-        showMessage(msg || "Сохранено");
-        localStorage.removeItem(getLocalStorageKey());
-        clearRatingPageCache();
-        const targetUrl =
-          eventId && eventId !== "1" ? `/Event/${eventId}` : "/rating";
-        setTimeout(() => navigate(targetUrl, { state: { defaultTab: "Игры" } }), 500);
-      }
-    } catch (e) {
-      showMessage(String(e.message || e), true);
-    } finally {
-      setIsSaving(false);
+    // 4) Сохраняем исправленный payload
+    const { ok, msg } = await postGameState(payload, { silent: false });
+    if (ok) {
+      showMessage(msg || "Сохранено");
+      localStorage.removeItem(getLocalStorageKey());
+      clearRatingPageCache();
+      const targetUrl = eventId && eventId !== "1" ? `/Event/${eventId}` : "/rating";
+      setTimeout(() => navigate(targetUrl, { state: { defaultTab: "Игры" } }), 500);
     }
-  };
+  } catch (e) {
+    showMessage(String(e.message || e), true);
+  } finally {
+    setIsSaving(false);
+  }
+};
+
 
   if (loading) return <div>Загрузка данных игры...</div>;
 
