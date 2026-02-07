@@ -492,6 +492,6 @@ async def get_game_state(gameId: str, db: Session = Depends(get_db)):
 
     try:
         
-        return json.loads({game.data,game.badgeColor})
+        return json.loads(game.data)
     except Exception:
         raise HTTPException(status_code=500, detail="Corrupted game data")

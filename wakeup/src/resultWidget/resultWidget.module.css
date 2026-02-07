@@ -1,18 +1,16 @@
-body {
-  background-color: #1f1f1f;
-  color: #fff;
-}
+/* === Общие стили страницы === */
+
 
 /* === Контейнер таблицы === */
 .tableWrapper {
   position: relative;
-  max-width: 1800px;
   margin: 60px auto;
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 10px;
   box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
   overflow-x: auto;
+  padding: 0 10px;
 }
 
 /* === Заголовок === */
@@ -24,18 +22,20 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 20px;
+  padding-top: 10px;
 }
 
 /* === Таблица === */
 .table {
-  width: 100%;
+  
   border-collapse: collapse;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: inherit;
   color: #fff;
 }
 
 .table thead {
   background: #2a2a2a;
+  width: 100%;
 }
 
 .table th {
@@ -46,6 +46,7 @@ body {
   border-bottom: 2px solid #3a3a3a;
   text-align: center;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .table td {
@@ -60,11 +61,25 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* === Стиль ячейки с игроком (фото + имя) === */
+.playerCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 10px 14px;
+  flex-grow: 1; /* Позволяет этой ячейке растягиваться */
+  min-width: 0; /* Необходимо для корректного сжатия flex-элементов */
+  /* max-width: 300px;  -- Задается в медиа-запросах */
+}
+
 /* === Аватар === */
 .avatar {
-  width: 44px;
+  width: 50px;
   height: 44px;
   object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .avatar:hover {
@@ -72,12 +87,19 @@ body {
   box-shadow: 0 0 12px rgba(255, 111, 0, 0.5);
 }
 
+/* === Стиль имени игрока === */
+.playerName {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+
+}
+
 /* === Стиль итоговых очков === */
 .total {
   font-weight: 800;
   font-size: 16px;
   color: #4fff88;
- 
 }
 
 /* === Негативные значения — красным === */
@@ -85,59 +107,132 @@ body {
   color: #ff5f5f;
 }
 
-/* === Сглаживание ролей (цветные роли) === */
+/* === Стилизация ролей (цветные роли) === */
 .role {
   font-weight: 700;
   text-transform: capitalize;
 }
-
-.role мирный {
-  color:#ff4444 ;
-}
-.role мафия {
-  color: #ffb700;
-}
-.role дон {
-  color: #9b59b6;
-}
-.role шериф {
-  color: #00bfff;
-}
+.role__mirny { color: #ff4444; }
+.role__mafia { color: #00FFFF; }
+.role__don { color: #B266FF; }
+.role__sheriff { color: #ffb700; }
 
 /* === Responsive адаптив === */
+@media (max-width: 992px) {
+  .tableWrapper {
+    padding: 0 10px;
+  }
+  .table th, .table td {
+    padding: 10px 10px;
+    font-size: 14px;
+  }
+  .playerCell {
+    padding: 10px 10px;
+    gap: 6px;
+    max-width: 250px; /* Ограничиваем ширину для больших планшетов */
+  }
+  .avatar {
+    width: 40px;
+    height: 36px;
+  }
+  .playerName {
+    font-size: 14px;
+  }
+  .title {
+    font-size: 20px;
+  }
+}
+
 @media (max-width: 800px) {
   .tableWrapper {
     padding: 16px;
+    margin-top: 40px;
+    margin-bottom: 40px;
   }
-
   .title {
     font-size: 18px;
+    margin-bottom: 15px;
   }
-
-  .table th,
-  .table td {
+  .table th, .table td {
     font-size: 13px;
-    padding: 8px;
+    padding: 8px 8px;
   }
-
+  .playerCell {
+    padding: 8px 8px;
+    gap: 5px;
+    max-width: 200px; /* Ограничиваем ширину для планшетов */
+  }
   .avatar {
     width: 36px;
     height: 36px;
+  }
+  .playerName {
+    font-size: 13px;
+  }
+  .total {
+    font-size: 14px;
   }
 }
 
 @media (max-width: 500px) {
   .tableWrapper {
     padding: 12px;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    /* Возможно, потребуется flex-wrap для inner таблицы, если очень узко */
+    /* table, thead, tbody, tr, td, th { display: block; } */
   }
-
-  .table th,
-  .table td {
-    padding: 6px;
+  .table th, .table td {
+    padding: 6px 4px;
     font-size: 12px;
   }
-
+  .playerCell {
+    padding: 6px 4px;
+    gap: 4px;
+    /* Уменьшаем max-width для мобильных */
+    max-width: 100px; /* Сильно ограниченно, может потребоваться `flex-wrap: wrap;` */
+    flex-wrap: wrap; /* Позволяет аватару и имени переноситься */
+    justify-content: center;
+    text-align: center;
+  }
+  .avatar {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 4px; /* Отступ, если имя перенесется */
+  }
+  .playerName {
+    font-size: 11px;
+    max-width: 100%; /* Чтобы имя могло занять всю ширину, если оно одно */
+    /* Вариант с обрезкой */
+    /* overflow: hidden; */
+    /* text-overflow: ellipsis; */
+    /* white-space: nowrap; */
+  }
   .title {
     font-size: 16px;
+    letter-spacing: 0.02em;
   }
+
+  /* Скрытие колонок на мобильных */
+  .table th:nth-child(5), /* Доп */
+  .table td:nth-child(5),
+  .table th:nth-child(6), /* Минус */
+  .table td:nth-child(6) {
+     display: none;
+  }
+  /* На очень маленьких экранах, возможно, стоит скрыть и роль */
+  /*
+  .table th:nth-child(4),
+  .table td:nth-child(4) {
+     display: none;
+  }
+  */
+}
+
+/* === Дополнительные стили для корректной загрузки === */
+.loading {
+  text-align: center;
+  padding: 50px;
+  font-size: 18px;
+  color: #aaa;
 }
