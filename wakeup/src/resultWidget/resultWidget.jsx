@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./resultWidget.module.css"; // Убедитесь, что этот путь корректный
-import defaultAvatar from "../NavBar/avatar.png"; // Убедитесь, что этот путь корректный
+import defaultAvatar from "../NavBar/avatar.png";
+import redWin from "../images/redWin.png";
+import blackWin from "../images/blackWin.png"; // Предполагаем, что у вас есть фото для черных
 
 // Helper function for role colors (already looks good)
 const getRoleColor = (role) => {
@@ -21,10 +23,7 @@ const getRoleColor = (role) => {
 export default function GameResultsTable() {
   const [gameData, setGameData] = useState(null);
   const [photos, setPhotos] = useState({});
-  // `storageKey` больше не нужен, так как localStorage используется как fallback, но не основной источник
-  // const storageKeyRef = useRef(null);
 
-  // === Загрузка gameState с сервера ===
   useEffect(() => {
     const pathParts = window.location.pathname.split("/").filter(Boolean);
 
@@ -39,7 +38,7 @@ export default function GameResultsTable() {
     }
 
     const controller = new AbortController();
-    let initialLoadDone = false; // Флаг для определения, была ли уже загрузка с сервера
+    let initialLoadDone = false; 
 
     const fetchGameData = async () => {
       try {
@@ -48,8 +47,7 @@ export default function GameResultsTable() {
         if (!res.ok) {
           if (res.status === 404) {
              console.warn(`Игра с ID ${gameId} не найдена на сервере.`);
-             // Если игра не найдена на сервере, попробуем загрузить из localStorage
-             const rawFromStorage = localStorage.getItem(`gameData-event-fallback-${gameId}`); // Предполагаемый ключ
+             const rawFromStorage = localStorage.getItem(`gameData-event-fallback-${gameId}`); 
              if (rawFromStorage) {
                 try {
                    const parsed = JSON.parse(rawFromStorage);
@@ -59,23 +57,21 @@ export default function GameResultsTable() {
                    console.error("Ошибка парсинга localStorage fallback:", err);
                 }
              }
-             return; // Прекращаем дальнейшее выполнение, т.к. игра не найдена
+             return; 
           }
           throw new Error(`HTTP ${res.status}`);
         }
         const parsed = await res.json();
 
-        // Обновляем gameData, если данные изменились
         setGameData((prev) =>
           JSON.stringify(prev) !== JSON.stringify(parsed) ? parsed : prev
         );
-        initialLoadDone = true; // Отмечаем, что серверная загрузка успешна
+        initialLoadDone = true; 
       } catch (err) {
         if (err?.name !== "AbortError") {
           console.error("Ошибка загрузки gameState:", err);
-          // Если серверная загрузка не удалась, пробуем localStorage
           if (!initialLoadDone) {
-             const rawFromStorage = localStorage.getItem(`gameData-event-fallback-${gameId}`); // Предполагаемый ключ
+             const rawFromStorage = localStorage.getItem(`gameData-event-fallback-${gameId}`); 
              if (rawFromStorage) {
                 try {
                    const parsed = JSON.parse(rawFromStorage);
@@ -90,34 +86,31 @@ export default function GameResultsTable() {
       }
     };
 
-    fetchGameData(); // Первоначальная загрузка
-    const interval = setInterval(fetchGameData, 1000); // Периодическое обновление
+    fetchGameData(); 
+    const interval = setInterval(fetchGameData, 1000); 
 
     return () => {
       controller.abort();
       clearInterval(interval);
     };
-  }, []); // Зависимость пустая, чтобы запускался только один раз при монтировании
+  }, []); 
 
-  // === Загрузка фото игроков ===
   useEffect(() => {
     if (gameData?.players) {
       const nicknames = new Set(
         gameData.players
           .map((p) => p.name)
-          .filter((n) => n && typeof n === 'string' && n.trim()) // Добавлена проверка типа
+          .filter((n) => n && typeof n === 'string' && n.trim()) 
           .map((n) => n.trim())
       );
       nicknames.forEach(async (nickname) => {
-        // Проверяем, есть ли уже фото, чтобы избежать лишних запросов
         if (photos[nickname]) return;
 
         try {
           const res = await fetch(`/api/getUserPhoto/${encodeURIComponent(nickname)}`);
           if (!res.ok) {
-            // Не бросаем ошибку, если фото не найдено (например, 404)
             console.warn(`Не удалось получить фото для ${nickname}. Статус: ${res.status}`);
-            return; // Пропускаем установку фото
+            return; 
           }
           const data = await res.json();
           if (data.photoUrl) {
@@ -128,18 +121,14 @@ export default function GameResultsTable() {
         }
       });
     }
-  }, [gameData, photos]); // Добавлена `photos` в зависимости, чтобы перепроверить, если `photos` обновится
-                           // с другим игроком, а `gameData` останется тем же
+  }, [gameData, photos]); 
 
 
-    // === Вычисления внутри useMemo ===
-    // Теперь `rows` вычисляет "total", который будет использоваться в JSX
     const rows = useMemo(() => {
         if (!gameData || !gameData.players) return [];
 
         const { players = [], gameInfo = {} } = gameData;
-        // Получаем победителя, если он есть, иначе по умолчанию "red"
-        const winnerTeam = (gameInfo?.winner || "red").toLowerCase();
+        const winnerTeam = (gameInfo?.badgeColor || "red").toLowerCase();
 
         return players.map((p, index) => {
             const jk = Number(p.jk) || 0;
@@ -150,25 +139,24 @@ export default function GameResultsTable() {
 
             const role = (p.role || "").toLowerCase();
 
-            // Логика начисления бонусных очков за победу команды
             if (winnerTeam === "red" && (role === "мирный" || role === "шериф")) {
-                calculatedTotal += 2.5;
+                calculatedTotal += 2.50;
             }
             if (winnerTeam === "black" && (role === "мафия" || role === "дон")) {
-                calculatedTotal += 2.5;
+                calculatedTotal += 2.50;
             }
 
             return {
-                ...p, // Копируем все свойства игрока
-                rank: index + 1, // Ранг основан на порядке в массиве `players`
+                ...p, 
+                rank: index + 1, 
                 jk,
                 sk,
                 plus: plus.toFixed(2),
-                minusCards: minusCards.toFixed(1), // Форматируем как строку
-                total: calculatedTotal.toFixed(2), // Используем calculatedTotal и форматируем
+                minusCards: minusCards.toFixed(1), 
+                total: calculatedTotal.toFixed(2), 
             };
         });
-    }, [gameData]); // Зависимость: только `gameData`
+    }, [gameData]); 
 
 
   // === Отрисовка ===
@@ -176,48 +164,72 @@ export default function GameResultsTable() {
     return <div className={styles.loading}>Загрузка данных игры...</div>;
   }
 
-  // Получаем победителя для возможной стилизации или информации, хотя в таблице он не используется напрямую
-  const winner = gameData.gameInfo?.winner || "red";
-  // console.log(rows) // Оставляем для отладки, если нужно
+  const winner = gameData?.badgeColor || "red";
+  console.log(gameData?.badgeColor)
+  const hasWinner = !!gameData?.badgeColor; // Проверяем, есть ли вообще информация о победителе
+
+  const winPhotoImage = winner === "red" ? redWin : blackWin;
+
+  // Стиль для .winPhoto
+  const winPhotoStyles = {
+    opacity: hasWinner ? 1 : 0,
+    zIndex: hasWinner ? -1 : -2, // Убедитесь, что z-index таблицы выше (-1 для фото, 0-1 для таблицы)
+  };
+
+  // Стиль для контейнера таблицы
+  const tableContainerStyles = {
+    // Пример: Если фото занимает 50%, таблица должна иметь отступ справа
+    // Можете настроить процент или использовать фиксированное значение
+    marginRight: hasWinner ? "50%" : "0", 
+    zIndex: 1, // Убедитесь, что таблица поверх фото
+  };
 
   return (
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>№</th>
-            <th>Игрок</th>
-            <th>Роль</th>
-            <th>Доп</th>
-            <th>Минус</th>
-            <th>Итог</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((p) => {
-            // Используем p.name для поиска фото, fallback на defaultAvatar
-            const photoUrl = photos[p.name?.trim()] || defaultAvatar;
-            const roleStyle = getRoleColor(p.role);
+    <>
+      <img 
+        src={winPhotoImage} 
+        alt={winner === "red" ? "Красная команда победила" : "Черная команда победила"} 
+        className={styles.winPhoto} 
+        style={winPhotoStyles}
+      />
 
-            return (
-              <tr key={p.id || p.name || p.rank}> {/* Использование multiple keys */}
-                <td>{p.rank}</td>
-                {/* Класс playerCell для адаптивности */}
-                <td className={styles.playerCell}>
-                  <img src={photoUrl} alt={p.name || `Player ${p.id}`} className={styles.avatar} />
-                  {/* Имя игрока */}
-                  <span className={styles.playerName}>{p.name?.trim() || `Игрок ${p.id}`}</span>
-                </td>
-                <td style={roleStyle}>{p.role}</td>
-                <td>{p.plus}</td>
-                <td>{p.minusCards}</td>
-                <td className={styles.total}>
-                  {p.sum}
-                </td>
+      {/* Контейнер для таблицы, который будет смещаться влево */}
+      <div className={styles.tableContainer} style={tableContainerStyles}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Игрок</th>
+                <th>Роль</th>
+                <th>Доп</th>
+                <th>Минус</th>
+                <th>Итог</th>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    
+            </thead>
+            <tbody>
+              {rows.map((p) => {
+                const photoUrl = photos[p.name?.trim()] || defaultAvatar;
+                const roleStyle = getRoleColor(p.role);
+
+                return (
+                  <tr key={p.id || p.name || p.rank}>
+                    <td>{p.rank}</td>
+                    <td className={styles.playerCell}>
+                      <img src={photoUrl} alt={p.name || `Player ${p.id}`} className={styles.avatar} />
+                      <span className={styles.playerName}>{p.name?.trim() || `Игрок ${p.id}`}</span>
+                    </td>
+                    <td style={roleStyle}>{p.role}</td>
+                    <td>{p.plus}</td>
+                    <td>{p.minusCards}</td>
+                    <td className={styles.total}>
+                      {p.sum}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+      </div>
+    </>
   );
 }

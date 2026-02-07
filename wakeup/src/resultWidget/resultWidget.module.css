@@ -27,7 +27,7 @@
 
 /* === Таблица === */
 .table {
-  
+  width: 50%;
   border-collapse: collapse;
   font-family: inherit;
   color: #fff;
@@ -116,6 +116,29 @@
 .role__mafia { color: #00FFFF; }
 .role__don { color: #B266FF; }
 .role__sheriff { color: #ffb700; }
+
+.winPhoto {
+  position: fixed; /* Фиксируем положение относительно экрана */
+  top: 0; /* Выравниваем по верхнему краю */
+  right: 0; /* Выравниваем по правому краю */
+  width: 50%; /* Пример: занять половину ширины экрана */
+  height: 100%; /* Занять всю высоту экрана */
+  object-fit: cover; /* Масштабирует изображение, чтобы оно покрыло контейнер */
+  z-index: -1; /* Помещаем позади контента */
+  opacity: 0; /* По умолчанию скрыто */
+  transition: opacity 0.5s ease-in-out; /* Плавное появление */
+}
+
+
+.tableContainer {
+  position: relative; /* Или `static`, в зависимости от контекста */
+  z-index: 1; /* Или другое значение, чтобы таблица была поверх фото */
+  /* Добавьте отступы слева, чтобы таблица не перекрывалась с фото */
+  
+}
+
+
+
 
 /* === Responsive адаптив === */
 @media (max-width: 992px) {
