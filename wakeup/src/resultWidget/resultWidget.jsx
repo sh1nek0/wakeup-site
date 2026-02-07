@@ -180,9 +180,7 @@ if (!event || !game) {
   console.log(rows)
   return (
     <div className={styles.tableWrapper}>
-      <h2 className={styles.title}>
-        Итоги игры: {winner === "red" ? " Победа Красных" : " Победа Чёрных"}
-      </h2>
+      
       <table className={styles.table}>
         <thead>
           <tr>
@@ -191,7 +189,7 @@ if (!event || !game) {
             <th>Игрок</th>
             <th>Роль</th>
             <th>Доп</th>
-            <th>Сум минус</th>
+            <th>Минус</th>
             <th>Итог</th>
           </tr>
         </thead>
@@ -208,8 +206,8 @@ if (!event || !game) {
                 <td>{p.name || `Игрок ${p.id}`}</td>
                 <td style={roleStyle}>{p.role}</td>
                 <td>{p.plus}</td>
-                <td>-{p.minusCards}</td>
-                <td className={styles.total}>{p.total}</td>
+                <td>{p.minusCards}</td>
+                <td className={styles.total}>{p.sum.toFixed(2)}</td>
               </tr>
             );
           })}
