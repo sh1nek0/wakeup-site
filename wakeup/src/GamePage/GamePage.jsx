@@ -2385,6 +2385,15 @@ const handleSave = async () => {
       </div>
 
       <div className={styles.saveButtonContainer}>
+        {!isReadOnly  && <button
+            type="button"
+            onClick={() => {
+              switchScene("Перерыв")}}
+            className={styles.timeOutBtn}
+            >
+              Перерыв
+            </button>
+        }
         {isReadOnly ? (
           <button type="button" onClick={() => navigate(-1)} className={styles.saveBtn}>
             Выйти

@@ -1426,6 +1426,7 @@ function DetailedStatsTable({
 
 
   return (
+    <>
     <div className={styles.tableWrapper}>
       <div className={styles.btnWrap}>
         <button onClick={toggleModal} className={styles.editButton} type="button">
@@ -1715,7 +1716,9 @@ function DetailedStatsTable({
         </tbody>
       </table>
 
-      {totalPagesCalculated > 1 && (
+    </div>
+    <div>
+                {totalPagesCalculated > 1 && (
         <div className={styles.pagination}>
           <button onClick={() => onPageChange?.(currentPage - 1)} disabled={currentPage === 1} className={styles.pageBtn} type="button">
             ‹
@@ -1732,6 +1735,7 @@ function DetailedStatsTable({
         </div>
       )}
     </div>
+    </>
   );
 }
 

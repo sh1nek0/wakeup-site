@@ -698,6 +698,24 @@ body {
 .saveBtn:active{ transform:translateY(0); filter:brightness(1); }
 .saveBtn:disabled{ opacity:.55; cursor:not-allowed; box-shadow:none; }
 
+
+.timeOutBtn{
+  background:#ffffff;
+  color:#1f1f1f;
+  border:0;
+  border-radius:10px;
+  padding:12px 28px;
+  font-size:1.1rem;
+  font-weight:800;
+  letter-spacing:.2px;
+  cursor:pointer;
+  box-shadow:0 10px 26px rgba(0,0,0,.35);
+  transition:transform .12s, filter .2s, box-shadow .2s;
+}
+.timeOut:hover{ filter:brightness(1.05); transform:translateY(-1px); }
+.timeOut:active{ transform:translateY(0); filter:brightness(1); }
+.timeOut:disabled{ opacity:.55; cursor:not-allowed; box-shadow:none; }
+
 .clearBtn {
   background: #444;
   color: #fff;
