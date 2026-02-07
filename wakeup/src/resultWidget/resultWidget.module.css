@@ -75,8 +75,8 @@
 
 /* === Аватар === */
 .avatar {
-  width: 50px;
-  height: 44px;
+  width: 80px;
+  height: 80x;
   object-fit: cover;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.2);
