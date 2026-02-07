@@ -232,7 +232,7 @@ const GameWidget = () => {
     return <div className={styles.loading}>Загрузка данных игры...</div>;
 
   const players = (gameData.players || []).map((p, i) => ({
-    id: p.id ?? i + 1,
+    id: i + 1,
     name: p.name && p.name.trim() ? p.name : `Игрок ${i + 1}`,
     fouls: p.fouls ?? 0,
     role: p.role?.trim()?.toLowerCase() || "неизвестно",
