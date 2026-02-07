@@ -180,7 +180,6 @@ export default function GameResultsTable() {
   const tableContainerStyles = {
     // Пример: Если фото занимает 50%, таблица должна иметь отступ справа
     // Можете настроить процент или использовать фиксированное значение
-    marginRight: hasWinner ? "50%" : "0", 
     zIndex: 1, // Убедитесь, что таблица поверх фото
   };
 
