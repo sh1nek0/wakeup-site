@@ -181,7 +181,6 @@ export default function GameResultsTable() {
   // console.log(rows) // Оставляем для отладки, если нужно
 
   return (
-    <div className={styles.tableWrapper}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -219,6 +218,6 @@ export default function GameResultsTable() {
           })}
         </tbody>
       </table>
-    </div>
+    
   );
 }
