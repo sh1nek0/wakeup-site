@@ -163,9 +163,9 @@ export default function GameResultsTable() {
                 rank: index + 1, // Ранг основан на порядке в массиве `players`
                 jk,
                 sk,
-                plus,
+                plus: plus.toFixed(2),
                 minusCards: minusCards.toFixed(1), // Форматируем как строку
-                total: calculatedTotal.toFixed(1), // Используем calculatedTotal и форматируем
+                total: calculatedTotal.toFixed(2), // Используем calculatedTotal и форматируем
             };
         });
     }, [gameData]); // Зависимость: только `gameData`
@@ -211,7 +211,7 @@ export default function GameResultsTable() {
                 <td>{p.plus}</td>
                 <td>{p.minusCards}</td>
                 <td className={styles.total}>
-                  {p.sum.toFixed(2)}
+                  {p.sum}
                 </td>
               </tr>
             );
