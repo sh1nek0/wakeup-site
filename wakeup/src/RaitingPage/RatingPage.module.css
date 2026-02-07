@@ -440,7 +440,7 @@
    СТАТИСТИКА
    ========================= */
 .statsWrapper{
-  background:#1A1A1A; border:1px solid #2A2A2A; padding:20px; border-radius:0;
+  background:#1A1A1A; border:1px solid #2A2A2A; border-radius:0;
 }
 .statsGrid{
   display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px;
@@ -524,7 +524,7 @@
 }
 .detailedStatsTable{
   width:100%; min-width:900px; border-collapse:collapse;
-  background:#202020; color:#fff; font-size:.8rem;
+  background:#202020; color:#fff; font-size:.9rem;
 }
 .detailedStatsTable th, .detailedStatsTable td{
   border:1px solid #2A2A2A; padding:.5rem; text-align:center;
@@ -679,6 +679,11 @@
     font-size: 12px;
   }
 
+  .detailedStatsTable td{
+    font-size: 0.9rem;
+    padding: 0.4rem;
+  }
+
   .heroText{
     font-size: 8px;
   }
@@ -700,7 +705,8 @@
   }
 
   .pagination{
-    gap:5px
+    gap:5px;
+    margin-left: 1px;
   }
   
 }
@@ -731,8 +737,10 @@
     font-size: 10px;
   }
   .pageBtn{
-    padding: 2px 3px;
+    padding: 4px 3px;
     min-width: 30px;
+    font-size: 11px
+
   }
 
   .pageArrow{
@@ -740,7 +748,8 @@
   }
 
   .pagination{
-    gap:5px
+    gap:5px;
+    margin-left: 1px;
   }
 
 

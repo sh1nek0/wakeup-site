@@ -1366,20 +1366,37 @@ function DetailedStatsTable({
   };
 
   const renderPagination = () => {
-    const pages = [];
-    for (let i = 1; i <= totalPagesCalculated; i++) {
-      pages.push(
-        <button
-          key={i}
-          onClick={() => onPageChange?.(i)}
-          className={i === currentPage ? `${styles.pageBtn} ${styles.pageActive}` : styles.pageBtn}
-          type="button"
-        >
-          {i}
-        </button>
-      );
+  const pages = [];
+  let startPage = 1;
+  let endPage = totalPagesCalculated;
+
+  // Отображаем максимум 7 кнопок страниц
+  if (totalPagesCalculated > 7) {
+    startPage = Math.max(currentPage - 3, 1);
+    endPage = Math.min(startPage + 6, totalPagesCalculated);
+
+    // Корректируем startPage, если endPage ушло за пределы totalPagesCalculated
+    if (endPage - startPage < 6) {
+      startPage = Math.max(endPage - 6, 1);
     }
-    return pages;
+  }
+
+  for (let p = startPage; p <= endPage; p++) {
+    const isActive = p === currentPage;
+    pages.push(
+      <button
+        key={p}
+        onClick={() => onPageChange?.(p)}
+        className={`${styles.pageBtn} ${isActive ? styles.pageActive : ''}`}
+        type="button"
+        aria-current={isActive ? 'page' : undefined} // Для доступности: указывает текущую страницу
+        aria-label={`Страница ${p}`} // Для доступности: более понятный текст для скринридеров
+      >
+        {p}
+      </button>
+    );
+  }
+  return pages;
   };
 
   const renderTh = (key, extraClass = "") => {
@@ -1412,7 +1429,7 @@ function DetailedStatsTable({
     <div className={styles.tableWrapper}>
       <div className={styles.btnWrap}>
         <button onClick={toggleModal} className={styles.editButton} type="button">
-          Редактировать таблицу
+          Редактировать
         </button>
         <button onClick={toggleFilterModal} className={styles.editButton} type="button">
           Фильтры
