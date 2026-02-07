@@ -153,7 +153,7 @@ body {
 /* Изображение игрока */
 .image {
   width: 100%;
-  height: 75%;
+  height: 100%;
   object-fit: cover;
 }
 
