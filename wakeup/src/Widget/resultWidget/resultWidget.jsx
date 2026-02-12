@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./resultWidget.module.css"; // Убедитесь, что этот путь корректный
-import defaultAvatar from "../NavBar/avatar.png";
-import redWin from "../images/redWin.png";
-import blackWin from "../images/blackWin.png"; // Предполагаем, что у вас есть фото для черных
+import defaultAvatar from "../../NavBar/avatar.png";
+import redWin from "../../images/redWin.png";
+import blackWin from "../../images/blackWin.png"; // Предполагаем, что у вас есть фото для черных
 
 // Helper function for role colors (already looks good)
 const getRoleColor = (role) => {

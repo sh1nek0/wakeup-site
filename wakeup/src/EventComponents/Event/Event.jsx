@@ -1,10 +1,10 @@
 import React, { useContext, useMemo, useState, useEffect } from "react";
 import styles from "./Event.module.css";
-import { AuthContext } from "../AuthContext";
+import { AuthContext } from "../../AuthContext";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
-import TournamentGames from "../components/TournamentGames/TournamentGames";
-import { DetailedStatsTable } from "../RaitingPage/RaitingPage";
-import PersonCard from '../components/PersonCard/PersonCard';
+import TournamentGames from "../../components/TournamentGames/TournamentGames";
+import { DetailedStatsTable } from "../../DetailedStatsTable/DetailedStatsTable";
+import PersonCard from '../../components/PersonCard/PersonCard';
 
 const stubAvatar = "data:image/svg+xml;utf8," +
   encodeURIComponent(

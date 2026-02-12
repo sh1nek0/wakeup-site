@@ -6,18 +6,18 @@ import NavBar from "./NavBar/Navbar.jsx";
 import HomePage from "./HomePage/HomePage.jsx";
 import RatingPage from "./RaitingPage/RaitingPage.jsx";
 import LoginPage from "./LoginPage/LoginPage.jsx";
-import EventsPage from "./EventPage/EventPage.jsx";
+import EventsPage from "./EventComponents/EventPage/EventPage.jsx";
 import Footer from "./Footer/Footer.jsx";
 import RoadToBreak from "./BTS/BTS.jsx";
-import Game from "./Event/Event.jsx";
+import Game from "./EventComponents/Event/Event.jsx";
 import ProfilePage from "./ProfilePage/ProfilePage.jsx";
 import PlayersTable from "./GamePage/GamePage.jsx";
 import PlayersListPage from "./PlayersListPage/PlayersListPage.jsx";
-import GameWidget from "./gameWidget/gameWidget.jsx";
+import GameWidget from "./Widget/gameWidget/gameWidget.jsx";
 import NotificationsPage from "./NotificationsPage/NotificationsPage.jsx";
-import GameResultsTable from "./resultWidget/resultWidget.jsx";
+import GameResultsTable from "./Widget/resultWidget/resultWidget.jsx";
 import SpeechRecognizer from "./speackDetacted/SpeechRecognizer.jsx";
-import EventPlayerStatsTable from "./eventWidget/eventWidget.jsx";
+import EventPlayerStatsTable from "./Widget/eventWidget/eventWidget.jsx";
 
 // --- AuthContext ---
 export const AuthContext = createContext(null);
