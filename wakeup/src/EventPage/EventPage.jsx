@@ -66,7 +66,7 @@ export default function EventsPage() {
   const [creating, setCreating] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const itemsPerPage = 4;
+  const itemsPerPage = 6;
   const { user, token } = useContext(AuthContext) ?? {};
   const isAdmin = user?.role === "admin";
 

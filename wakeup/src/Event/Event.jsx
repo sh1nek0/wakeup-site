@@ -17,7 +17,7 @@ const stubAvatar = "data:image/svg+xml;utf8," +
 
 // Функция из ProfilePage для форматирования размера файла
 const humanFileSize = (bytes) => {
-  const thresh = 1024;
+  const thresh = 1024*2;
   if (Math.abs(bytes) < thresh) return bytes + " B";
   const units = ["KB", "MB", "GB", "TB"];
   let u = -1;
