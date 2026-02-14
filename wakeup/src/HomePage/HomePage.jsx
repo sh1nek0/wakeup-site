@@ -20,9 +20,9 @@ import mafImg from "../images/maf.png";
 import sherifImg from "../images/sherif.png";
 import mirImg from "../images/mir.png";
 import donImg from "../images/don.png";
-import CCC_prew from "../EventPrew/CCC-PREW-Home.png";
-import Junior_prew from "../EventPrew/Junior.png";
-import Dec_prew from "../EventPrew/Dec-main.png";
+import CCC_prew from "../EventComponents/EventPrew/CCC-PREW-Home.png";
+import Junior_prew from "../EventComponents/EventPrew/Junior.png";
+import Dec_prew from "../EventComponents/EventPrew/Dec-main.png";
 
 
 // Статические данные для UI (картинки, описания). Ссылки будут обновлены динамически.

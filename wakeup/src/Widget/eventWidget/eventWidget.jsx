@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./eventWidget.module.css";
-import defaultAvatar from "../NavBar/avatar.png";
+import defaultAvatar from "../../NavBar/avatar.png";
 
 function extractEventIdFromPath(pathname) {
   const parts = pathname.split("/").filter(Boolean);

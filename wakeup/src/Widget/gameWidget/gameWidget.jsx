@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
-import CCC_prew from "../EventPrew/Rock.png";
-import logo from "../images/logo.png";
-import sheriff from "../images/gameIcon/Sheriff.png";
-import Don from "../images/gameIcon/Don.png";
-import Golos from "../images/gameIcon/Golos.png";
-import Strelba from "../images/gameIcon/Strelba.png";
+import CCC_prew from "../../EventComponents/EventPrew/Rock.png";
+import logo from "../../images/logo.png";
+import sheriff from "../../images/gameIcon/Sheriff.png";
+import Don from "../../images/gameIcon/Don.png";
+import Golos from "../../images/gameIcon/Golos.png";
+import Strelba from "../../images/gameIcon/Strelba.png";
 import styles from "./gameWidget.module.css";
 
 
