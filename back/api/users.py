@@ -380,7 +380,7 @@ async def get_rating(
             "photoUrl": user_info.get(name, {}).get("avatar"),
             "rating_score": (stats["total_sum"]) / (math.sqrt(stats["games"])) if stats["games"] > 0 else 0.0,
             "games_miet": stats.get("games_miet", 0),  # Получаем количество игр для МИЭТ
-            "games_mipt": stats.get("games_mipt", 0),  # Получаем количество игр для МФТИ
+            "games_mipt": stats.get("games_mipt", 0),  # Получаем количество игр для МФТИ 1
         }
         for name, stats in player_stats.items()
         if stats["games"] > 0  # Только те, у кого есть хотя бы 1 игра
