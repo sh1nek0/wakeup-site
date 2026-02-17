@@ -6,10 +6,6 @@ import defaultAvatar from '../NavBar/avatar.png';
 import { useDebounce } from '../useDebounce';
 import GameCard from '../components/GameCard/GameCard';
 
-
-
-
-
 const tabs = ['ТОП', 'Игры', 'Статистика'];
 
 const TAB_MAP = {
@@ -192,28 +188,48 @@ export default function RatingPage() {
     });
   };
 
-  const fetchPlayers = async (page) => {
+  const fetchPlayers = async () => {
     setPlayersLoading(true);
     setPlayersError(null);
-    try {
-        const offset = (page - 1) * itemsPerPage;
-        const res = await fetch(`/api/getRating?limit=${itemsPerPage}&offset=${offset}`);
-        if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
-        const data = await res.json();
-        if (data && Array.isArray(data.players)) {
-            setPlayersData(data.players);
-            setTotalPlayersCount(data.total_count || 0);
-        } else {
-            throw new Error('Некорректная структура ответа (players)');
-        }
-    } catch (e) {
-        setPlayersError(e.message);
-        setPlayersData([]);
-        setTotalPlayersCount(0);
-    } finally {
-        setPlayersLoading(false);
+
+  try {
+    const res = await fetch(`/api/events/${event_id}/player-stats`);
+    if (!res.ok) throw new Error(`Ошибка HTTP: ${res.status}`);
+
+    const data = await res.json();
+
+    if (!data || !Array.isArray(data.players)) {
+      throw new Error("Некорректная структура ответа (players)");
     }
-  };
+
+    const players = data.players;
+
+    // -----------------------------
+    // Вычисляем скор и сортируем
+    // -----------------------------
+    const playersWithScore = players.map((player) => {
+      const totalGames = player.gamesPlayed
+        ? Object.values(player.gamesPlayed).reduce((sum, value) => sum + value, 0)
+        : 1;
+      const score = player.totalPoints / Math.sqrt(totalGames);
+      return { ...player, score: parseFloat(score.toFixed(2)) };
+    });
+
+    // Сортировка по убыванию score
+    playersWithScore.sort((a, b) => b.score - a.score);
+
+    setPlayersData(playersWithScore);
+    setTotalPlayersCount(playersWithScore.length);
+  } catch (e) {
+    setPlayersError(e.message);
+    setPlayersData([]);
+    setTotalPlayersCount(0);
+  } finally {
+    setPlayersLoading(false);
+  }
+};
+
+
 
   const fetchGames = async () => {
     setGamesLoading(true);
@@ -289,9 +305,6 @@ export default function RatingPage() {
     }
   }, [activeTab, currentPage]);
 
-  const filteredPlayers = playersData.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const paginatedPlayers = filteredPlayers;
-  const totalPages = Math.ceil(totalPlayersCount / itemsPerPage);
 
 
   const filteredGames = gamesData.filter(g => 
@@ -368,6 +381,68 @@ export default function RatingPage() {
       setIsDeleting(false);
     }
   };
+
+
+  const totalPages = Math.ceil(totalPlayersCount / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentPlayers = playersData.slice(startIndex, startIndex + itemsPerPage);
+
+  const memoizedPlayerCards = useMemo(() => {
+    return currentPlayers.map((player, index) => {
+      const rank = startIndex + index + 1;
+
+      const clubColorClass = (() => {
+        switch (player.club) {
+          case 'WakeUp | MIET':
+            return styles.clubMIET;
+          case 'WakeUp | MIPT':
+            return styles.clubMIPT;
+          case 'Misis Mafia':
+            return styles.clubMisis;
+          case 'Триада Менделеева':
+            return styles.clubMend;
+          default:
+            return '';
+        }
+      })();
+
+      return (
+        <article key={player.id ?? `${rank}-${index}`} className={styles.card}>
+          <div className={styles.cardPlayer}>
+            <div className={styles.avatarWrap}>
+              <img
+                src={player.photoUrl || defaultAvatar}
+                alt="avatar"
+                className={styles.avatar}
+              />
+              <div className={styles.rankBadge} aria-label={`Место ${rank}`}>
+                {rank}
+              </div>
+            </div>
+            <div>
+              <div
+                className={`${styles.playerName} ${styles.clickablePlayerName}`}
+                onClick={() => handlePlayerClick(player.id)}
+              >
+                {player.nickname}
+              </div>
+              <div className={styles.playerSubtitle}>
+                {player.club || 'Клуб не указан'}
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.statsBlock}>
+            <div className={styles.statColumn}>{player.games_miet}</div>
+            <div className={styles.statColumn}>{player.games_mipt}</div>
+            <div className={`${styles.divider} ${clubColorClass}`} />
+            <div className={styles.cardPoints}>{player.score}</div>
+          </div>
+        </article>
+      );
+    });
+  }, [currentPlayers, startIndex, styles, defaultAvatar, handlePlayerClick]);
+
 
   return (
     <div className={styles.pageWrapper}>
@@ -455,104 +530,40 @@ export default function RatingPage() {
 
             {!playersLoading && !playersError && (
               <>
-                <section
-                  className={styles.cardsWrapper}
-                  role="tabpanel"
-                  aria-label="Рейтинг игроков"
-                >
+                <section className={styles.cardsWrapper}>
                   <div className={styles.cardsHeader}>
                     <div className={styles.cardPlayerHeader}>Игрок</div>
                     <div className={styles.cardGamesHeader}>
-                        <span>Количество игр</span>
-                        <div className={styles.subHeaderGames}>
-                            <span>МИЭТ</span>
-                            <span>МФТИ</span>
-                        </div>
+                      <span>Количество игр</span>
+                      <div className={styles.subHeaderGames}>
+                        <span>МИЭТ</span>
+                        <span>МФТИ</span>
+                      </div>
                     </div>
                     <div className={styles.cardPointsHeader}>Рейтинг</div>
                   </div>
 
-                  {paginatedPlayers.map((player, index) => {
-                    const rank = (currentPage - 1) * itemsPerPage + index + 1;
-                    
-                    let clubColorClass = '';
-                    if (player.club === 'WakeUp | MIET') {
-                      clubColorClass = styles.clubMIET;
-                    } else if (player.club === 'WakeUp | MIPT') {
-                      clubColorClass = styles.clubMIPT;
-                    } else if (player.club === 'Misis Mafia') {
-                      clubColorClass = styles.clubMisis;
-                    } else if (player.club === 'Триада Менделеева') {
-                      clubColorClass = styles.clubMend;
-                    } 
-
-
-                    return (
-                      <article key={`${rank}-${index}`} className={styles.card}>
-                        <div className={styles.cardPlayer}>
-                          <div className={styles.avatarWrap}>
-                            <img
-                              src={player.photoUrl || defaultAvatar}
-                              alt="avatar"
-                              className={styles.avatar}
-                            />
-                            <div
-                              className={styles.rankBadge}
-                              aria-label={`Место ${rank}`}
-                            >
-                              {rank}
-                            </div>
-                          </div>
-                          <div>
-                            <div className={`${styles.playerName} ${styles.clickablePlayerName}`} onClick={() => handlePlayerClick(player.id)}>
-                               {player.name}
-                            </div> 
-                            <div className={styles.playerSubtitle}>
-                              {player.club}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className={styles.statsBlock}>
-                            <div className={styles.statColumn}>{player.games_miet}</div>
-                            <div className={styles.statColumn}>{player.games_mipt}</div>
-                            <div className={`${styles.divider} ${clubColorClass}`}></div>
-                            <div className={styles.cardPoints}>
-                                {player.rating_score.toFixed(2)}
-                            </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+                  <section>
+                    {memoizedPlayerCards}
+                  </section>
                 </section>
 
                 {totalPages > 1 && (
-                  <nav
-                    className={styles.pagination}
-                    aria-label="Пейджинг рейтинга"
-                  >
+                  <nav className={styles.pagination} aria-label="Пейджинг рейтинга">
                     <button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
                       className={`${styles.pageBtn} ${styles.pageArrow}`}
-                      aria-label="Предыдущая страница"
-                      type="button"
                     >
                       ‹
                     </button>
                     {[...Array(totalPages)].map((_, i) => {
                       const p = i + 1;
-                      const isActive = p === currentPage;
                       return (
                         <button
                           key={p}
                           onClick={() => handlePageChange(p)}
-                          className={`${styles.pageBtn} ${
-                            isActive ? styles.pageActive : ''
-                          }`}
-                          aria-current={isActive ? 'page' : undefined}
-                          aria-label={`Страница ${p}`}
-                          type="button"
+                          className={`${styles.pageBtn} ${p === currentPage ? styles.pageActive : ''}`}
                         >
                           {p}
                         </button>
@@ -562,8 +573,6 @@ export default function RatingPage() {
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
                       className={`${styles.pageBtn} ${styles.pageArrow}`}
-                      aria-label="Следующая страница"
-                      type="button"
                     >
                       ›
                     </button>
@@ -574,6 +583,7 @@ export default function RatingPage() {
           </>
         )}
 
+              
         {activeTab === 'Игры' && (
           <div>
             {isAdmin && (

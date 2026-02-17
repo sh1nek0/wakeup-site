@@ -495,3 +495,5 @@ async def get_game_state(gameId: str, db: Session = Depends(get_db)):
         return json.loads(game.data)
     except Exception:
         raise HTTPException(status_code=500, detail="Corrupted game data")
+    
+
