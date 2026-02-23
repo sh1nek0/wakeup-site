@@ -560,6 +560,16 @@
   font-size: 0.95rem;
 }
 
+.eventAvatar {
+  margin-top: 12px;
+  width: 600px;        /* фиксированная ширина превью */
+  height: 350px;       /* фиксированная высота */
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+  object-fit: cover;
+}
+
 
 
 /* =============== адаптив =============== */

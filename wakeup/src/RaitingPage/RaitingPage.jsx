@@ -230,7 +230,6 @@ export default function RatingPage() {
 };
 
 
-
   const fetchGames = async () => {
     setGamesLoading(true);
     setGamesError(null);

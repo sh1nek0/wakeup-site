@@ -175,7 +175,7 @@ const Pagination = React.memo(({ currentPage, totalPages, onPageChange }) => {
         type="button"
         aria-label="Предыдущая страница"
       >
-        &lt;
+        ‹
       </button>
       {buttons}
       <button
@@ -185,7 +185,7 @@ const Pagination = React.memo(({ currentPage, totalPages, onPageChange }) => {
         type="button"
         aria-label="Следующая страница"
       >
-        &gt;
+        ›
       </button>
     </div>
   );

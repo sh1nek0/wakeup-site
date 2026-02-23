@@ -1,4 +1,5 @@
 /* =============== СТИЛИ ДЛЯ КОМПОНЕНТА PersonCard =============== */
+
 .personCard {
   display: flex;
   align-items: center;
@@ -7,57 +8,176 @@
   border: 1px solid var(--line);
   background: var(--panel);
   box-shadow: var(--shadow);
+  border-radius: 12px;
 }
+
 .avatar {
   width: 56px;
   height: 56px;
   background: var(--panel-3);
   border: 2px solid var(--accent);
   flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 8px;
 }
-.personMeta { display: grid; gap: 4px; }
-.personName { font-weight: 800; font-size: 15px; }
-.personRole { color: var(--muted); }
 
-/* Контейнер для режима редактирования (аналогично .personCard, но адаптирован для формы) */
+.personMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.personName {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.personRole {
+  color: var(--muted);
+}
+
+/* ================= EDIT MODE ================= */
+
 .editContainer {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Небольшой отступ между dropdown и input */
+  gap: 12px;
   padding: 16px;
   border: 1px solid var(--line);
   background: var(--panel);
   box-shadow: var(--shadow);
-  border-radius: 12px; /* Совпадает с другими элементами, как .input */
-}
-
-/* Выпадающее меню (dropdown) для выбора игрока (аналогично .input) */
-.dropdown {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  background: var(--panel-3);
-  border: 1.5px solid var(--accent);
-  color: var(--text);
   border-radius: 12px;
 }
 
+/* ====== КАСТОМНЫЙ DROPDOWN ====== */
+
+.dropdownWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.dropdownHeader {
+  padding: 12px;
+  background: var(--panel-3);
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  transition: 0.2s ease;
+  user-select: none;
+}
+
+.dropdownHeader:hover {
+  background: var(--panel);
+}
+
+/* Выпадающий список */
+.dropdownList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 1000;
+  animation: fadeDown 0.15s ease;
+}
+
+/* Анимация появления вниз */
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Поле поиска */
+.searchInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-3);
+  color: var(--text);
+  outline: none;
+  border-radius: 12px 12px 0 0;
+}
+
+.searchInput::placeholder {
+  color: var(--muted);
+}
+
+/* Элемент списка */
+.dropdownItem {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.dropdownItem:hover {
+  background: var(--panel-3);
+}
+
+.dropdownItem:active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Нет результатов */
+.noResults {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Текст загрузки */
+.loading {
+  padding: 10px 12px;
+  color: var(--muted);
+}
+
+/* ====== INPUT РОЛИ ====== */
+
+.inputField {
+  padding: 12px;
+  background: var(--panel-3);
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  color: var(--text);
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.inputField:focus {
+  background: var(--panel);
+}
+
+/* ================= RESPONSIVE ================= */
+
 @media (max-width: 720px) {
-  
-  .personRole{
+  .personRole {
     font-size: 10px;
   }
-  .personName{
+
+  .personName {
     font-size: 10px;
   }
 }
 
-@media (max-width:400px) {
-  .personCard{
+@media (max-width: 400px) {
+  .personCard {
     min-width: 100px;
   }
-  .personRole{
+
+  .personRole {
     font-size: 9px;
   }
-  
 }

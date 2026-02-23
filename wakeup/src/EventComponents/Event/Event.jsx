@@ -31,6 +31,7 @@ const humanFileSize = (bytes) => {
 export default function Event() {
   const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
   const isAdmin = user?.role === 'admin';
+  console.log(isAdmin)
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -699,16 +700,19 @@ export default function Event() {
           const roleGames = p.gamesPlayed?.[role] || 0;
           const roleBonus = (p.role_plus?.[role] || []).reduce((a, b) => a + b, 0);
           const score = roleBonus - 2.5 * roleGames;
+          
 
-          return { id: p.id, name: p.name, value: Number(score.toFixed(2)) };
+          return { id: p.id, name: p.name, value: Number(score.toFixed(2)),roleGames,roleBonus  };
         })
         .sort((a, b) => b.value - a.value)
         .slice(0, 3);
+        
 
       return { role, winners: top3 };
     });
   }, [playersStatsSorted]);
 
+  
   // Изменено
 
   // ------------------------------
@@ -816,6 +820,8 @@ export default function Event() {
               Предпросмотр — нажмите «Загрузить»
             </div>
           )}
+
+        
           {eventAvatarPreview && (
             <button onClick={uploadEventAvatar} disabled={uploadingEventAvatar || !eventAvatarFile} className={styles.loadbutton}>
               {uploadingEventAvatar ? "Загрузка…" : "Загрузить аватар"}
@@ -994,7 +1000,6 @@ export default function Event() {
         )}
       </div>
 
-  
 
       {/* Tabs for standings & nominations */}
       <section className={styles.tabsWrap}>
@@ -1135,19 +1140,43 @@ export default function Event() {
       </section>
         )}
 
+  {activeTab === "games" && (
+  <section className={styles.gamesSection}>
+    <h2 className={styles.h2}>Игры ивента</h2>
 
-        {activeTab==="games" && (isAdmin || !eventData.games_are_hidden) && eventData.games && eventData.games.length > 0 && (
-        <section className={styles.gamesSection}>
-          <h2 className={styles.h2}>Игры ивента</h2>
-          <TournamentGames
-            games={eventData.games}
-            isAdmin={isAdmin}
-            onDelete={handleDeleteGame}
-            onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
-            onPlayerClick={(playerId) => navigate(`/profile/${playerId}`)}
-          />
-        </section>
-      )}
+    {eventData.games_are_hidden ? ( // Если игры СКРЫТЫ
+      isAuthenticated ? ( // Пользователь АВТОРИЗОВАН
+        // Передаем игры. TournamentGames сам обработает пустой список, если он будет.
+        <TournamentGames
+          games={eventData.games ?? []}
+          isAdmin={isAdmin}
+          onDelete={handleDeleteGame}
+          onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
+          onPlayerClick={(playerId) => navigate(`/profile/playerId}`)}
+          showOnlyNames={eventData.games_are_hidden && !isAdmin} // true, т.к. игры скрыты и пользователь НЕ админ
+        />
+      ) : ( // Пользователь НЕ АВТОРИЗОВАН И игры СКРЫТЫ
+        <div className={styles.emptyHint}>
+          Пожалуйста, авторизуйтесь, чтобы увидеть игры и результаты.
+        </div>
+      )
+    ) : ( // Если игры НЕ СКРЫТЫ (видно ВСЕМ)
+      // Показываем игры без проверки авторизации.
+      // TournamentGames сам обработает пустой список, если он будет.
+      <TournamentGames
+        games={eventData.games ?? []}
+        isAdmin={isAdmin}
+        onDelete={handleDeleteGame}
+        onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
+        onPlayerClick={(playerId) => navigate(`/profile/${playerId}`)}
+        showOnlyNames={false} // Игры не скрыты, поэтому этот флаг не нужен для ограничения
+      />
+    )}
+  </section>
+)}
+
+
+
 
 
         {/* Panels */}
