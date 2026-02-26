@@ -35,6 +35,7 @@ export default function Event() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+ 
 
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -57,10 +58,13 @@ export default function Event() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+
+
   // ------------------------------
   // Event data
   // ------------------------------
   const [eventData, setEventData] = useState({});
+  const [judges, setJudges] = useState(eventData.judges || []);
   const [participants, setParticipants] = useState([]);
   const [teams, setTeams] = useState([]);
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
@@ -134,6 +138,13 @@ export default function Event() {
 
 
 
+    useEffect(() => {
+  if (eventData.judges) {
+    setJudges(eventData.judges);
+  }
+}, [eventData.judges]);
+
+
   const startEditing = () => {
     setEditedFields({});
     setIsEditing(true);
@@ -166,84 +177,132 @@ export default function Event() {
     updateEditedField('dates', newDates);
   };
 
-  const saveEvent = async () => {
-    if (!Object.keys(editedFields).length) {
-      showMessage("Нет изменений для сохранения");
+const saveEvent = async () => {
+  console.log("=== SAVEEVENT START ===");
+  console.log("1. Current editedFields:", editedFields);
+  console.log("2. Current judges state:", judges);
+  
+  if (!Object.keys(editedFields).length && !eventAvatarFile) {
+    showMessage("Нет изменений для сохранения");
+    return;
+  }
+
+  if (!token) {
+    showMessage("Требуется авторизация", true);
+    return;
+  }
+
+  const payload = {};
+
+  for (const [key, value] of Object.entries(editedFields)) {
+    console.log(`3. Processing key: ${key}`, value);
+    
+    if (value === undefined || value === null) continue;
+
+    if (key === "dates") {
+      if (Array.isArray(value)) {
+        payload.dates = value
+          .map(d => new Date(d).toISOString().split("T")[0])
+          .filter(Boolean);
+      }
+      continue;
+    }
+
+    if (key === "seating_exclusions") {
+      if (Array.isArray(value)) {
+        payload.seating_exclusions = value.map(row =>
+          Array.isArray(row) ? row.map(String) : []
+        );
+      }
+      continue;
+    }
+
+    // ОСОБАЯ ОБРАБОТКА ДЛЯ СУДЕЙ
+    if (key === "judges") {
+      console.log("4. Processing judges field:", value);
+      
+      if (Array.isArray(value)) {
+        // Извлекаем только ID судей (фильтруем тех, у кого есть id)
+        const judgeIds = value
+          .filter(judge => {
+            console.log("5. Judge object:", judge);
+            return judge?.id;
+          })
+          .map(judge => {
+            console.log("6. Mapping judge to id:", judge.id);
+            return judge.id;
+          });
+        
+        console.log("7. Final judge_ids:", judgeIds);
+        payload.judge_ids = judgeIds;
+      }
+      continue; // Пропускаем, чтобы не добавлять в payload под ключом "judges"
+    }
+
+    payload[key] = value;
+  }
+
+  console.log("8. Final payload before sending:", payload);
+  console.log("9. Does payload have judge_ids?", payload.hasOwnProperty('judge_ids'));
+  if (payload.judge_ids) {
+    console.log("10. judge_ids content:", payload.judge_ids);
+  }
+
+  try {
+    const formData = new FormData();
+
+    // 🔹 JSON данные
+    const jsonString = JSON.stringify(payload);
+    console.log("11. JSON string being sent:", jsonString);
+    formData.append("request", jsonString);
+
+    // 🔹 Файл (если выбран)
+    if (eventAvatarFile) {
+      console.log("12. Adding avatar file:", eventAvatarFile.name);
+      formData.append("avatar", eventAvatarFile);
+    }
+
+    // Логируем содержимое FormData
+    console.log("13. FormData entries:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
+
+    const response = await fetch(`/api/event/${eventId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    console.log("14. Response status:", response.status);
+    
+    const data = await response.json();
+    console.log("15. Response data:", data);
+
+    if (!response.ok) {
+      showMessage(data.detail || "Ошибка сохранения", true);
       return;
     }
 
-    const payload = {};
+    showMessage("Событие успешно обновлено");
 
-    for (const [key, value] of Object.entries(editedFields)) {
-      if (value === undefined || value === null) continue;
+    setEventAvatarFile(null);
+    setEventAvatarPreview(null);
 
-      // Обработка дат
-      if (key === "dates") {
-        if (Array.isArray(value)) {
-          payload.dates = value
-            .map(d => {
-              if (typeof d === "string" || d instanceof Date) {
-                return new Date(d).toISOString().split("T")[0];
-              }
-              console.warn("Неправильный формат даты:", d);
-              return null;
-            })
-            .filter(Boolean);
-        }
-        continue;
-      }
-      if (key === "gs_name") payload.gs_id = value;
-      if (key === "gs_role") payload.gs_role = value;
-      if (key === "org_name") payload.org_id = value;
-      if (key === "org_role") payload.org_role = value; 
+    await fetchEventData();
 
-      // seating_exclusions — массив массивов строк
-      if (key === "seating_exclusions") {
-        if (Array.isArray(value)) {
-          payload.seating_exclusions = value.map(row => 
-            Array.isArray(row) ? row.map(String) : []
-          );
-        }
-        continue;
-      }
+    setEditedFields({});
+    setIsEditing(false);
 
-      // Все остальные поля отправляем как есть
-      payload[key] = value;
-    }
-
-    console.log("Payload для PATCH:", payload);
-
-    try {
-      const response = await fetch(`/api/event/${eventId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        showMessage(data.detail || "Ошибка сохранения", true);
-        return;
-      }
-
-      showMessage("Событие успешно обновлено");
-
-      // Обновляем данные события с сервера
-      await fetchEventData();
-
-      // Сбрасываем редактируемые поля
-      setEditedFields({});
-      setIsEditing(false);
-
-    } catch (error) {
-      console.error("Ошибка при сохранении события:", error);
-      showMessage("Ошибка сохранения", true);
-    }
-  };
+  } catch (error) {
+    console.error("16. Ошибка сохранения:", error);
+    showMessage("Ошибка сохранения", true);
+  }
+  
+  console.log("=== SAVEEVENT END ===");
+};
 
   // Форматирование дат для отображения
   const formatDates = (dates) => {
@@ -504,83 +563,8 @@ export default function Event() {
     setEventAvatarPreview(url);
   };
 
-  const uploadEventAvatar = async () => {
-    if (!isAdmin) return;
-    if (!token) {
-      setUploadEventAvatarError("Необходима авторизация для загрузки файла.");
-      return;
-    }
-    if (!eventAvatarFile) {
-      setUploadEventAvatarError("Сначала выберите PNG-файл.");
-      return;
-    }
-    setUploadingEventAvatar(true);
-    setUploadEventAvatarError(null);
-    try {
-      const form = new FormData();
-      form.append("avatar", eventAvatarFile);
 
-      const res = await fetch(`/api/event/${eventId}/avatar`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: form,
-      });
 
-      if (!res.ok) {
-        let msg = "Ошибка загрузки файла.";
-        try {
-          const j = await res.json();
-          msg = j.detail || j.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-      const data = await res.json();
-      setEventAvatarFile(null);
-      setEventAvatarPreview(null);
-      setEventData((prev) => ({ ...prev, avatar: data.url }));
-      showMessage("Аватар мероприятия успешно загружен.");
-    } catch (e) {
-      setUploadEventAvatarError(e.message);
-    } finally {
-      setUploadingEventAvatar(false);
-    }
-  };
-
-  const handleDeleteEventAvatar = async () => {
-    if (!isAdmin || !eventData.avatar) return;
-    if (!window.confirm("Вы уверены, что хотите удалить аватар мероприятия?")) return;
-
-    setUploadingEventAvatar(true);
-    setUploadEventAvatarError(null);
-    try {
-      const res = await fetch(`/api/event/${eventId}/avatar`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        let msg = "Ошибка удаления аватара.";
-        try {
-          const j = await res.json();
-          msg = j.detail || j.message || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-      
-      setEventData((prev) => ({ ...prev, avatar: null }));
-      setEventAvatarPreview(null);
-      showMessage("Аватар мероприятия успешно удален.");
-    } catch (e) {
-      setUploadEventAvatarError(e.message);
-    } finally {
-      setUploadingEventAvatar(false);
-    }
-  };
 
   // ------------------------------
   // TEST DATA for tables (personal)
@@ -739,6 +723,13 @@ export default function Event() {
 
 
   const [teamPage, setTeamPage] = useState(1);
+useEffect(() => {
+  console.log("Judges state changed:", judges);
+}, [judges]);
+
+useEffect(() => {
+  console.log("EditedFields changed:", editedFields);
+}, [editedFields]);
 
   
 
@@ -817,20 +808,22 @@ export default function Event() {
           </label>
           {eventAvatarPreview && (
             <div className={styles.hint}>
-              Предпросмотр — нажмите «Загрузить»
+              Аватар будет загружен после нажатия «Сохранить»
             </div>
           )}
 
         
-          {eventAvatarPreview && (
-            <button onClick={uploadEventAvatar} disabled={uploadingEventAvatar || !eventAvatarFile} className={styles.loadbutton}>
-              {uploadingEventAvatar ? "Загрузка…" : "Загрузить аватар"}
-            </button>
-          )}
+          
           
           {eventData.avatar && !eventAvatarPreview && (
-            <button onClick={handleDeleteEventAvatar} disabled={uploadingEventAvatar} className={styles.deleteButton}>
-              {uploadingEventAvatar ? "Удаление..." : "Удалить аватар"}
+            <button
+              onClick={() => {
+                updateEditedField("avatar", null);
+                setEventData(prev => ({ ...prev, avatar: null }));
+              }}
+              className={styles.deleteButton}
+            >
+              Удалить аватар
             </button>
           )}
 
@@ -1068,7 +1061,7 @@ export default function Event() {
             Номинации 
           </button>
 
-           {isAdmin && <button
+           {(isAdmin || eventData.judges?.some(j => j?.id === user?.id)) && <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'admin' ? styles.tabActive : ''}`}
             onClick={() => setTab('admin')}
@@ -1081,35 +1074,134 @@ export default function Event() {
 
         </nav>
 
-
-          {activeTab==="admin" && (
-        <section className={styles.adminPanel}>
-          <h2 className={styles.h2}>Панель администратора</h2>
-          <div className={styles.adminGrid}>
-            <div className={styles.adminForm}>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>Количество раундов</label>
-                <input type="number" className={styles.input} value={numRounds} onChange={e => setNumRounds(e.target.value)} />
-              </div>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>Количество столов</label>
-                <input type="number" className={styles.input} value={numTables} onChange={e => setNumTables(e.target.value)} />
-              </div>
-              <div className={styles.formRow}>
-                <label className={styles.formLabel}>Исключения рассадки (каждая пара с новой строки)</label>
-                <textarea className={styles.textarea} value={exclusionsText} onChange={e => setExclusionsText(e.target.value)} placeholder="Player1, Player2&#10;Player3, Player4" />
-              </div>
-            </div>
-            <div className={styles.adminActions}>
-              <button onClick={handleSetupGames} className={styles.primaryBtn}>Создать сетку игр</button>
-              <button onClick={handleGenerateSeating} className={styles.primaryBtn}>Сгенерировать рассадку</button>
-              <button onClick={handleCreateSingleGame} className={styles.secondaryBtn}>Создать отдельную игру</button>
-              <button onClick={handleToggleVisibility} className={styles.secondaryBtn}>
-                {eventData.games_are_hidden ? "Показать игры" : "Скрыть игры"}
-              </button>
-            </div>
+        {activeTab === "admin" && (
+  <>
+    <section className={styles.adminPanel}>
+      <h2 className={styles.h2}>Панель администратора</h2>
+      <div className={styles.adminGrid}>
+        <div className={styles.adminForm}>
+          <div className={styles.formRow}>
+            <label className={styles.formLabel}>Количество раундов</label>
+            <input
+              type="number"
+              className={styles.input}
+              value={numRounds}
+              onChange={(e) => setNumRounds(e.target.value)}
+            />
           </div>
-        </section>)}
+          <div className={styles.formRow}>
+            <label className={styles.formLabel}>Количество столов</label>
+            <input
+              type="number"
+              className={styles.input}
+              value={numTables}
+              onChange={(e) => setNumTables(e.target.value)}
+            />
+          </div>
+          <div className={styles.formRow}>
+            <label className={styles.formLabel}>Исключения рассадки (каждая пара с новой строки)</label>
+            <textarea
+              className={styles.textarea}
+              value={exclusionsText}
+              onChange={(e) => setExclusionsText(e.target.value)}
+              placeholder="Player1, Player2\nPlayer3, Player4"
+            />
+          </div>
+        </div>
+        <div className={styles.adminActions}>
+          <button onClick={handleSetupGames} className={styles.primaryBtn}>Создать сетку игр</button>
+          <button onClick={handleGenerateSeating} className={styles.primaryBtn}>Сгенерировать рассадку</button>
+          <button onClick={handleCreateSingleGame} className={styles.secondaryBtn}>Создать отдельную игру</button>
+          <button onClick={handleToggleVisibility} className={styles.secondaryBtn}>
+            {eventData.games_are_hidden ? "Показать игры" : "Скрыть игры"}
+          </button>
+        </div>
+      </div>
+    </section>
+    <div className={styles.judgesSection}>
+      <h3>Судьи</h3>
+
+      {judges.map((judge, index) => (
+        <div key={index} className={styles.judgeCard}>
+          <PersonCard
+  user={judge}
+  isEdit={true}
+  token={token}
+  defaultRole="Судья"
+  onChange={(user, role) => {
+    console.log("1. onChange received:", { user, role });
+    
+    // Создаем новый массив judges
+    const updated = [...judges];
+    
+    // Важно! user может быть полным объектом или уже готовым
+    // Проверяем структуру и сохраняем ID
+    updated[index] = {
+      id: user?.id, // Сохраняем ID
+      nickname: user?.nickname || user?.name,
+      avatar: user?.avatar || user?.photoUrl,
+      role: role,
+    };
+    
+    console.log("2. Updated judge object:", updated[index]);
+    console.log("3. Full updated array:", updated);
+    
+    // Обновляем состояние
+    setJudges(updated);
+    
+    // Обновляем editedFields
+    updateEditedField("judges", updated);
+  }}
+/>
+
+ <button
+  className={styles.saveButton}
+  onClick={() => {
+    console.log("4. Save button clicked for judge index:", index);
+    console.log("5. Current judges state:", judges);
+    console.log("6. Current judge at index:", judges[index]);
+    
+    // Обновляем editedFields с текущим массивом judges
+    updateEditedField("judges", judges);
+    
+    // Вызываем saveEvent
+    saveEvent();
+  }}
+>
+  Сохранить
+</button>
+          <button
+            className={styles.deleteButton}
+            onClick={() => {
+              const updated = judges.filter((_, i) => i !== index);
+              setJudges(updated);
+              updateEditedField("judges", updated);
+            }}
+          >
+            Удалить
+          </button>
+        </div>
+      ))}
+
+      <button
+        className={styles.primaryBtn}
+        onClick={() => {
+          const updated = [...judges, { id: null }];
+          setJudges(updated);
+          updateEditedField("judges", updated);
+          
+        }}
+      >
+        + Добавить судью
+      </button>
+      
+    </div>
+  </>
+)}
+            
+
+
+
 
 
         {activeTab==="player" && (

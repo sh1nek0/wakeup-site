@@ -250,10 +250,14 @@
 
   .headerContainer::after { display: none; }     /* на мобильных без свечения */
 
-  .card { flex-direction: column; height: auto; }
+  .card { flex-direction: column; height: auto; border-bottom: 4px solid #FF7A1A ;}
   .leftBlock { clip-path: none; padding: 14px 14px 10px; }
   .rightBlock { clip-path: none; height: 180px; flex-basis: auto; }
   .orangeStripe { display: none; }
+  .dateBox{
+    right: auto;
+    left: 14px;
+  }
   
   .tabBtn{
     font-size: 10px;

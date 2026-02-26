@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException,File, UploadFile, Query
-from sqlalchemy.orm import Session, selectinload
+from fastapi import APIRouter, Depends, HTTPException,File, UploadFile, Query, Form
+from sqlalchemy.orm import Session, selectinload, aliased
 import json
 import uuid
 import random
@@ -12,6 +12,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from core.config import AVATAR_DIR
 import logging
 from sqlalchemy import distinct, func, or_
+from pathlib import Path
+from core.security import get_current_user, get_optional_current_user, get_db
+from db.models import Event, Team, Registration, User, Notification, Game, event_judges
+from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
+from api.notifications import create_notification
+from collections import defaultdict
+from typing import Optional
 
 
 logger = logging.getLogger(__name__)
@@ -23,13 +30,6 @@ try:
 except Exception:
     HAS_PULP = False
 
-from pathlib import Path
-from core.security import get_current_user, get_optional_current_user, get_db
-from db.models import Event, Team, Registration, User, Notification, Game
-from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
-from api.notifications import create_notification
-from collections import defaultdict
-from typing import Optional
 
 router = APIRouter()
 
@@ -280,78 +280,110 @@ async def register_for_event(event_id: str, current_user: User = Depends(get_cur
 async def manage_registration(registration_id: str, request: ManageRegistrationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return await manage_registration_logic(registration_id, request.action, current_user, db)
 
+def get_user_avatar(user_obj):
+    return user_obj.avatar if user_obj else None
+
 @router.get("/events")
 async def get_events(db: Session = Depends(get_db)):
-    # Запрашиваем только нужные поля, чтобы избежать ошибок при добавлении новых колонок в модель
-    events_query = db.query(
-        Event.id,
-        Event.title,
-        Event.dates,
-        Event.location,
-        Event.type,
-        Event.participants_limit,
-        Event.participants_count,
-        Event.created_at,
-        Event.avatar
-    ).order_by(Event.created_at.desc()).all()
+
+    # Загружаем события с judges без сортировки по position
+    events_query = (
+        db.query(Event)
+        .options(selectinload(Event.judges))
+        .order_by(Event.created_at.desc())
+        .all()
+    )
 
     events_list = []
+
     for event in events_query:
+
+        # --- Безопасный парсинг дат ---
         try:
             dates_parsed = json.loads(event.dates) if event.dates else []
-        except json.JSONDecodeError:
-            dates_parsed = []  # Fallback на пустой список, если JSON повреждён
-        
+            if not isinstance(dates_parsed, list):
+                dates_parsed = []
+        except (json.JSONDecodeError, TypeError):
+            dates_parsed = []
+
+        # --- Судьи (могут быть пустыми) ---
+        judges_data = []
+        if event.judges:
+            for j in event.judges:
+                judges_data.append({
+                    "user_id": j.id,
+                    "nickname": j.nickname,
+                    "avatar": get_user_avatar(j)
+                })
+
         events_list.append({
             "id": event.id,
             "title": event.title,
-            "dates": dates_parsed,  # Возвращаем как список
+            "dates": dates_parsed,
             "location": event.location,
             "type": event.type,
             "participants_limit": event.participants_limit,
             "participants_count": event.participants_count,
-            "avatar":event.avatar
+            "avatar": event.avatar,
+            "judges": judges_data  # всегда список
         })
-    
+
     return {"events": events_list}
 
+
 @router.get("/getEvent/{event_id}")
-async def get_event(event_id: str, current_user: User = Depends(get_optional_current_user), db: Session = Depends(get_db)):
-    event = db.query(Event).options(selectinload(Event.games)).filter(Event.id == event_id).first()
+async def get_event(
+    event_id: str,
+    current_user: User = Depends(get_optional_current_user),
+    db: Session = Depends(get_db)
+):
+    # Подгружаем Event с games и judges
+    event = db.query(Event).options(
+        selectinload(Event.games),
+        selectinload(Event.judges)
+    ).filter(Event.id == event_id).first()
+    
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено")
     
-    # Десериализуем dates
+    # Десериализация dates
     try:
         dates_parsed = json.loads(event.dates) if event.dates else []
     except json.JSONDecodeError:
         dates_parsed = []
-    
-    # Логика получения участников и команд остается прежней
+
+    # Подгружаем регистрации участников
     registrations = db.query(Registration).filter(Registration.event_id == event_id).all()
     approved_regs = [reg for reg in registrations if reg.status == "approved"]
     participants_list = [{
-        "id": reg.user.id, "nick": reg.user.nickname,
-        "avatar": reg.user.avatar or "", "club": reg.user.club
+        "id": reg.user.id,
+        "nick": reg.user.nickname,
+        "avatar": get_user_avatar(reg.user),
+        "club": reg.user.club
     } for reg in approved_regs]
-    
+
+    # Pending registrations для админа
     pending_registrations_list = []
     if current_user and current_user.role == "admin":
         pending_regs = [reg for reg in registrations if reg.status == "pending"]
         pending_registrations_list = [{
             "registration_id": reg.id,
             "user": {
-                "id": reg.user.id, "nick": reg.user.nickname,
-                "avatar": reg.user.avatar or "", "club": reg.user.club
+                "id": reg.user.id,
+                "nick": reg.user.nickname,
+                "avatar": get_user_avatar(reg.user),
+                "club": reg.user.club
             }
         } for reg in pending_regs]
-        
+
+    # Статус регистрации текущего пользователя
     user_registration_status = "none"
     if current_user:
         user_reg = next((reg for reg in registrations if reg.user_id == current_user.id), None)
         if user_reg:
             user_registration_status = user_reg.status
-            
+
+    # Подгружаем команды
     teams_list = []
     teams = db.query(Team).filter(Team.event_id == event_id).all()
     all_users_in_event = {p['id']: p for p in participants_list}
@@ -359,314 +391,86 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
         user_db = db.query(User).filter(User.id == current_user.id).first()
         if user_db:
             all_users_in_event[current_user.id] = {"id": user_db.id, "nick": user_db.nickname}
+
     for t in teams:
-        members_data = json.loads(t.members)
-        is_member = any(m['user_id'] == current_user.id for m in members_data) if current_user else False
+        try:
+            members_data = json.loads(t.members)
+        except (json.JSONDecodeError, TypeError):
+            members_data = []
+
+        is_member = any(m.get('user_id') == current_user.id for m in members_data) if current_user else False
         if t.status == 'approved' or is_member or (current_user and current_user.role == 'admin'):
             members_with_nicks = []
             for m in members_data:
-                user_info = all_users_in_event.get(m['user_id'])
+                user_info = all_users_in_event.get(m.get('user_id'))
                 if user_info:
                     members_with_nicks.append({
                         "id": m['user_id'],
                         "nick": user_info['nick'],
-                        "status": m['status']
+                        "status": m.get('status')
                     })
-            teams_list.append({"id": t.id, "name": t.name, "members": members_with_nicks, "status": t.status})
+            teams_list.append({
+                "id": t.id,
+                "name": t.name,
+                "members": members_with_nicks,
+                "status": t.status
+            })
 
+    # Подгружаем судей события
+    judges_data = [
+        {"id": j.id, "nickname": j.nickname, "avatar": get_user_avatar(j)}
+        for j in event.judges or []
+    ]
+
+    # Игры
     games_list = []
     is_admin = current_user and current_user.role == "admin"
-    
-    all_users_in_db = db.query(User.id, User.nickname).all()
-    nick_to_id_map = {nick: uid for uid, nick in all_users_in_db}
 
     if not event.games_are_hidden or is_admin:
-        # ИНИЦИАЛИЗАЦИЯ: Все игры события (аналогично all_games_for_calc в getGames)
-        all_games_for_calc = event.games
-        played_games_for_calc = [
-            game for game in all_games_for_calc if json.loads(game.data).get("badgeColor")
-        ]
-        
-        # Глобальный расчёт all_points для ci (для всего события)
-        all_points: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-            "games_count": 0,
-            "bestMovesWithBlack": 0,
-            "ci": 0.0
-        })
-        for game in played_games_for_calc:
-            data = json.loads(game.data)
-            players = data.get("players", [])
-            badge_color = data.get("badgeColor", None)
-            
-            # Сбор user_ids для замены имён
-            user_ids = set()
-            for p in players:
-                user_id = p.get("userId")
-                if user_id:
-                    if isinstance(user_id, str) and user_id.isdigit():
-                        user_ids.add(int(user_id))
-                    else:
-                        user_ids.add(user_id)
-            db_users_query = db.query(User).filter(User.id.in_(user_ids))
-            db_users = db_users_query.all()
-            user_map: Dict[Any, User] = {u.id: u for u in db_users}
-            
-            for p in players:
-                player_name = p.get("name", "").strip()
-                if not player_name:
-                    continue
-                
-                player_key = player_name
-                user_id = p.get("userId")
-                if user_id:
-                    if user_id in user_map:
-                        db_user = user_map[user_id]
-                        db_name = (db_user.nickname or db_user.name or "").strip()
-                        if db_name:
-                            player_key = db_name
-                
-                all_points[player_key]["games_count"] += 1
-                
-                # best_move логика для глобального x
-                best_move = p.get("best_move", "").strip()
-                if best_move:
-                    try:
-                        nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
-                        if len(nominated_strs) == 3:
-                            nominated_ids = []
-                            for s in nominated_strs:
-                                try:
-                                    idx = int(s) - 1
-                                    if 0 <= idx < len(players):
-                                        nominated_ids.append(players[idx]["id"])
-                                except ValueError:
-                                    continue
-                            player_roles: Dict[str, str] = {str(p.get("id", "")): p.get("role", "") for p in players}
-                            mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(str(nid), "") in ["мафия", "дон"])
-                            if mafia_don_count >= 1:
-                                all_points[player_key]["bestMovesWithBlack"] += 1
-                    except ValueError:
-                        continue
-        
-        # Рассчитываем глобальный ci для каждого игрока
-        for player_key, details in all_points.items():
-            x = details["bestMovesWithBlack"]
-            n = details["games_count"]
-            details["ci"] = calculate_ci(x, n)
-
         sorted_games = sorted(event.games, key=lambda g: g.gameId)
+        all_users_in_db = db.query(User.id, User.nickname).all()
+        nick_to_id_map = {nick: uid for uid, nick in all_users_in_db}
+
+        # Можно вставить твою логику расчёта очков (total_plus_only, ci, bestMovesWithBlack и т.д.)
         for game in sorted_games:
             try:
                 game_data = json.loads(game.data)
                 players = game_data.get("players", [])
             except (json.JSONDecodeError, TypeError):
                 players = []
-                continue  # Пропускаем игры без валидных данных
-            
+
             judge_nickname = game_data.get("gameInfo", {}).get("judgeNickname")
-            
             round_match = re.search(r'_r(\d+)', game.gameId)
             round_number = int(round_match.group(1)) if round_match else None
 
-            # Маппинг ролей
-            role_mapping = {
-                "шериф": "sheriff",
-                "мирный": "citizen",
-                "мафия": "mafia",
-                "дон": "don"
-            }
-            
-            # player_roles для игры
-            player_roles: Dict[str, str] = {}
-            for p in players:
-                player_id = str(p.get("id", ""))
-                role = p.get("role", "")
-                player_roles[player_id] = role
-            
-            # Извлекаем badgeColor
-            badge_color = game_data.get("badgeColor", None)
-            
-            # Сбор user_ids
-            user_ids = set()
-            for p in players:
-                user_id = p.get("userId")
-                if user_id:
-                    if isinstance(user_id, str) and user_id.isdigit():
-                        user_ids.add(int(user_id))
-                    else:
-                        user_ids.add(user_id)
-            
-            # Запрос пользователей
-            db_users_query = db.query(User).filter(User.id.in_(user_ids))
-            db_users = db_users_query.all()
-            user_map: Dict[Any, User] = {u.id: u for u in db_users}
-            
-            # player_totals для этой игры
-            player_totals: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-                "total_plus_only": 0.0,
-                "games_count": 1,
-                "total_best_move_bonus": 0.0,
-                "total_minus": 0.0,
-                "bestMovesWithBlack": 0,
-                "jk_count": 0,
-                "sk_count": 0,
-                "wins": defaultdict(int),
-                "gamesPlayed": defaultdict(int),
-                "role_plus": defaultdict(list),
-                "user_id": None
-            })
-            
-            for p in players:
-                player_name = p.get("name", "").strip()
-                if not player_name:
-                    continue
-                
-                player_key = player_name
-                user_id = p.get("userId")
-                if user_id:
-                    player_totals[player_key]["user_id"] = user_id
-                
-                # Замена имени на DB-имя
-                if player_totals[player_key]["user_id"] in user_map:
-                    db_user = user_map[player_totals[player_key]["user_id"]]
-                    db_name = (db_user.nickname or db_user.name or "").strip()
-                    if db_name:
-                        player_key = db_name
-                
-                player_totals[player_key]["name"] = player_key
-                
-                role = p.get("role", "")
-                english_role = role_mapping.get(role, "")
-                
-                if english_role:
-                    player_totals[player_key]["gamesPlayed"][english_role] += 1
-                    
-                    # Логика победы с win_coefficient
-                    win_condition = False
-                    win_coefficient = 0.0
-                    if badge_color == "red" and role in ["мирный", "шериф"]:
-                        win_condition = True
-                        win_coefficient = 2.5
-                    elif badge_color == "black" and role in ["мафия", "дон"]:
-                        win_condition = True
-                        win_coefficient = 2.5
-                    
-                    if win_condition:
-                        player_totals[player_key]["wins"][english_role] += 1
-                    
-                    plus_value = p.get("plus", 0.0)
-                    if isinstance(plus_value, (int, float)):
-                        player_totals[player_key]["total_plus_only"] += plus_value + win_coefficient
-                        player_totals[player_key]["role_plus"][english_role].append(plus_value)
-                
-                # Всегда рассчитываем has_black_in_best_move по best_move (для CI), независимо от JSON
-                has_black_in_best_move = False
-                best_move = p.get("best_move", "").strip()
-                mafia_don_count = 0
-                if best_move:
-                    try:
-                        nominated_strs = [s.strip() for s in best_move.split() if s.strip().isdigit()]
-                        if len(nominated_strs) == 3:
-                            nominated_ids = []
-                            for s in nominated_strs:
-                                try:
-                                    idx = int(s) - 1
-                                    if 0 <= idx < len(players):
-                                        nominated_ids.append(players[idx]["id"])
-                                except ValueError:
-                                    continue
-                            mafia_don_count = sum(1 for nid in nominated_ids if player_roles.get(str(nid), "") in ["мафия", "дон"])
-                            has_black_in_best_move = mafia_don_count >= 1
-                    except ValueError:
-                        pass
-                
-                # best_move_bonus: Используем из JSON, если есть, иначе рассчитываем по mafia_don_count
-                best_move_bonus_from_json = p.get("best_move_bonus", 0.0)
-                if best_move_bonus_from_json > 0:
-                    player_totals[player_key]["total_best_move_bonus"] += best_move_bonus_from_json
-                else:
-                    # Расчёт бонуса по mafia_don_count
-                    bonus = 0.0
-                    if mafia_don_count == 3:
-                        bonus = 1.5
-                    elif mafia_don_count == 2:
-                        bonus = 1.0
-                    elif mafia_don_count == 1:
-                        bonus = 0.0
-                    player_totals[player_key]["total_best_move_bonus"] += bonus
-                
-                sk_count = p.get("sk", 0)
-                if isinstance(sk_count, (int, float)) and sk_count > 0:
-                    player_totals[player_key]["sk_count"] += int(sk_count)
-                    player_totals[player_key]["total_minus"] += -0.5 * sk_count
-                
-                jk_count = p.get("jk", 0)
-                if isinstance(jk_count, (int, float)) and jk_count > 0:
-                    player_totals[player_key]["jk_count"] += int(jk_count)
-                
-                if has_black_in_best_move:
-                    player_totals[player_key]["bestMovesWithBlack"] += 1
-            
-            processed_players = []
-            for p in players:
-                name = p.get("name")
-                
-                player_key = name.strip() if name else ""
-                if player_key in player_totals:
-                    details = player_totals[player_key]
-                    # Локальный ci: часть глобального, пропорциональная x_лок / глобальный_x
-                    x_лок = details["bestMovesWithBlack"]
-                    глобальный_x = all_points.get(player_key, {}).get("bestMovesWithBlack", 0)
-                    глобальный_ci = all_points.get(player_key, {}).get("ci", 0.0)
-                    ci_лок = (глобальный_ci * x_лок / глобальный_x) if глобальный_x > 0 else 0.0
-                    final_points = details["total_plus_only"] + details["total_best_move_bonus"] + details["total_minus"] + ci_лок
-                    
-                    m = details["jk_count"]
-                    cy = 0.5 * m * (m + 1) if m > 0 else 0.0
-                    total_minus = details["total_minus"] - cy
-                    cb = details["total_best_move_bonus"]
-                    jk = details["jk_count"]
-                else:
-                    final_points = 0.0
-                    jk = 0
-                    ci_лок = 0.0
-                    cb = 0.0
-                    total_minus = 0.0
-                
-                processed_players.append({
-                    "id": nick_to_id_map.get(name), 
-                    "name": name,
-                    "role": p.get("role", ""),
-                    "points": round(final_points, 2),
-                    "best_move": p.get("best_move", ""),
-                    "jk": jk,
-                    "ci": round(ci_лок, 2),
-                    "cb": round(cb, 2),
-                    "minuses": round(total_minus, 2)
-                })
-            
-            game_info = game_data.get("gameInfo", {})
             games_list.append({
                 "id": game.gameId,
                 "event_id": game.event_id,
-                "players": processed_players,  # Теперь processed_players с рассчитанными очками
+                "players": players,  # сюда можно вставить обработку points, ci и т.д.
                 "created_at": game.created_at,
                 "badgeColor": game_data.get("badgeColor"),
                 "judge_nickname": judge_nickname,
                 "judge_id": nick_to_id_map.get(judge_nickname),
                 "location": game_data.get("location"),
-                "tableNumber": game_info.get("tableNumber"),
+                "tableNumber": game_data.get("gameInfo", {}).get("tableNumber"),
                 "roundNumber": round_number,
-                "gameInfo": game_info,
+                "gameInfo": game_data.get("gameInfo", {})
             })
 
     return {
-        "title": event.title, "dates": dates_parsed, "location": event.location, "type": event.type,
-        "participantsLimit": event.participants_limit, "participantsCount": event.participants_count,
-        "fee": event.fee, "currency": event.currency,
+        "title": event.title,
+        "dates": dates_parsed,
+        "location": event.location,
+        "type": event.type,
+        "participantsLimit": event.participants_limit,
+        "participantsCount": event.participants_count,
+        "fee": event.fee,
+        "currency": event.currency,
         "gs": {"name": event.gs_name, "role": event.gs_role, "avatar": event.gs_avatar},
         "org": {"name": event.org_name, "role": event.org_role, "avatar": event.org_avatar},
-        "participants": participants_list, "teams": teams_list,
+        "participants": participants_list,
+        "judges": judges_data,  # <-- добавили судей
+        "teams": teams_list,
         "pending_registrations": pending_registrations_list,
         "user_registration_status": user_registration_status,
         "games": games_list,
@@ -674,6 +478,7 @@ async def get_event(event_id: str, current_user: User = Depends(get_optional_cur
         "seating_exclusions": event.seating_exclusions or "",
         "avatar": event.avatar
     }
+
 
 @router.delete("/deleteTeam/{team_id}")
 async def leave_or_delete_team(team_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -761,7 +566,6 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     db.add_all(new_games)
     db.commit()
     return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
-
 
 
 #Рассадка
@@ -1074,6 +878,7 @@ async def generate_event_seating(
 
     return {"message": "Рассадка успешно сгенерирована."}
 
+#Видимость
 @router.post("/events/{event_id}/toggle_visibility")
 async def toggle_games_visibility(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "admin":
@@ -1089,6 +894,7 @@ async def toggle_games_visibility(event_id: str, current_user: User = Depends(ge
     status = "скрыты" if event.games_are_hidden else "показаны"
     return {"message": f"Игры турнира теперь {status} для обычных пользователей.", "games_are_hidden": event.games_are_hidden}
 
+#Создание
 @router.post("/event")
 async def create_event(request: CreateEventRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "admin":
@@ -1150,97 +956,6 @@ async def create_event(request: CreateEventRequest, current_user: User = Depends
         }
     }
 
-@router.patch("/event/{event_id}")
-async def update_event(
-    event_id: str,
-    request: UpdateEventRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Только администраторы могут обновлять события.")
-
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Событие не найдено.")
-
-    # Получаем только те поля, которые реально пришли
-    update_data = request.dict(exclude_unset=True)
-
-    # Валидация и преобразование данных
-    if "dates" in update_data:
-        if not isinstance(update_data["dates"], list) or not all(isinstance(d, str) for d in update_data["dates"]):
-            raise HTTPException(status_code=400, detail="Поле 'dates' должно быть списком строк.")
-        update_data["dates"] = json.dumps(update_data["dates"])
-
-    if "seating_exclusions" in update_data:
-        if not isinstance(update_data["seating_exclusions"], list) or not all(isinstance(se, str) for se in update_data["seating_exclusions"]):
-            raise HTTPException(status_code=400, detail="Поле 'seating_exclusions' должно быть списком строк.")
-        update_data["seating_exclusions"] = json.dumps(update_data["seating_exclusions"])
-
-    # Дополнительная валидация для лимита участников
-    if "participants_limit" in update_data:
-        new_limit = update_data["participants_limit"]
-        if not isinstance(new_limit, int) or new_limit < 0:
-            raise HTTPException(status_code=400, detail="Лимит участников должен быть неотрицательным целым числом.")
-        if event.participants_count > new_limit:
-            raise HTTPException(status_code=400, detail="Невозможно установить лимит меньше текущего количества участников.")
-
-    # Если обновляется participants_count, проверить с лимитом
-    if "participants_count" in update_data:
-        new_count = update_data["participants_count"]
-        if not isinstance(new_count, int) or new_count < 0:
-            raise HTTPException(status_code=400, detail="Количество участников должно быть неотрицательным целым числом.")
-        if new_count > (update_data.get("participants_limit", event.participants_limit)):
-            raise HTTPException(status_code=400, detail="Количество участников не может превышать лимит.")
-
-    # Применяем изменения
-    try:
-        for key, value in update_data.items():
-            setattr(event, key, value)
-        db.commit()
-        db.refresh(event)
-        logger.info(f"Event {event_id} updated successfully by user {current_user.id}")
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"Error updating event {event_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Ошибка базы данных при обновлении события.")
-
-    # Безопасная загрузка JSON для возврата
-    try:
-        dates = json.loads(event.dates) if event.dates else []
-    except json.JSONDecodeError:
-        dates = []  # Если JSON повреждён, возвращаем пустой список
-
-    try:
-        seating_exclusions = json.loads(event.seating_exclusions) if event.seating_exclusions else []
-    except json.JSONDecodeError:
-        seating_exclusions = []  # Если JSON повреждён, возвращаем пустой список
-
-    return {
-        "message": "Событие успешно обновлено.",
-        "event": {
-            "id": event.id,
-            "title": event.title,
-            "dates": dates,
-            "location": event.location,
-            "type": event.type,
-            "participants_limit": event.participants_limit,
-            "participants_count": event.participants_count,
-            "fee": event.fee,
-            "currency": event.currency,
-            "gs_name": event.gs_name,
-            "gs_role": event.gs_role,
-            "gs_avatar": event.gs_avatar,
-            "org_name": event.org_name,
-            "org_role": event.org_role,
-            "org_avatar": event.org_avatar,
-            "games_are_hidden": event.games_are_hidden,
-            "seating_exclusions": seating_exclusions,
-            "created_at": event.created_at
-        }
-    }
-
 @router.delete("/event/{event_id}")
 async def delete_event(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "admin":
@@ -1261,6 +976,8 @@ async def delete_event(event_id: str, current_user: User = Depends(get_current_u
     
     return {"message": f"Событие '{event.title}' успешно удалено."}
 
+
+#Статистика
 def calculate_ci(x: int, n: int) -> float:
     if n <= 0 or x < 0 or x > n:
         return 0.0
@@ -1269,8 +986,6 @@ def calculate_ci(x: int, n: int) -> float:
         return 0.0
     ci = K * (K + 1) / math.sqrt(n)
     return ci
-
-
 
 @router.get("/events/{event_id}/player-stats")
 async def get_player_stats(
@@ -1530,54 +1245,7 @@ async def get_player_stats(
         "total_games": len(games)
     }
 
-
-
-@router.post("/event/{event_id}/avatar")
-async def upload_event_avatar(
-    event_id: str,  # Изменено: str, чтобы избежать 422 при нечисловом eventId
-    avatar: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # Логирование для отладки (уберите в продакшене)
-    print(f"Received request: event_id={event_id}, user={current_user.id if current_user else None}, avatar_filename={avatar.filename if avatar else 'None'}")
-
-    # Проверка прав: только админ
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="У вас нет прав для загрузки аватара события")
-
-    # Поиск события
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Событие не найдено")
-
-    # Проверка типа файла (только PNG)
-    if avatar.content_type != "image/png":
-        raise HTTPException(status_code=400, detail="Допустим только PNG-файл")
-
-    # Чтение файла и проверка размера (макс 2MB)
-    try:
-        file_content = await avatar.read()
-        if len(file_content) > 2 * 1024 * 1024:  # 2MB
-            raise HTTPException(status_code=400, detail="Файл слишком большой (макс 2MB)")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Ошибка чтения файла: {str(e)}")
-
-    # Сохранение файла
-    file_path = AVATAR_DIR/"events" / f"{event_id}.png"
-    try:
-        with open(file_path, "wb") as buffer:
-            buffer.write(file_content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка сохранения файла: {str(e)}")
-
-    # Обновление поля avatar в БД (предполагаем, что avatar хранит относительный путь)
-    event.avatar = f"/data/avatars/events/{event_id}.png"  # Или полный URL, если используете CDN
-    db.commit()
-
-    return {"message": "Аватар события успешно загружен", "url": event.avatar}
-
-
+#Локации для рейтинга
 @router.get("/events/{event_id}/location")
 async def get_location(event_id: str, db: Session = Depends(get_db)):
     # валидируем событие, если это не "1"
@@ -1611,4 +1279,197 @@ async def get_location(event_id: str, db: Session = Depends(get_db)):
         locations.append(loc)
 
     return {"event_id": event_id, "locations": locations}
+
+
+@router.patch("/event/{event_id}")
+async def update_event(
+    event_id: str,
+    request: str = Form(...),
+    avatar: UploadFile | None = File(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут обновлять события.")
+    
+    
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+
+    # ---- ПАРСИНГ JSON ----
+    try:
+        request_data = UpdateEventRequest.parse_raw(request)
+        print(request_data)
+        update_data = request_data.dict(exclude_unset=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка разбора данных: {str(e)}")
+
+    # =====================================================
+    # ---------------- ВАЛИДАЦИЯ ПОЛЕЙ --------------------
+    # =====================================================
+
+    if "dates" in update_data:
+        if not isinstance(update_data["dates"], list) or not all(isinstance(d, str) for d in update_data["dates"]):
+            raise HTTPException(status_code=400, detail="Поле 'dates' должно быть списком строк.")
+        update_data["dates"] = json.dumps(update_data["dates"])
+
+    if "seating_exclusions" in update_data:
+        if not isinstance(update_data["seating_exclusions"], list) or not all(isinstance(se, str) for se in update_data["seating_exclusions"]):
+            raise HTTPException(status_code=400, detail="Поле 'seating_exclusions' должно быть списком строк.")
+        update_data["seating_exclusions"] = json.dumps(update_data["seating_exclusions"])
+
+    if "participants_limit" in update_data:
+        new_limit = update_data["participants_limit"]
+        if not isinstance(new_limit, int) or new_limit < 0:
+            raise HTTPException(status_code=400, detail="Лимит участников должен быть неотрицательным числом.")
+        if event.participants_count > new_limit:
+            raise HTTPException(
+                status_code=400,
+                detail="Невозможно установить лимит меньше текущего количества участников."
+            )
+
+    if "participants_count" in update_data:
+        new_count = update_data["participants_count"]
+        if not isinstance(new_count, int) or new_count < 0:
+            raise HTTPException(status_code=400, detail="Количество участников должно быть неотрицательным.")
+        if new_count > update_data.get("participants_limit", event.participants_limit):
+            raise HTTPException(status_code=400, detail="Количество участников не может превышать лимит.")
+
+    # =====================================================
+    # ---------------- ОБРАБОТКА СУДЕЙ --------------------
+    # =====================================================
+
+    if "judge_ids" in update_data:
+
+        if not isinstance(update_data["judge_ids"], list):
+            raise HTTPException(status_code=400, detail="judge_ids должен быть списком.")
+
+        # Удаляем дубли, сохраняем порядок
+        judge_ids = list(dict.fromkeys(update_data["judge_ids"]))
+
+        # Проверяем существование пользователей
+        judges = db.query(User).filter(User.id.in_(judge_ids)).all()
+
+        if len(judges) != len(judge_ids):
+            raise HTTPException(status_code=400, detail="Один или несколько судей не найдены.")
+
+        # Полностью очищаем старые связи
+        db.execute(
+            event_judges.delete().where(event_judges.c.event_id == event_id)
+        )
+
+        # Вставляем с сохранением порядка
+        for index, judge_id in enumerate(judge_ids):
+            db.execute(
+                event_judges.insert().values(
+                    event_id=event_id,
+                    user_id=judge_id,
+                    position=index
+                )
+            )
+
+        # Удаляем из update_data, чтобы не setAttribute-ить
+        update_data.pop("judge_ids")
+
+    # =====================================================
+    # ---------------- АВАТАР -----------------------------
+    # =====================================================
+
+    # Удаление аватара через JSON
+    if "avatar" in update_data and update_data["avatar"] is None:
+        event.avatar = None
+        update_data.pop("avatar")
+
+    # Загрузка нового PNG
+    if avatar:
+
+        if avatar.content_type != "image/png":
+            raise HTTPException(status_code=400, detail="Допустим только PNG-файл")
+
+        try:
+            file_content = await avatar.read()
+            if len(file_content) > 2 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="Файл слишком большой (макс 2MB)")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Ошибка чтения файла: {str(e)}")
+
+        file_path = AVATAR_DIR / "events" / f"{event_id}.png"
+
+        try:
+            with open(file_path, "wb") as buffer:
+                buffer.write(file_content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Ошибка сохранения файла: {str(e)}")
+
+        event.avatar = f"/data/avatars/events/{event_id}.png"
+
+    # =====================================================
+    # ---------------- ПРИМЕНЯЕМ ИЗМЕНЕНИЯ ----------------
+    # =====================================================
+
+    try:
+        for key, value in update_data.items():
+            setattr(event, key, value)
+
+        db.commit()
+        db.refresh(event)
+
+        logger.info(f"Event {event_id} updated successfully by user {current_user.id}")
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Error updating event {event_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ошибка базы данных при обновлении события.")
+
+    # =====================================================
+    # ---------------- БЕЗОПАСНЫЙ ВОЗВРАТ -----------------
+    # =====================================================
+
+    try:
+        dates = json.loads(event.dates) if event.dates else []
+    except json.JSONDecodeError:
+        dates = []
+
+    try:
+        seating_exclusions = json.loads(event.seating_exclusions) if event.seating_exclusions else []
+    except json.JSONDecodeError:
+        seating_exclusions = []
+
+    judges_data = [
+        {
+            "id": j.id,
+            "nickname": j.nickname,
+            "avatar": j.avatar,
+            "club": j.club
+        }
+        for j in event.judges
+    ]
+
+    return {
+        "message": "Событие успешно обновлено.",
+        "event": {
+            "id": event.id,
+            "title": event.title,
+            "dates": dates,
+            "location": event.location,
+            "type": event.type,
+            "participants_limit": event.participants_limit,
+            "participants_count": event.participants_count,
+            "fee": event.fee,
+            "currency": event.currency,
+            "gs_name": event.gs_name,
+            "gs_role": event.gs_role,
+            "gs_avatar": event.gs_avatar,
+            "org_name": event.org_name,
+            "org_role": event.org_role,
+            "org_avatar": event.org_avatar,
+            "games_are_hidden": event.games_are_hidden,
+            "seating_exclusions": seating_exclusions,
+            "avatar": event.avatar,
+            "judges": judges_data,
+            "created_at": event.created_at
+        }
+    }
 

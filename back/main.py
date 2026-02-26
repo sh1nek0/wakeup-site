@@ -72,52 +72,90 @@ def backup_database():
 
 scheduler = BackgroundScheduler()
 
-# -------------------- SQLITE MIGRATION --------------------
-def migrate_notifications_nullable(db: Session):
-    result = db.execute(text("PRAGMA table_info(notifications)")).fetchall()
+# -------------------- SQLITE FULL MIGRATION --------------------
+def run_sqlite_migrations(db: Session):
 
-    recipient_col = next(
-        (col for col in result if col[1] == "recipient_id"),
-        None
-    )
-
-    # col[3] == notnull (1 = NOT NULL, 0 = NULLABLE)
-    if recipient_col and recipient_col[3] == 0:
-        print("Миграция notifications не требуется")
-        return
-
-    print("Выполняется миграция notifications.recipient_id -> NULLABLE")
-
-    # ВАЖНО: SQLite требует executescript
     raw_conn = db.connection().connection
     cursor = raw_conn.cursor()
 
-    cursor.executescript("""
-    BEGIN;
+    # ============================================================
+    # 1️⃣ MIGRATE event_judges.position
+    # ============================================================
 
-    CREATE TABLE notifications_new (
-        id TEXT PRIMARY KEY,
-        recipient_id TEXT NULL,
-        sender_id TEXT NULL,
-        type TEXT NOT NULL,
-        message TEXT NOT NULL,
-        related_id TEXT,
-        is_read BOOLEAN,
-        actions TEXT,
-        created_at DATETIME
-    );
+    result = db.execute(text("PRAGMA table_info(event_judges)")).fetchall()
+    position_column = next((col for col in result if col[1] == "position"), None)
 
-    INSERT INTO notifications_new
-    SELECT * FROM notifications;
+    if not position_column:
+        print("Добавляем колонку position в event_judges...")
 
-    DROP TABLE notifications;
-    ALTER TABLE notifications_new RENAME TO notifications;
+        cursor.executescript("""
+        BEGIN;
 
-    COMMIT;
-    """)
+        CREATE TABLE event_judges_new (
+            event_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            position INTEGER DEFAULT 0,
+            PRIMARY KEY (event_id, user_id),
+            FOREIGN KEY(event_id) REFERENCES events(id),
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        );
+
+        INSERT INTO event_judges_new (event_id, user_id, position)
+        SELECT event_id, user_id, 0 FROM event_judges;
+
+        DROP TABLE event_judges;
+        ALTER TABLE event_judges_new RENAME TO event_judges;
+
+        COMMIT;
+        """)
+
+        print("event_judges успешно обновлена")
+    else:
+        print("Миграция event_judges не требуется")
+
+    # ============================================================
+    # 2️⃣ MIGRATE notifications.recipient_id -> NULLABLE
+    # ============================================================
+
+    result = db.execute(text("PRAGMA table_info(notifications)")).fetchall()
+
+    recipient_col = next((col for col in result if col[1] == "recipient_id"), None)
+
+    if recipient_col and recipient_col[3] == 1:  # NOT NULL
+        print("Миграция notifications.recipient_id -> NULLABLE")
+
+        cursor.executescript("""
+        BEGIN;
+
+        CREATE TABLE notifications_new (
+            id TEXT PRIMARY KEY,
+            recipient_id TEXT NULL,
+            sender_id TEXT NULL,
+            type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            related_id TEXT,
+            is_read BOOLEAN DEFAULT 0,
+            actions TEXT,
+            created_at DATETIME,
+            FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(sender_id) REFERENCES users(id)
+        );
+
+        INSERT INTO notifications_new
+        SELECT * FROM notifications;
+
+        DROP TABLE notifications;
+        ALTER TABLE notifications_new RENAME TO notifications;
+
+        COMMIT;
+        """)
+
+        print("notifications успешно обновлена")
+    else:
+        print("Миграция notifications не требуется")
 
     cursor.close()
-    print("Миграция notifications успешно завершена")
+    print("Все SQLite миграции завершены")
 
 
 # -------------------- STARTUP --------------------
@@ -129,7 +167,7 @@ def on_startup():
     # Миграция
     db = SessionLocal()
     try:
-        migrate_notifications_nullable(db)
+        run_sqlite_migrations(db)
     finally:
         db.close()
 

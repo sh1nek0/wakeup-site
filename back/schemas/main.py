@@ -157,6 +157,7 @@ class UpdateEventRequest(BaseModel):
     org_avatar: Optional[str] = None
     games_are_hidden: Optional[bool] = None
     seating_exclusions: Optional[List[List[str]]] = None
+    judge_ids: Optional[List[str]] = None
 
 class DemoteUserRequest(BaseModel):
     target_email: str

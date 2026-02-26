@@ -1,33 +1,18 @@
-from sqlalchemy import Column, String, Text, DateTime, Integer, Float, ForeignKey, Boolean
+from sqlalchemy import Column, String, Text, DateTime, Integer, Float, ForeignKey, Boolean, Table
 from sqlalchemy.orm import relationship
 from .base import Base
 from datetime import datetime
 
-class User(Base):
-    __tablename__ = "users"
-    id = Column(String, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    nickname = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    role = Column(String, default="user")
-    club = Column(String, nullable=True)
-    update_ai = Column(DateTime, nullable=True, default=None)
-    avatar = Column(String, nullable=True)
-    name = Column(String, nullable=True)
-    favoriteCard = Column(String, nullable=True)
-    vk = Column(String, nullable=True)
-    tg = Column(String, nullable=True)
-    site1 = Column(String, nullable=True)
-    site2 = Column(String, nullable=True)
 
-class Game(Base):
-    __tablename__ = "games"
-    gameId = Column(String, primary_key=True, index=True)
-    data = Column(Text)
-    event_id = Column(String, ForeignKey("events.id"), index=True) # --- ИЗМЕНЕНИЕ: Добавлен ForeignKey ---
-    created_at = Column(DateTime, default=datetime.utcnow)
-    event = relationship("Event", backref="games") # --- ИЗМЕНЕНИЕ: Добавлена связь ---
+event_judges = Table(
+    "event_judges",
+    Base.metadata,
+    Column("event_id", String, ForeignKey("events.id"), primary_key=True),
+    Column("user_id", String, ForeignKey("users.id"), primary_key=True),
+    Column("position", Integer, default=0)
+)
 
+# --- Ваша модель Event ---
 class Event(Base):
     __tablename__ = "events"
     id = Column(String, primary_key=True, index=True)
@@ -46,10 +31,57 @@ class Event(Base):
     org_role = Column(String, default="Организатор")
     org_avatar = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    # --- НОВЫЕ ПОЛЯ ---
     games_are_hidden = Column(Boolean, default=False, nullable=False)
     seating_exclusions = Column(Text, nullable=True) # JSON-строка со списком никнеймов
-    avatar=Column(String,nullable=True)
+    avatar = Column(String, nullable=True)
+
+    # --- Связь с судьями (User) ---
+    # judges - это атрибут, через который мы будем получать список судей для события
+    # secondary=event_judges - указывает на промежуточную таблицу
+    # back_populates="judging_events" - устанавливает двустороннюю связь с model User
+    judges = relationship(
+    "User",
+    secondary=event_judges,
+    order_by=event_judges.c.position,
+    back_populates="judging_events"  # ← измените на back_populates
+)
+
+# --- Ваша модель User ---
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    nickname = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    role = Column(String, default="user")
+    club = Column(String, nullable=True)
+    update_ai = Column(DateTime, nullable=True, default=None)
+    avatar = Column(String, nullable=True)
+    name = Column(String, nullable=True)
+    favoriteCard = Column(String, nullable=True)
+    vk = Column(String, nullable=True)
+    tg = Column(String, nullable=True)
+    site1 = Column(String, nullable=True)
+    site2 = Column(String, nullable=True)
+
+    # --- Обратная связь: к событиям, где этот пользователь является судьей ---
+    # judging_events - атрибут, через который мы будем получать список событий для пользователя
+    # secondary=event_judges - указывает на промежуточную таблицу
+    # back_populates="judges" - устанавливает двустороннюю связь с model Event
+    judging_events = relationship(
+    "Event", 
+    secondary=event_judges, 
+    back_populates="judges"
+)
+
+
+class Game(Base):
+    __tablename__ = "games"
+    gameId = Column(String, primary_key=True, index=True)
+    data = Column(Text)
+    event_id = Column(String, ForeignKey("events.id"), index=True) # --- ИЗМЕНЕНИЕ: Добавлен ForeignKey ---
+    created_at = Column(DateTime, default=datetime.utcnow)
+    event = relationship("Event", backref="games") # --- ИЗМЕНЕНИЕ: Добавлена связь ---
 
 class Team(Base):
     __tablename__ = "teams"
@@ -86,3 +118,5 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     recipient = relationship("User", foreign_keys=[recipient_id], backref="notifications")
     sender = relationship("User", foreign_keys=[sender_id])
+
+
