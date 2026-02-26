@@ -1285,7 +1285,7 @@ async def get_location(event_id: str, db: Session = Depends(get_db)):
 async def update_event(
     event_id: str,
     request: str = Form(...),
-    avatar: UploadFile | None = File(None),
+    avatar: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
