@@ -31,7 +31,6 @@ const humanFileSize = (bytes) => {
 export default function Event() {
   const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
   const isAdmin = user?.role === 'admin';
-  console.log(isAdmin)
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,6 +74,7 @@ export default function Event() {
   const [numRounds, setNumRounds] = useState(8);
   const [numTables, setNumTables] = useState(1);
   const [exclusionsText, setExclusionsText] = useState("");
+  const isJudge = eventData.judges?.some(j => j?.id === user?.id);
 
   // ------------------------------
   // Новое: Состояние для статистики игроков из API
@@ -100,7 +100,7 @@ export default function Event() {
 
     if (typeNormalized === 'pair' || typeNormalized === 'team') tabs.push('team');
     if (showTeamTabs) tabs.push('teamStat');
-    if (isAdmin) tabs.push('admin');
+    if (isAdmin || isJudge) tabs.push('admin');
 
     return tabs;
   }, [typeNormalized, showTeamTabs, isAdmin]);
@@ -1061,7 +1061,7 @@ useEffect(() => {
             Номинации 
           </button>
 
-           {(isAdmin || eventData.judges?.some(j => j?.id === user?.id)) && <button
+           {(isAdmin || isJudge) && <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === 'admin' ? styles.tabActive : ''}`}
             onClick={() => setTab('admin')}
