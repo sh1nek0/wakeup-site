@@ -50,9 +50,34 @@ const humanFileSize = (bytes) => {
   return bytes.toFixed(1) + " " + units[u];
 };
 
-const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia","Триада Менделеева"];
+const clubsList = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia","Триада Менделеева","ЦКСМ"];
 const favoriteCardsList = ["Шериф", "Мирный", "Мафия", "Дон"];
 
+
+// Компонент тоста
+const CustomToast = ({ message, type = "success", onClose }) => {
+  return (
+    <div
+      className={
+        type === "success" ? styles.successBanner : styles.errorBanner
+      }
+      style={{
+        position: "fixed",
+        top: "20px",
+        right: "20px",
+        zIndex: 9999,
+        minWidth: "200px",
+        padding: "10px 15px",
+        borderRadius: "8px",
+        boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+        cursor: "pointer",
+      }}
+      onClick={onClose} // можно закрывать по клику
+    >
+      {message}
+    </div>
+  );
+};
 
 const ProfilePage = () => {
   const { user, token, login } = useContext(AuthContext) || {};
@@ -521,8 +546,20 @@ const ProfilePage = () => {
 
   return (
     <div className={styles.pageWrapper}>
-      {saveOk && <div className={styles.successBanner}>Изменения сохранены ✅</div>}
-      {saveError && <div className={styles.errorBanner}>{saveError}</div>}
+      {saveOk && (
+  <CustomToast
+    message="Изменения сохранены ✅"
+    type="success"
+    onClose={() => setSaveOk(false)}
+  />
+)}
+{saveError && (
+  <CustomToast
+    message={saveError}
+    type="error"
+    onClose={() => setSaveError(null)}
+  />
+)}
 
       <div className={styles.mainContent}>
         <div className={styles.left}>

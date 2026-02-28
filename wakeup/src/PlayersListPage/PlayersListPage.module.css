@@ -110,6 +110,11 @@
   border-color: #00e5e5;
 }
 
+.bgCHU{
+  background: linear-gradient(135deg, #2e2e2e 70%, #ffffff);
+  border-color: #ffffff;
+}
+
 
 
 .avatar {

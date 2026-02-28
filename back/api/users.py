@@ -259,7 +259,7 @@ async def update_profile(request: UpdateProfileRequest, current_user: User = Dep
     if not user_to_update:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia","Триада Менделеева"]
+    valid_clubs = ["WakeUp | MIET", "WakeUp | MIPT", "Другой", "Misis Mafia","Триада Менделеева","ЦКСМ"]
     if request.club and request.club not in valid_clubs:
         raise HTTPException(status_code=400, detail="Недопустимое значение клуба")
 

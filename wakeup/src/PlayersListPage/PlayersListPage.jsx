@@ -121,7 +121,8 @@ const PlayersListPage = () => {
                             cardBgClass = styles.bgMisis;
                         } else if (player.club === 'Триада Менделеева') {
                             cardBgClass = styles.bgMend;
-                        } 
+                        } else if (player.club === 'ЦКСМ') {
+                            cardBgClass = styles.bgCHU;}
 
                         return (
                             // --- ИЗМЕНЕНИЕ: Новая структура карточки ---

@@ -1171,7 +1171,7 @@ async def get_player_stats(
                             if player_roles.get(str(pid)) in ["мафия", "дон"]:
                                 mafia_count += 1
 
-                    bonus = {3: 1.5, 2: 1.0, 1: 0.0}.get(mafia_count, 0.0)
+                    bonus = {3: 1., 2: 0.5, 1: 0.0}.get(mafia_count, 0.0)
                     stats["total_best_move_bonus"] += bonus
 
                     if english_role and bonus > 0:
