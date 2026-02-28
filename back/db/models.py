@@ -20,6 +20,7 @@ class Event(Base):
     dates = Column(String, nullable=False)
     location = Column(String, nullable=False)
     type = Column(String, nullable=False)
+   
     participants_limit = Column(Integer, nullable=False)
     participants_count = Column(Integer, default=0)
     fee = Column(Float, nullable=False)

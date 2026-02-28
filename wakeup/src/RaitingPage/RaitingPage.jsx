@@ -745,6 +745,7 @@ function DetailedStatsTable({
       // base
       { key: "rank", icon: "№", title: "#", label: "#" },
       { key: "player", icon: "👤", title: isSolo ? "Игрок" : "Команда", label: isSolo ? "Игрок" : "Команда" },
+      { key: "p", icon: "📊", title: "p.", label: "p" },
       { key: "totalPoints", icon: "Σ", title: "Сумма очков", label: "Σ" },
       { key: "totalGames", icon: "🎮", title: "Всего игр", label: "Игр" },
       { key: "totalWins", icon: "🏆", title: "Победы", label: "Поб" },
@@ -1079,7 +1080,10 @@ function DetailedStatsTable({
             fieldValue = arr.length ? Math.max(...arr) : 0;
             break;
           }
-
+          case "p":{
+            fieldValue = player?.p || 0;
+            break;
+          }
           default:
             fieldValue = 0;
         }
@@ -1145,6 +1149,7 @@ function DetailedStatsTable({
     () => ({
       rank: (a, b) => (a?.totalPoints || 0) - (b?.totalPoints || 0),
       player: (a, b) => (a?.name || a?.nickname || "").localeCompare(b?.name || b?.nickname || ""),
+      p: (a, b) => (a?.p || 0) - (b?.p || 0),
       totalPoints: (a, b) => (a?.totalPoints || 0) - (b?.totalPoints || 0),
       totalGames: (a, b) => {
         const A = Object.values(a?.gamesPlayed || {}).reduce((s, v) => s + (v || 0), 0);
@@ -1577,6 +1582,7 @@ function DetailedStatsTable({
             {/* base */}
             {renderTh("rank")}
             {renderTh("player")}
+            {renderTh("p")}
             {renderTh("totalPoints")}
             {renderTh("totalGames")}
             {renderTh("totalWins")}
@@ -1662,7 +1668,7 @@ function DetailedStatsTable({
                     {player?.name || player?.nickname || "Неизвестно"}
                   </td>
                 )}
-
+                {columnVisibility.p && <td>{player?.p?.toFixed?.(2) ?? 0}</td>}
                 {columnVisibility.totalPoints && <td>{player?.totalPoints || 0}</td>}
                 {columnVisibility.totalGames && <td>{totalGames}</td>}
                 {columnVisibility.totalWins && <td>{totalWins}</td>}

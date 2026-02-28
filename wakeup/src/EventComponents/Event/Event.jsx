@@ -87,7 +87,6 @@ export default function Event() {
   const [editedFields, setEditedFields] = useState({}); // храним только изменённые поля
   const [isEditing, setIsEditing] = useState(false);
 
-  const [editedEvent, setEditedEvent] = useState({});
 
   const typeNormalized = String(eventData.type ?? '').toLowerCase().trim();
   const showTeamTabs = ['team', 'teams', 'pair', 'pairs'].includes(typeNormalized);
@@ -178,9 +177,7 @@ export default function Event() {
   };
 
 const saveEvent = async () => {
-  console.log("=== SAVEEVENT START ===");
-  console.log("1. Current editedFields:", editedFields);
-  console.log("2. Current judges state:", judges);
+ 
   
   if (!Object.keys(editedFields).length && !eventAvatarFile) {
     showMessage("Нет изменений для сохранения");
@@ -219,21 +216,20 @@ const saveEvent = async () => {
 
     // ОСОБАЯ ОБРАБОТКА ДЛЯ СУДЕЙ
     if (key === "judges") {
-      console.log("4. Processing judges field:", value);
-      
+     
       if (Array.isArray(value)) {
         // Извлекаем только ID судей (фильтруем тех, у кого есть id)
         const judgeIds = value
           .filter(judge => {
-            console.log("5. Judge object:", judge);
+           
             return judge?.id;
           })
           .map(judge => {
-            console.log("6. Mapping judge to id:", judge.id);
+            
             return judge.id;
           });
         
-        console.log("7. Final judge_ids:", judgeIds);
+       
         payload.judge_ids = judgeIds;
       }
       continue; // Пропускаем, чтобы не добавлять в payload под ключом "judges"
@@ -242,30 +238,26 @@ const saveEvent = async () => {
     payload[key] = value;
   }
 
-  console.log("8. Final payload before sending:", payload);
-  console.log("9. Does payload have judge_ids?", payload.hasOwnProperty('judge_ids'));
-  if (payload.judge_ids) {
-    console.log("10. judge_ids content:", payload.judge_ids);
-  }
+ 
+ 
 
   try {
     const formData = new FormData();
 
     // 🔹 JSON данные
     const jsonString = JSON.stringify(payload);
-    console.log("11. JSON string being sent:", jsonString);
+    
     formData.append("request", jsonString);
 
     // 🔹 Файл (если выбран)
     if (eventAvatarFile) {
-      console.log("12. Adding avatar file:", eventAvatarFile.name);
+      
       formData.append("avatar", eventAvatarFile);
     }
 
-    // Логируем содержимое FormData
-    console.log("13. FormData entries:");
+    
     for (let pair of formData.entries()) {
-      console.log(pair[0], pair[1]);
+     
     }
 
     const response = await fetch(`/api/event/${eventId}`, {
@@ -276,10 +268,10 @@ const saveEvent = async () => {
       body: formData,
     });
 
-    console.log("14. Response status:", response.status);
+   
     
     const data = await response.json();
-    console.log("15. Response data:", data);
+    
 
     if (!response.ok) {
       showMessage(data.detail || "Ошибка сохранения", true);
@@ -301,7 +293,7 @@ const saveEvent = async () => {
     showMessage("Ошибка сохранения", true);
   }
   
-  console.log("=== SAVEEVENT END ===");
+  
 };
 
   // Форматирование дат для отображения
