@@ -434,6 +434,50 @@ async def get_games(limit: int = 10, offset: int = 0, event_id: str = Query(None
 
     return {"games": games_list, "total_count": total_count}
 
+@router.get("/getGamesByLocation")
+async def get_games_by_location(
+    event_id: str = Query(None, description="ID события для фильтрации"),
+    db: Session = Depends(get_db)
+):
+    base_query = db.query(Game)
+
+    if event_id and event_id != "all":
+        base_query = base_query.filter(Game.event_id == event_id)
+    else:
+        base_query = base_query.filter(or_(Game.event_id.is_(None), Game.event_id == "1"))
+
+    games = base_query.all()
+
+    location_stats: Dict[str, int] = defaultdict(int)
+
+    for game in games:
+        try:
+            data = json.loads(game.data)
+        except Exception:
+            continue
+
+        location = data.get("location", "unknown")
+
+        if not location:
+            location = "unknown"
+
+        location_stats[location] += 1
+
+    result = [
+        {
+            "location": location,
+            "games_count": count
+        }
+        for location, count in location_stats.items()
+    ]
+
+    result.sort(key=lambda x: x["games_count"], reverse=True)
+
+    return {
+        "locations": result,
+        "total_locations": len(result)
+    }
+
 
 @router.get("/getPlayerGames/{nickname}")
 async def get_player_games(nickname: str, db: Session = Depends(get_db)):

@@ -323,7 +323,7 @@ const [agents, setAgents] = useState([]);
 const [selectedAgentId, setSelectedAgentId] = useState("");
 const [obsHost, setObsHost] = useState("127.0.0.1");
 const [obsPort, setObsPort] = useState("4455");
-const [obsPass, setObsPass] = useState("");
+const [obsPass, setObsPass] = useState("R19022004r");
 const [obsStatus, setObsStatus] = useState(""); // строка статуса для UI
 
 const makeReqId = () =>
@@ -1644,13 +1644,13 @@ const handleSave = async () => {
 
             {showSecondRow && (
               <>
-                <button
+                {false && (<button
                   type="button"
                   className={styles.clearBtn}
                   onClick={() => navigate(`/Event/${eventId}/Game/${gameId}/gameWidget`)}
                 >
                   Виджет
-                </button>
+                </button>)}
 
                 <div className={styles.breakdownControl}>
                   <CustomDropdown
@@ -1675,14 +1675,14 @@ const handleSave = async () => {
                   />
                 </div>
 
-                <button
+                {false && (<button
                   type="button"
                   onClick={toggleSpeechDetection}
                   disabled={isPenaltyTime || isReadOnly}
                   className={styles.clearBtn}
                 >
                   {isDetecting ? "🛑 Завершить детекцию" : "🎙 Начать детекцию"}
-                </button>
+                </button>)}
                 <div className={styles.obsInputsContainer}>
   
     <span style={{ fontSize: 12, opacity: 0.8 }}>
@@ -1713,27 +1713,27 @@ const handleSave = async () => {
   </div>
 
   
-    <input
+    {false && (<input
       type="text"
       value={obsHost}
       onChange={(e) => setObsHost(e.target.value)}
       placeholder="OBS host (127.0.0.1)"
       className={styles.obsInput}
-    />
-    <input
+    />)}
+    {false && (<input
       type="number"
       value={obsPort}
       onChange={(e) => setObsPort(e.target.value)}
       placeholder="4455"
       className={styles.obsInput}
-    />
-    <input
+    />)}
+    {false && (<input
       type="password"
       value={obsPass}
       onChange={(e) => setObsPass(e.target.value)}
       placeholder="OBS password"
       className={styles.obsInput}
-    />
+    />)}
 
     <button
       type="button"
@@ -1768,7 +1768,7 @@ const handleSave = async () => {
       Connect OBS
     </button>
 
-    <button
+    {false && (<button
       type="button"
       className={styles.clearBtn}
       onClick={() => {
@@ -1777,7 +1777,7 @@ const handleSave = async () => {
       }}
     >
       Disconnect OBS
-    </button>
+    </button>)}
   
 
   {obsStatus && (

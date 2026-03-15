@@ -977,7 +977,7 @@ async def delete_event(event_id: str, current_user: User = Depends(get_current_u
     return {"message": f"Событие '{event.title}' успешно удалено."}
 
 
-#Статистика
+# Статистика
 def calculate_ci(x: int, n: int) -> float:
     if n <= 0 or x < 0 or x > n:
         return 0.0
@@ -985,6 +985,12 @@ def calculate_ci(x: int, n: int) -> float:
     if K == 0:
         return 0.0
     return K * (K + 1) / math.sqrt(n)
+
+
+def calculate_location_rating(points: float, games: int) -> float:
+    if games <= 0:
+        return 0.0
+    return points / math.sqrt(games)
 
 
 @router.get("/events/{event_id}/player-stats")
@@ -1010,7 +1016,6 @@ async def get_player_stats(
         loc_expr = func.trim(func.json_extract(Game.data, "$.location"), '"')
         query = query.filter(loc_expr == location)
 
-    # ВАЖНО: сортировка по времени
     query = query.order_by(Game.created_at.asc())
 
     games = query.all()
@@ -1069,7 +1074,7 @@ async def get_player_stats(
         "total_plus": 0.0,
         "total_best_move_bonus": 0.0,
         "total_minus": 0.0,
-        "ci_total": 0.0,  # <-- накопительный CI
+        "ci_total": 0.0,
         "bestMovesWithBlack": 0,
         "jk_count": 0,
         "sk_count": 0,
@@ -1108,7 +1113,6 @@ async def get_player_stats(
             key = uid if uid else name
             stats = player_totals[key]
 
-            # Заполняем данные
             if uid and uid in user_info_map:
                 info = user_info_map[uid]
                 stats["name"] = info["nickname"]
@@ -1117,7 +1121,6 @@ async def get_player_stats(
             else:
                 stats["name"] = name
 
-            # Увеличиваем количество игр
             stats["games_count"] += 1
 
             if "миэт" in location_lower:
@@ -1144,20 +1147,15 @@ async def get_player_stats(
                     stats["total_plus"] += plus
                     stats["role_plus"][english_role].append(float(plus))
 
-            # SK
             sk = p.get("sk", 0)
             if isinstance(sk, (int, float)) and sk > 0:
                 stats["sk_count"] += int(sk)
                 stats["total_minus"] -= 0.5 * sk
 
-            # JK
             jk = p.get("jk", 0)
             if isinstance(jk, (int, float)) and jk > 0:
                 stats["jk_count"] += int(jk)
 
-            # ---------------------------
-            # BEST MOVE + ФИКСАЦИЯ CI
-            # ---------------------------
             best_move = p.get("best_move", "").strip()
             if best_move:
                 nominated = [s for s in best_move.split() if s.isdigit()]
@@ -1177,13 +1175,10 @@ async def get_player_stats(
                     if english_role and bonus > 0:
                         stats["role_plus"][english_role].append(bonus)
 
-                    # ---- ФИКСАЦИЯ CI ----
                     if mafia_count >= 1:
                         stats["bestMovesWithBlack"] += 1
-
                         current_x = stats["bestMovesWithBlack"]
                         current_n = stats["games_count"]
-
                         ci_value = calculate_ci(current_x, current_n)
                         stats["ci_total"] += ci_value
 
@@ -1214,7 +1209,7 @@ async def get_player_stats(
             + stats["total_minus"]
             - jk_penalty
             + 2.5 * sum(stats["wins"].values())
-            + stats["ci_total"]   # <-- используем накопленный CI
+            + stats["ci_total"]
         )
 
         wins_total = sum(stats["wins"].values())
@@ -1223,6 +1218,13 @@ async def get_player_stats(
         winrate = wins_total / games_count if games_count > 0 else 0
         p_value = total_points * winrate if wins_total > 0 else 0
 
+        rating_miet = calculate_location_rating(total_points, stats["games_miet"])
+        rating_mipt = calculate_location_rating(total_points, stats["games_mipt"])
+
+        location_rating = None
+        if location:
+            location_rating = calculate_location_rating(total_points, games_count)
+
         response_players.append({
             "id": key if key in user_info_map else None,
             "name": stats["name"],
@@ -1230,6 +1232,9 @@ async def get_player_stats(
             "club": stats["club"],
             "photoUrl": stats["photoUrl"],
             "totalPoints": round(total_points, 2),
+            "locationRating": round(location_rating, 2) if location_rating else None,
+            "rating_miet": round(rating_miet, 2),
+            "rating_mipt": round(rating_mipt, 2),
             "winrate": round(winrate, 3),
             "wins": dict(stats["wins"]),
             "gamesPlayed": dict(stats["gamesPlayed"]),
@@ -1255,6 +1260,7 @@ async def get_player_stats(
         "event_id": event_id,
         "total_games": len(parsed_games)
     }
+
 
 
 #Локации для рейтинга
