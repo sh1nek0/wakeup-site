@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import GameCard from '../GameCard/GameCard';
 import styles from './TournamentGames.module.css';
 
-function TournamentGames({ games, isAdmin, onDelete, onEdit, onPlayerClick, showOnlyNames }) {
+function TournamentGames({ games, isAdmin, onDelete, onEdit, onPlayerClick, showOnlyNames,isJudges }) {
+
+
     const getRound = (id) => {
         const m = id.match(/_r(\d+)/);
         return m ? parseInt(m[1], 10) : 0;
@@ -63,6 +65,8 @@ function TournamentGames({ games, isAdmin, onDelete, onEdit, onPlayerClick, show
             return ra - rb;
         });
     }, [groupedGames]);
+
+
     return (
         <div className={styles.roundsContainer}>
             {roundKeys.map(round => (
@@ -78,6 +82,7 @@ function TournamentGames({ games, isAdmin, onDelete, onEdit, onPlayerClick, show
                                 onEdit={onEdit}
                                 onPlayerClick={onPlayerClick}
                                 showOnlyNames={showOnlyNames} 
+                                isJudges={isJudges}
                             />
                         ))}
                     </div>

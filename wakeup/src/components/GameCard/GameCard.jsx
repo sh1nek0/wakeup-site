@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import styles from './GameCard.module.css';
 import RoleIcon from '../../RoleIcon/RoleIcon';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../AuthContext';
 
-function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, showOnlyNames, gameNumber }) {
+function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, showOnlyNames, gameNumber, isJudges}) {
   const navigate = useNavigate();
 
+  const { user, token, isAuthenticated } = useContext(AuthContext) ?? {};
   const tableNumber = game.tableNumber;
   const rows = Array.from({ length: 10 }, (_, i) => game.players?.[i] || {});
   const gameDate = game.date || (game.created_at
@@ -26,6 +28,7 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, showOnlyName
 
   const breakdownSource = game.gameInfo?.breakdownSource;
   const breakdownPlayerNumber = game.gameInfo?.breakdownPlayerNumber;
+
 
   return (
     <article className={styles.sheetCard}>
@@ -134,9 +137,9 @@ function GameCard({ game, isAdmin, onDelete, onEdit, onPlayerClick, showOnlyName
       )}
 
       {/* Admin Actions */}
-      {!showOnlyNames && isAdmin && (
+      {!showOnlyNames && (isAdmin || isJudges) && (
         <div className={styles.sheetActions}>
-          <button onClick={() => onEdit(game.id, game.event_id)} className={styles.sheetEditBtn}>Редактировать</button>
+          <button onClick={() => onEdit(game.id, game.event_id,isJudges)} className={styles.sheetEditBtn}>Редактировать</button>
           <button onClick={() => onDelete(game.id)} className={styles.sheetDeleteBtn}>Удалить</button>
         </div>
       )}

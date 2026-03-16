@@ -311,7 +311,10 @@ const Game = () => {
   const { search } = useLocation();
 
   const { user, token } = useContext(AuthContext) ?? { user: null, token: null };
-  const isAdmin = !!user && user.role === "admin";
+  const [eventData,setEventData] = useState({})
+  const isJudge = eventData.judges?.some(j => j?.id === user?.id);
+  const isAdmin = (!!user && user.role === "admin") || isJudge;
+
 
   const queryParams = new URLSearchParams(search);
   const mode = queryParams.get("mode");
@@ -419,7 +422,7 @@ useEffect(() => {
 }, [isAdmin, token]);
 
   const roles = ["мирный", "мафия", "дон", "шериф"];
-  const locations = ["МИЭТ", "МФТИ"];
+  const locations = ["МИЭТ", "МФТИ", ""];
 
   // UI states
   const [showSecondRow, setShowSecondRow] = useState(false);
@@ -570,6 +573,7 @@ useEffect(() => {
   const [isRunning, setIsRunning] = useState(false);
   const [maxTime, setMaxTime] = useState(null);
   const [isPenaltyTime, setIsPenaltyTime] = useState(false);
+  
 
   useEffect(() => {
     let interval = null;
@@ -635,6 +639,29 @@ useEffect(() => {
   // LocalStorage helpers
   const getLocalStorageKey = () => `gameData-${eventId}-${gameId}`;
 
+  const fetchEventData = async () => {
+    if (!eventId) return;
+    setLoading(true);
+    try {
+      const headers = { 'Cache-Control': 'no-cache' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`/api/getEvent/${eventId}`, { headers });
+      if (!res.ok) throw new Error("Ошибка загрузки данных ивента");
+      const data = await res.json();
+      
+      setEventData(data);
+    } catch (err) {
+      console.error("Ошибка загрузки ивента:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+  fetchEventData();
+}, []);
+    
 
 
   // Speech recognition
@@ -857,6 +884,7 @@ useEffect(() => {
     }
 
     const data = await res.json().catch(() => ({}));
+    console.log(JSON.stringify(payload))
     return { ok: true, msg: data?.message };
   };
 

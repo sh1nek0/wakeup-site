@@ -75,6 +75,7 @@ export default function Event() {
   const [numTables, setNumTables] = useState(1);
   const [exclusionsText, setExclusionsText] = useState("");
   const isJudge = eventData.judges?.some(j => j?.id === user?.id);
+  console.log()
 
   // ------------------------------
   // Новое: Состояние для статистики игроков из API
@@ -325,6 +326,31 @@ const saveEvent = async () => {
     }
   };
 
+
+  const handleGenerateNextRound = async () => {
+  if (!isAdmin && !isJudge) return;
+
+  try {
+    const response = await fetch(`/api/events/${eventId}/generate_next_round`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.detail || "Ошибка генерации раунда");
+
+    showMessage(`Раунд ${data.round} успешно создан`);
+
+    await fetchEventData();
+    await fetchPlayersStats();
+
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+};
   // ------------------------------
   // Новое: Загрузка статистики из API
   // ------------------------------
@@ -338,6 +364,7 @@ const saveEvent = async () => {
       if (!res.ok) throw new Error("Ошибка загрузки статистики игроков");
       const data = await res.json();
       setPlayersStats(data.players || []);
+      console.log(data.games)
     } catch (err) {
       console.error("Ошибка загрузки статистики:", err);
       setPlayersStats([]);
@@ -930,7 +957,7 @@ useEffect(() => {
             <button
               type="button"
               className={styles.discussBtn}
-              onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLScpjpfHxVzcNNr-Bitqyq-_FWoRTNr78PP4v9ctrzRJMigaRw/viewform?usp=publish-editor", "_blank", "noopener,noreferrer")}
+              onClick={() => window.open("https://forms.gle/Bbfv1vfnaU356dqL8", "_blank", "noopener,noreferrer")}
           >
             💬 Подать апелляцию
           </button>
@@ -1135,8 +1162,7 @@ useEffect(() => {
       role: role,
     };
     
-    console.log("2. Updated judge object:", updated[index]);
-    console.log("3. Full updated array:", updated);
+    
     
     // Обновляем состояние
     setJudges(updated);
@@ -1149,9 +1175,7 @@ useEffect(() => {
  <button
   className={styles.saveButton}
   onClick={() => {
-    console.log("4. Save button clicked for judge index:", index);
-    console.log("5. Current judges state:", judges);
-    console.log("6. Current judge at index:", judges[index]);
+    
     
     // Обновляем editedFields с текущим массивом judges
     updateEditedField("judges", judges);
@@ -1231,14 +1255,25 @@ useEffect(() => {
     {eventData.games_are_hidden ? ( // Если игры СКРЫТЫ
       isAuthenticated ? ( // Пользователь АВТОРИЗОВАН
         // Передаем игры. TournamentGames сам обработает пустой список, если он будет.
+        <>
         <TournamentGames
           games={eventData.games ?? []}
           isAdmin={isAdmin}
           onDelete={handleDeleteGame}
           onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
           onPlayerClick={(playerId) => navigate(`/profile/playerId}`)}
-          showOnlyNames={eventData.games_are_hidden && !isAdmin} // true, т.к. игры скрыты и пользователь НЕ админ
+          showOnlyNames={eventData.games_are_hidden && !isAdmin}
+          isJudges={isJudge} // true, т.к. игры скрыты и пользователь НЕ админ
         />
+        {isJudge && (
+  <button
+    className={styles.primaryBtn}
+    onClick={handleGenerateNextRound}
+  >
+    Добавить раунд
+  </button>
+)}
+        </>
       ) : ( // Пользователь НЕ АВТОРИЗОВАН И игры СКРЫТЫ
         <div className={styles.emptyHint}>
           Пожалуйста, авторизуйтесь, чтобы увидеть игры и результаты.
@@ -1247,6 +1282,7 @@ useEffect(() => {
     ) : ( // Если игры НЕ СКРЫТЫ (видно ВСЕМ)
       // Показываем игры без проверки авторизации.
       // TournamentGames сам обработает пустой список, если он будет.
+      <>
       <TournamentGames
         games={eventData.games ?? []}
         isAdmin={isAdmin}
@@ -1254,111 +1290,221 @@ useEffect(() => {
         onEdit={(gameId, eventId) => navigate(`/Event/${eventId}/Game/${gameId}`)}
         onPlayerClick={(playerId) => navigate(`/profile/${playerId}`)}
         showOnlyNames={false} // Игры не скрыты, поэтому этот флаг не нужен для ограничения
+        isJudges={isJudge}
       />
+      {isJudge && (
+  <button
+    className={styles.primaryBtn}
+    onClick={handleGenerateNextRound}
+  >
+    Добавить раунд
+  </button>
+)}
+      </>
     )}
   </section>
 )}
 
+        {activeTab === "solo" && (
+          <section className={styles.tabPanel} role="tabpanel">
+            <h2 className={styles.h2}>Личный зачёт</h2>
 
+            {eventData.games_are_hidden ? (
+              isAuthenticated ? (
+                <DetailedStatsTable
+                  data={playersStatsSorted}
+                  currentPage={personalPage}
+                  totalPages={personalTotalPages}
+                  onPageChange={setPersonalPage}
+                  user={user}
+                  key={personalPage}
+                />
+              ) : (
+                <div className={styles.emptyHint}>
+                  Пожалуйста, авторизуйтесь, чтобы увидеть статистику.
+                </div>
+              )
+            ) : (
+              <DetailedStatsTable
+                data={playersStatsSorted}
+                currentPage={personalPage}
+                totalPages={personalTotalPages}
+                onPageChange={setPersonalPage}
+                user={user}
+                key={personalPage}
+              />
+            )}
+          </section>
+        )}
 
+        {activeTab === "teamStat" && showTeamTabs && (
+  <section className={styles.tabPanel} role="tabpanel">
+    <h2 className={styles.h2}>Командный зачёт</h2>
 
-
-        {/* Panels */}
-{activeTab === 'solo' && (
-  <div className={styles.tabPanel} role="tabpanel">
-    <h2 className={styles.h2}>Личный зачёт</h2>
-    <DetailedStatsTable
-      data={playersStatsSorted}  // Уже пагенированные данные
-      currentPage={personalPage}
-      totalPages={personalTotalPages}  // Общее количество страниц
-      onPageChange={setPersonalPage}
-      user={user}
-      key={personalPage}  // Исправление: добавляем key для принудительного перемонтирования при смене страницы
-    />
-  </div>
-)}
-
-        {activeTab === 'teamStat' && showTeamTabs && (
-          <div className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Командный зачёт</h2>
-            <DetailedStatsTable
-              data={aggregatedTeamData}
-              currentPage={teamPage}
-              totalPages={Math.ceil(aggregatedTeamData.length / pageSize)}
-              onPageChange={setTeamPage}
-              user={user}
-              isSolo={0}
-            />
-          </div>
+    {eventData.games_are_hidden ? (
+      isAuthenticated ? (
+        <DetailedStatsTable
+          data={aggregatedTeamData}
+          currentPage={teamPage}
+          totalPages={Math.ceil(aggregatedTeamData.length / pageSize)}
+          onPageChange={setTeamPage}
+          user={user}
+          isSolo={0}
+        />
+      ) : (
+        <div className={styles.emptyHint}>
+          Пожалуйста, авторизуйтесь, чтобы увидеть статистику.
+        </div>
+      )
+    ) : (
+      <DetailedStatsTable
+        data={aggregatedTeamData}
+        currentPage={teamPage}
+        totalPages={Math.ceil(aggregatedTeamData.length / pageSize)}
+        onPageChange={setTeamPage}
+        user={user}
+        isSolo={0}
+      />
+    )}
+  </section>
         )}
 
 
-       {activeTab === "nomsSolo" && (
-  <div className={styles.tabPanel} role="tabpanel">
+{activeTab === "nomsSolo" && (
+  <section className={styles.nomsSection}>
     <h2 className={styles.h2}>Номинации</h2>
 
-    {(() => {
-      const roleNames = {
-        sheriff: "Шериф",
-        citizen: "Мирный",
-        mafia: "Черный",
-        don: "Дон",
-      };
+    {eventData.games_are_hidden ? ( // Если номинации скрыты (используем games_are_hidden)
+      isAuthenticated ? ( // Пользователь авторизован
+        <>
+          {(() => {
+            const roleNames = {
+              sheriff: "Шериф",
+              citizen: "Мирный",
+              mafia: "Черный",
+              don: "Дон",
+            };
 
-      const renderTop3 = (arr) => {
-        const list = Array.isArray(arr) ? arr.slice(0, 3) : [];
-        if (!list.length) return <div className={styles.empty}>—</div>;
+            const renderTop3 = (arr) => {
+              const list = Array.isArray(arr) ? arr.slice(0, 3) : [];
+              if (!list.length) return <div className={styles.empty}>—</div>;
 
-        return list.map((w, idx) => (
-          <button
-            key={w?.id ?? `${w?.name || "player"}-${idx}`}
-            type="button"
-            className={styles.winnerLink}
-            onClick={() => w?.id && navigate(`/profile/${w.id}`)}
-            title={w?.name || ""}
-          >
-            <span className={styles.winnerPlace}>{idx + 1}.</span>
-            <span className={styles.winnerName}>{w?.name ?? "—"}</span>
-            <span className={styles.winnerValue}>({w?.value ?? "0"})</span>
-          </button>
-        ));
-      };
+              return list.map((w, idx) => (
+                <button
+                  key={w?.id ?? `${w?.name || "player"}-${idx}`}
+                  type="button"
+                  className={styles.winnerLink}
+                  onClick={() => w?.id && navigate(`/profile/${w.id}`)}
+                  title={w?.name || ""}
+                >
+                  <span className={styles.winnerPlace}>{idx + 1}.</span>
+                  <span className={styles.winnerName}>{w?.name ?? "—"}</span>
+                  <span className={styles.winnerValue}>({w?.value ?? "0"})</span>
+                </button>
+              ));
+            };
 
-      const mvpTop3 = Array.isArray(overallNomination)
-        ? overallNomination
-        : overallNomination
-        ? [overallNomination]
-        : [];
+            const mvpTop3 = Array.isArray(overallNomination)
+              ? overallNomination
+              : overallNomination
+              ? [overallNomination]
+              : [];
 
-      return (
-        <div className={styles.nominationsGrid}>
-          {/* Номинации по ролям: ТОП-3 */}
-          {(roleNominations || []).map((n) => (
-            <div key={n.role} className={styles.nominationCard}>
-              <div className={styles.nominationTitle}>
-                Лучший {roleNames[n.role] || n.role}
+            return (
+              <div className={styles.nominationsGrid}>
+                {(roleNominations || []).map((n) => (
+                  <div key={n.role} className={styles.nominationCard}>
+                    <div className={styles.nominationTitle}>
+                      Лучший {roleNames[n.role] || n.role}
+                    </div>
+                    <div className={styles.nominationWinners}>
+                      {renderTop3(n.winners ?? (n.winner ? [n.winner] : []))}
+                    </div>
+                  </div>
+                ))}
+
+                {mvpTop3.length > 0 && (
+                  <div className={styles.nominationCard}>
+                    <div className={styles.nominationTitle}>MVP</div>
+                    <div className={styles.nominationWinners}>
+                      {renderTop3(mvpTop3)}
+                    </div>
+                  </div>
+                )}
               </div>
+            );
+          })()}
 
-              <div className={styles.nominationWinners}>
-                {renderTop3(n.winners ?? (n.winner ? [n.winner] : []))}
-              </div>
-            </div>
-          ))}
-
-          {/* MVP: ТОП-3 */}
-          {mvpTop3.length > 0 && (
-            <div className={styles.nominationCard}>
-              <div className={styles.nominationTitle}>MVP</div>
-
-              <div className={styles.nominationWinners}>
-                {renderTop3(mvpTop3)}
-              </div>
-            </div>
-          )}
+        </>
+      ) : ( // Пользователь не авторизован и номинации скрыты
+        <div className={styles.emptyHint}>
+          Пожалуйста, авторизуйтесь, чтобы увидеть номинации.
         </div>
-      );
-    })()}
-  </div>
+      )
+    ) : ( // Номинации не скрыты — видны всем
+      <>
+        {(() => {
+          const roleNames = {
+            sheriff: "Шериф",
+            citizen: "Мирный",
+            mafia: "Черный",
+            don: "Дон",
+          };
+
+          const renderTop3 = (arr) => {
+            const list = Array.isArray(arr) ? arr.slice(0, 3) : [];
+            if (!list.length) return <div className={styles.empty}>—</div>;
+
+            return list.map((w, idx) => (
+              <button
+                key={w?.id ?? `${w?.name || "player"}-${idx}`}
+                type="button"
+                className={styles.winnerLink}
+                onClick={() => w?.id && navigate(`/profile/${w.id}`)}
+                title={w?.name || ""}
+              >
+                <span className={styles.winnerPlace}>{idx + 1}.</span>
+                <span className={styles.winnerName}>{w?.name ?? "—"}</span>
+                <span className={styles.winnerValue}>({w?.value ?? "0"})</span>
+              </button>
+            ));
+          };
+
+          const mvpTop3 = Array.isArray(overallNomination)
+            ? overallNomination
+            : overallNomination
+            ? [overallNomination]
+            : [];
+
+          return (
+            <div className={styles.nominationsGrid}>
+              {(roleNominations || []).map((n) => (
+                <div key={n.role} className={styles.nominationCard}>
+                  <div className={styles.nominationTitle}>
+                    Лучший {roleNames[n.role] || n.role}
+                  </div>
+                  <div className={styles.nominationWinners}>
+                    {renderTop3(n.winners ?? (n.winner ? [n.winner] : []))}
+                  </div>
+                </div>
+              ))}
+
+              {mvpTop3.length > 0 && (
+                <div className={styles.nominationCard}>
+                  <div className={styles.nominationTitle}>MVP</div>
+                  <div className={styles.nominationWinners}>
+                    {renderTop3(mvpTop3)}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        
+      </>
+    )}
+  </section>
 )}
 
 

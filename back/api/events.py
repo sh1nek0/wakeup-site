@@ -567,7 +567,6 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     db.commit()
     return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
 
-
 #Рассадка
 @router.post("/events/{event_id}/generate_seating")
 async def generate_event_seating(
@@ -618,11 +617,6 @@ async def generate_event_seating(
             raise HTTPException(status_code=400, detail="Не удалось определить количество раундов.")
 
     def generate_slot_queue(num_rounds: int):
-        """
-        Генерирует список позиций 0..9 длиной num_rounds.
-        До 10 игр — без повторений.
-        После 10 — новый случайный цикл.
-        """
         slots = []
         while len(slots) < num_rounds:
             block = list(range(10))
@@ -653,19 +647,14 @@ async def generate_event_seating(
         db_users = db.query(User).filter(User.id.in_(user_ids)).all()
         user_map = {u.id: u for u in db_users}
 
-        # Персональная ротация мест
-        player_slot_queue = {}
-        for p in players:
-            player_slot_queue[p["id"]] = generate_slot_queue(num_rounds)
-
-        # Множество уже использованных слотов для каждого игрока
+        player_slot_queue = {p["id"]: generate_slot_queue(num_rounds) for p in players}
         player_used_slots = {pid: set() for pid in player_slot_queue}
 
         master_seed = random.randrange(1_000_000_000)
         all_round_tables = []
 
         for r in range(num_rounds):
-            # При достижении нового цикла слоты сбрасываем
+
             if r % 10 == 0:
                 for pid in player_used_slots:
                     player_used_slots[pid].clear()
@@ -689,17 +678,16 @@ async def generate_event_seating(
                 slots = [None] * 10
 
                 for p in tables[t_i]:
+
                     pid = p["id"]
                     pref = player_slot_queue[pid][r]
-
                     placed = False
-                    # 1) Пробуем желаемое место, если не использовано и свободно
+
                     if slots[pref] is None and pref not in player_used_slots[pid]:
                         slots[pref] = p
                         player_used_slots[pid].add(pref)
                         placed = True
 
-                    # 2) Если занято, ищем свободное и не использованное
                     if not placed:
                         for i in range(10):
                             if slots[i] is None and i not in player_used_slots[pid]:
@@ -711,12 +699,8 @@ async def generate_event_seating(
                     if not placed:
                         raise HTTPException(
                             status_code=500,
-                            detail=f"Не удалось назначить уникальный слот игроку {p['nick']} в раунде {r+1}"
+                            detail=f"Не удалось назначить слот игроку {p['nick']}"
                         )
-
-                for i in range(10):
-                    if slots[i] is None:
-                        slots[i] = {"id": f"placeholder_r{r+1}_t{t_i+1}_{i+1}", "nick": None}
 
                 final_tables.append(slots)
 
@@ -757,21 +741,19 @@ async def generate_event_seating(
         db_users = db.query(User).filter(User.id.in_(user_ids)).all()
         user_map = {u.id: u for u in db_users}
 
-        # Персональная ротация мест
         player_slot_queue = {}
         for part in participants:
             for p in part["players"]:
                 if p["id"] not in player_slot_queue:
                     player_slot_queue[p["id"]] = generate_slot_queue(num_rounds)
 
-        # Множество уже использованных слотов для каждого игрока
         player_used_slots = {pid: set() for pid in player_slot_queue}
 
         master_seed = random.randrange(1_000_000_000)
         all_round_tables = []
 
         for r in range(num_rounds):
-            # Сброс слотов каждые 10 раундов
+
             if r % 10 == 0:
                 for pid in player_used_slots:
                     player_used_slots[pid].clear()
@@ -799,15 +781,13 @@ async def generate_event_seating(
 
                         pid = p["id"]
                         pref = player_slot_queue[pid][r]
-
                         placed = False
-                        # 1) Пробуем желаемое место, если не использовано и свободно
+
                         if slots[pref] is None and pref not in player_used_slots[pid]:
                             slots[pref] = p
                             player_used_slots[pid].add(pref)
                             placed = True
 
-                        # 2) Если занято, ищем свободное и не использованное
                         if not placed:
                             for i in range(10):
                                 if slots[i] is None and i not in player_used_slots[pid]:
@@ -817,21 +797,14 @@ async def generate_event_seating(
                                     break
 
                         if not placed:
-                            raise HTTPException(
-                                status_code=500,
-                                detail=f"Не удалось назначить уникальный слот игроку {p['nick']} в раунде {r+1}"
-                            )
-
-                for i in range(10):
-                    if slots[i] is None:
-                        slots[i] = {"id": f"placeholder_r{r+1}_t{t_i+1}_{i+1}", "nick": None}
+                            raise HTTPException(status_code=500, detail="Ошибка рассадки")
 
                 final_tables.append(slots)
 
             all_round_tables.append(final_tables)
 
     # ============================================================
-    # 7. Запись в Game.data
+    # 7. Запись в Game.data (ИСПРАВЛЕНО)
     # ============================================================
     game_map = {g.gameId: g for g in games}
 
@@ -844,13 +817,14 @@ async def generate_event_seating(
                 continue
 
             slots = all_round_tables[r - 1][idx]
-
             players_list = []
 
-            for p in slots:
-                if p.get("nick") is None:
+            for seat_id, p in enumerate(slots):
+
+                if p is None:
                     players_list.append({
-                        "id": p["id"],
+                        "id": seat_id,
+                        "userId": None,
                         "name": "",
                         "role": "мирный",
                         "plus": 2.5,
@@ -858,10 +832,12 @@ async def generate_event_seating(
                         "jk": 0,
                         "best_move": ""
                     })
+
                 else:
                     user = user_map.get(p["id"])
                     players_list.append({
-                        "id": p["id"],
+                        "id": seat_id,
+                        "userId": p["id"],
                         "name": user.nickname if user else "",
                         "role": "мирный",
                         "plus": 2.5,
@@ -877,6 +853,333 @@ async def generate_event_seating(
     db.commit()
 
     return {"message": "Рассадка успешно сгенерирована."}
+
+
+# Тур швейцарки
+@router.post("/events/{event_id}/generate_next_round")
+async def generate_next_round(
+    event_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    # ============================================================
+    # 0. Авторизация
+    # ============================================================
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Только администраторы могут генерировать рассадку.")
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Событие не найдено.")
+
+    if event.type != "solo":
+        raise HTTPException(status_code=400, detail="Endpoint работает только для solo режима.")
+
+    # ============================================================
+    # 1. Получаем все игры
+    # ============================================================
+    games = db.query(Game).filter(Game.event_id == event_id).order_by(Game.gameId).all()
+
+    if not games:
+        raise HTTPException(status_code=400, detail="Сначала создайте сетку игр.")
+
+    # ============================================================
+    # 2. Определяем номер следующего раунда
+    # ============================================================
+    max_round = 0
+    for g in games:
+        m = re.search(r"_r(\d+)", g.gameId)
+        if m:
+            max_round = max(max_round, int(m.group(1)))
+
+    next_round = max_round + 1
+
+    # ============================================================
+    # 3. Определяем столы
+    # ============================================================
+    table_labels = sorted(list(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId)))
+    num_tables = len(table_labels)
+
+    # ============================================================
+    # 4. История мест игроков
+    # ============================================================
+    player_used_slots = {}
+
+    for g in games:
+
+        if not g.data:
+            continue
+
+        data = json.loads(g.data)
+
+        for p in data.get("players", []):
+
+            uid = p.get("userId")
+            seat = p.get("id")
+
+            if uid is None:
+                continue
+
+            if uid not in player_used_slots:
+                player_used_slots[uid] = set()
+
+            player_used_slots[uid].add(seat)
+
+    # ============================================================
+    # 5. Получаем участников
+    # ============================================================
+    participants = db.query(Registration).filter(
+        Registration.event_id == event_id,
+        Registration.status == "approved"
+    ).all()
+
+    if not participants:
+        raise HTTPException(status_code=400, detail="Нет участников.")
+
+    # ============================================================
+    # 6. Считаем статистику игроков (как player-stats)
+    # ============================================================
+    player_stats = defaultdict(lambda: {
+        "total_plus": 0.0,
+        "total_best_move_bonus": 0.0,
+        "total_minus": 0.0,
+        "jk_count": 0,
+        "wins": 0,
+        "ci_total": 0.0,
+        "games_count": 0,
+        "bestMovesWithBlack": 0
+    })
+
+    for g in games:
+
+        if not g.data:
+            continue
+
+        data = json.loads(g.data)
+
+        badge_color = data.get("badgeColor")
+
+        player_roles = {
+            str(p.get("id")): p.get("role")
+            for p in data.get("players", [])
+        }
+
+        for p in data.get("players", []):
+
+            uid = p.get("userId")
+            if not uid:
+                continue
+
+            stats = player_stats[uid]
+
+            stats["games_count"] += 1
+
+            role = p.get("role")
+
+            win_condition = (
+                (badge_color == "red" and role in ["мирный", "шериф"]) or
+                (badge_color == "black" and role in ["мафия", "дон"])
+            )
+
+            if win_condition:
+                stats["wins"] += 1
+
+            plus = p.get("plus", 0)
+            if isinstance(plus, (int, float)):
+                stats["total_plus"] += plus
+
+            sk = p.get("sk", 0)
+            if isinstance(sk, (int, float)) and sk > 0:
+                stats["total_minus"] -= 0.5 * sk
+
+            jk = p.get("jk", 0)
+            if isinstance(jk, (int, float)) and jk > 0:
+                stats["jk_count"] += int(jk)
+
+            best_move = p.get("best_move", "").strip()
+
+            if best_move:
+
+                nominated = [s for s in best_move.split() if s.isdigit()]
+
+                if len(nominated) == 3:
+
+                    mafia_count = 0
+
+                    for s in nominated:
+                        idx = int(s) - 1
+                        if 0 <= idx < len(data["players"]):
+                            pid = data["players"][idx]["id"]
+                            if player_roles.get(str(pid)) in ["мафия", "дон"]:
+                                mafia_count += 1
+
+                    bonus = {3: 1.5, 2: 1.0, 1: 0.0}.get(mafia_count, 0.0)
+
+                    stats["total_best_move_bonus"] += bonus
+
+                    if mafia_count >= 1:
+                        stats["bestMovesWithBlack"] += 1
+
+                        current_x = stats["bestMovesWithBlack"]
+                        current_n = stats["games_count"]
+
+                        ci_value = calculate_ci(current_x, current_n)
+
+                        stats["ci_total"] += ci_value
+
+    # ============================================================
+    # 7. Формируем список игроков с totalPoints
+    # ============================================================
+    players = []
+
+    for r in participants:
+
+        uid = r.user_id
+        stats = player_stats.get(uid, {})
+
+        total_plus = stats.get("total_plus", 0)
+        total_cb = stats.get("total_best_move_bonus", 0)
+        total_minus = stats.get("total_minus", 0)
+        jk = stats.get("jk_count", 0)
+        wins = stats.get("wins", 0)
+        ci_total = stats.get("ci_total", 0)
+
+        jk_penalty = 0.5 * jk * (jk + 1) if jk > 0 else 0
+
+        total_points = (
+            total_plus
+            + total_cb
+            + total_minus
+            - jk_penalty
+            + 2.5 * wins
+            + ci_total
+        )
+
+        players.append({
+            "id": uid,
+            "nick": r.user.nickname,
+            "score": total_points
+        })
+
+    # ============================================================
+    # 8. Сортировка по totalPoints
+    # ============================================================
+    players.sort(key=lambda x: x["score"], reverse=True)
+
+    # ============================================================
+    # 9. Делим на столы
+    # ============================================================
+    tables = []
+
+    for i in range(0, len(players), 10):
+        tables.append(players[i:i+10])
+
+    if len(tables) > num_tables:
+        raise HTTPException(status_code=400, detail="Игроков больше чем мест.")
+
+    # ============================================================
+    # 10. Расставляем места
+    # ============================================================
+    all_tables_slots = []
+
+    for table in tables:
+
+        slots = [None] * 10
+
+        for p in table:
+
+            pid = p["id"]
+            used = player_used_slots.get(pid, set())
+
+            seat = None
+
+            for i in range(10):
+                if i not in used and slots[i] is None:
+                    seat = i
+                    break
+
+            if seat is None:
+                for i in range(10):
+                    if slots[i] is None:
+                        seat = i
+                        break
+
+            slots[seat] = p
+
+            if pid not in player_used_slots:
+                player_used_slots[pid] = set()
+
+            player_used_slots[pid].add(seat)
+
+        all_tables_slots.append(slots)
+
+    # ============================================================
+    # 11. Получаем пользователей
+    # ============================================================
+    user_ids = [p["id"] for p in players]
+    db_users = db.query(User).filter(User.id.in_(user_ids)).all()
+    user_map = {u.id: u for u in db_users}
+
+    # ============================================================
+    # 12. Создаём игры
+    # ============================================================
+    for table_index, table_label in enumerate(table_labels):
+
+        if table_index >= len(all_tables_slots):
+            break
+
+        slots = all_tables_slots[table_index]
+
+        players_list = []
+
+        for seat_id, p in enumerate(slots):
+
+            if p is None:
+
+                players_list.append({
+                    "id": seat_id,
+                    "userId": None,
+                    "name": "",
+                    "role": "мирный",
+                    "plus": 2.5,
+                    "sk": 0,
+                    "jk": 0,
+                    "best_move": ""
+                })
+
+            else:
+
+                user = user_map.get(p["id"])
+
+                players_list.append({
+                    "id": seat_id,
+                    "userId": p["id"],
+                    "name": user.nickname if user else "",
+                    "role": "мирный",
+                    "plus": 2.5,
+                    "sk": 0,
+                    "jk": 0,
+                    "best_move": ""
+                })
+
+        game_id = f"{event_id}_r{next_round}_t{table_label}"
+
+        new_game = Game(
+            event_id=event_id,
+            gameId=game_id,
+            data=json.dumps({"players": players_list}, ensure_ascii=False)
+        )
+
+        db.add(new_game)
+
+    db.commit()
+
+    return {
+        "message": "Новый раунд сгенерирован",
+        "round": next_round
+    }
+
 
 #Видимость
 @router.post("/events/{event_id}/toggle_visibility")
