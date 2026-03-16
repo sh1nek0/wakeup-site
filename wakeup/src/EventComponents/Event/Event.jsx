@@ -1305,37 +1305,28 @@ useEffect(() => {
   </section>
 )}
 
-        {activeTab === "solo" && (
-          <section className={styles.tabPanel} role="tabpanel">
-            <h2 className={styles.h2}>Личный зачёт</h2>
+{activeTab === "solo" && (
+  <section className={styles.tabPanel} role="tabpanel">
+    <h2 className={styles.h2}>Личный зачёт</h2>
 
-            {eventData.games_are_hidden ? (
-              isAuthenticated ? (
-                <DetailedStatsTable
-                  data={playersStatsSorted}
-                  currentPage={personalPage}
-                  totalPages={personalTotalPages}
-                  onPageChange={setPersonalPage}
-                  user={user}
-                  key={personalPage}
-                />
-              ) : (
-                <div className={styles.emptyHint}>
-                  Пожалуйста, авторизуйтесь, чтобы увидеть статистику.
-                </div>
-              )
-            ) : (
-              <DetailedStatsTable
-                data={playersStatsSorted}
-                currentPage={personalPage}
-                totalPages={personalTotalPages}
-                onPageChange={setPersonalPage}
-                user={user}
-                key={personalPage}
-              />
-            )}
-          </section>
-        )}
+    {eventData.games_are_hidden ? (
+      <div className={styles.emptyHint}>
+        Статистика скрыта, так как игры закрыты.
+      </div>
+    ) : (
+      isJudge && (
+        <DetailedStatsTable
+          data={playersStatsSorted}
+          currentPage={personalPage}
+          totalPages={personalTotalPages}
+          onPageChange={setPersonalPage}
+          user={user}
+          key={personalPage}
+        />
+      )
+    )}
+  </section>
+)}
 
         {activeTab === "teamStat" && showTeamTabs && (
   <section className={styles.tabPanel} role="tabpanel">
@@ -1369,79 +1360,15 @@ useEffect(() => {
   </section>
         )}
 
-
 {activeTab === "nomsSolo" && (
   <section className={styles.nomsSection}>
     <h2 className={styles.h2}>Номинации</h2>
 
-    {eventData.games_are_hidden ? ( // Если номинации скрыты (используем games_are_hidden)
-      isAuthenticated ? ( // Пользователь авторизован
-        <>
-          {(() => {
-            const roleNames = {
-              sheriff: "Шериф",
-              citizen: "Мирный",
-              mafia: "Черный",
-              don: "Дон",
-            };
-
-            const renderTop3 = (arr) => {
-              const list = Array.isArray(arr) ? arr.slice(0, 3) : [];
-              if (!list.length) return <div className={styles.empty}>—</div>;
-
-              return list.map((w, idx) => (
-                <button
-                  key={w?.id ?? `${w?.name || "player"}-${idx}`}
-                  type="button"
-                  className={styles.winnerLink}
-                  onClick={() => w?.id && navigate(`/profile/${w.id}`)}
-                  title={w?.name || ""}
-                >
-                  <span className={styles.winnerPlace}>{idx + 1}.</span>
-                  <span className={styles.winnerName}>{w?.name ?? "—"}</span>
-                  <span className={styles.winnerValue}>({w?.value ?? "0"})</span>
-                </button>
-              ));
-            };
-
-            const mvpTop3 = Array.isArray(overallNomination)
-              ? overallNomination
-              : overallNomination
-              ? [overallNomination]
-              : [];
-
-            return (
-              <div className={styles.nominationsGrid}>
-                {(roleNominations || []).map((n) => (
-                  <div key={n.role} className={styles.nominationCard}>
-                    <div className={styles.nominationTitle}>
-                      Лучший {roleNames[n.role] || n.role}
-                    </div>
-                    <div className={styles.nominationWinners}>
-                      {renderTop3(n.winners ?? (n.winner ? [n.winner] : []))}
-                    </div>
-                  </div>
-                ))}
-
-                {mvpTop3.length > 0 && (
-                  <div className={styles.nominationCard}>
-                    <div className={styles.nominationTitle}>MVP</div>
-                    <div className={styles.nominationWinners}>
-                      {renderTop3(mvpTop3)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-        </>
-      ) : ( // Пользователь не авторизован и номинации скрыты
-        <div className={styles.emptyHint}>
-          Пожалуйста, авторизуйтесь, чтобы увидеть номинации.
-        </div>
-      )
-    ) : ( // Номинации не скрыты — видны всем
+    {eventData.games_are_hidden ? (
+      <div className={styles.emptyHint}>
+        Номинации скрыты, так как игры закрыты.
+      </div>
+    ) : (
       <>
         {(() => {
           const roleNames = {
@@ -1500,8 +1427,6 @@ useEffect(() => {
             </div>
           );
         })()}
-
-        
       </>
     )}
   </section>
