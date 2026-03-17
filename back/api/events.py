@@ -567,7 +567,10 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     db.commit()
     return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
 
-#Рассадка
+
+
+
+# Рассадка
 @router.post("/events/{event_id}/generate_seating")
 async def generate_event_seating(
     event_id: str,
@@ -575,6 +578,8 @@ async def generate_event_seating(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    import math
+    import itertools
 
     # ============================================================
     # 0. Авторизация
@@ -593,6 +598,7 @@ async def generate_event_seating(
     if event.type not in ["pair", "solo"]:
         raise HTTPException(status_code=400, detail="Поддерживаются только pair и solo турниры.")
 
+    # Сохраняем исключения
     event.seating_exclusions = json.dumps(request.exclusions_text)
     db.commit()
 
@@ -601,41 +607,37 @@ async def generate_event_seating(
     # ============================================================
     table_labels = sorted(list(set(g.gameId.split('_t')[1] for g in games if '_t' in g.gameId)))
     num_tables = len(table_labels)
+    num_rounds = math.ceil(len(games) / num_tables)
 
-    max_round = 0
-    for g in games:
-        m = re.search(r'_r(\d+)', g.gameId)
-        if m:
-            max_round = max(max_round, int(m.group(1)))
-
-    num_rounds = max_round
-
-    if num_rounds == 0:
-        if len(games) % num_tables == 0:
-            num_rounds = len(games) // num_tables
-        else:
-            raise HTTPException(status_code=400, detail="Не удалось определить количество раундов.")
-
-    def generate_slot_queue(num_rounds: int):
+    def generate_slot_queue(n_rounds: int):
         slots = []
-        while len(slots) < num_rounds:
+        while len(slots) < n_rounds:
             block = list(range(10))
             random.shuffle(block)
             slots.extend(block)
-        return slots[:num_rounds]
+        return slots[:n_rounds]
 
     # ============================================================
-    # =================== SOLO ===================
+    # 2. Разбор seating_exclusions
+    # ============================================================
+    exclusions_groups = []
+    if request.exclusions_text:
+        # разделяем по строкам
+        for line in request.exclusions_text.splitlines():
+            names = [name.strip() for name in line.split(",") if name.strip()]
+            if names:
+                exclusions_groups.append(names)
+
+    # ============================================================
+    # 3. SOLO
     # ============================================================
     if event.type == "solo":
-
         participants = db.query(Registration).filter(
             Registration.event_id == event_id,
             Registration.status == "approved"
         ).all()
 
         players = [{"id": r.user_id, "nick": r.user.nickname} for r in participants]
-
         if not players:
             raise HTTPException(status_code=400, detail="Нет подтвержденных участников.")
 
@@ -648,74 +650,60 @@ async def generate_event_seating(
         user_map = {u.id: u for u in db_users}
 
         player_slot_queue = {p["id"]: generate_slot_queue(num_rounds) for p in players}
-        player_used_slots = {pid: set() for pid in player_slot_queue}
-
         master_seed = random.randrange(1_000_000_000)
         all_round_tables = []
 
+        # Пересаживаем группы исключений
+        def assign_exclusion_group(group, tables):
+            table_indices = list(range(len(tables)))
+            for i, name in enumerate(group):
+                # находим игрока
+                player = next((p for p in players if p["nick"] == name), None)
+                if not player:
+                    continue
+                table_idx = table_indices[i % len(table_indices)]
+                tables[table_idx].append(player)
+
         for r in range(num_rounds):
-
-            if r % 10 == 0:
-                for pid in player_used_slots:
-                    player_used_slots[pid].clear()
-
             rnd = random.Random(master_seed + r)
             shuffled_players = players[:]
             rnd.shuffle(shuffled_players)
 
             tables = [[] for _ in range(num_tables)]
 
-            for p in shuffled_players:
-                for t in tables:
-                    if len(t) < 10:
-                        t.append(p)
-                        break
+            # сначала распределяем исключенные группы
+            for group in exclusions_groups:
+                assign_exclusion_group(group, tables)
+
+            # затем остальных игроков
+            remaining_players = [p for p in shuffled_players if all(p["nick"] not in g for g in exclusions_groups)]
+            for p in remaining_players:
+                min_table = min(tables, key=lambda t: len(t))
+                min_table.append(p)
 
             final_tables = []
-
-            for t_i in range(num_tables):
-
-                slots = [None] * 10
-
-                for p in tables[t_i]:
-
+            for t_i, table in enumerate(tables):
+                slots = [None] * max(10, len(table))
+                for p in table:
                     pid = p["id"]
                     pref = player_slot_queue[pid][r]
-                    placed = False
-
-                    if slots[pref] is None and pref not in player_used_slots[pid]:
-                        slots[pref] = p
-                        player_used_slots[pid].add(pref)
-                        placed = True
-
-                    if not placed:
-                        for i in range(10):
-                            if slots[i] is None and i not in player_used_slots[pid]:
-                                slots[i] = p
-                                player_used_slots[pid].add(i)
-                                placed = True
+                    if pref >= len(slots) or slots[pref] is not None:
+                        for i in range(len(slots)):
+                            if slots[i] is None:
+                                pref = i
                                 break
-
-                    if not placed:
-                        raise HTTPException(
-                            status_code=500,
-                            detail=f"Не удалось назначить слот игроку {p['nick']}"
-                        )
-
+                    slots[pref] = p
                 final_tables.append(slots)
-
             all_round_tables.append(final_tables)
 
     # ============================================================
-    # =================== PAIR ===================
+    # 4. PAIR
     # ============================================================
     else:
-
         teams = db.query(Team).filter(
             Team.event_id == event_id,
             Team.status == "approved"
         ).all()
-
         if not teams:
             raise HTTPException(status_code=400, detail="Нет подтвержденных команд.")
 
@@ -733,84 +721,64 @@ async def generate_event_seating(
         if len(participants) > capacity:
             raise HTTPException(status_code=400, detail="Команд больше чем вместимость.")
 
-        user_ids = []
-        for part in participants:
-            for p in part["players"]:
-                user_ids.append(p["id"])
-
+        user_ids = [p["id"] for part in participants for p in part["players"]]
         db_users = db.query(User).filter(User.id.in_(user_ids)).all()
         user_map = {u.id: u for u in db_users}
 
-        player_slot_queue = {}
-        for part in participants:
-            for p in part["players"]:
-                if p["id"] not in player_slot_queue:
-                    player_slot_queue[p["id"]] = generate_slot_queue(num_rounds)
-
-        player_used_slots = {pid: set() for pid in player_slot_queue}
-
+        player_slot_queue = {p["id"]: generate_slot_queue(num_rounds)
+                             for part in participants for p in part["players"]}
         master_seed = random.randrange(1_000_000_000)
         all_round_tables = []
 
+        def assign_exclusion_group_pair(group, tables):
+            table_indices = list(range(len(tables)))
+            for i, name in enumerate(group):
+                for team in participants:
+                    for p in team["players"]:
+                        if p["nick"] == name:
+                            table_idx = table_indices[i % len(table_indices)]
+                            tables[table_idx].append(team)
+
         for r in range(num_rounds):
-
-            if r % 10 == 0:
-                for pid in player_used_slots:
-                    player_used_slots[pid].clear()
-
             rnd = random.Random(master_seed + r)
             shuffled_teams = participants[:]
             rnd.shuffle(shuffled_teams)
 
             tables = [[] for _ in range(num_tables)]
 
-            for team in shuffled_teams:
-                for t in tables:
-                    if len(t) < 5:
-                        t.append(team)
-                        break
+            for group in exclusions_groups:
+                assign_exclusion_group_pair(group, tables)
+
+            # затем остальных
+            remaining_teams = [t for t in shuffled_teams if all(p["nick"] not in itertools.chain(*exclusions_groups) for p in t["players"])]
+            for team in remaining_teams:
+                min_table = min(tables, key=lambda t: len(t))
+                min_table.append(team)
 
             final_tables = []
-
-            for t_i in range(num_tables):
-
-                slots = [None] * 10
-
-                for team in tables[t_i]:
+            for t_i, table in enumerate(tables):
+                total_players = sum(len(team["players"]) for team in table)
+                slots = [None] * max(10, total_players)
+                for team in table:
                     for p in team["players"]:
-
                         pid = p["id"]
                         pref = player_slot_queue[pid][r]
-                        placed = False
-
-                        if slots[pref] is None and pref not in player_used_slots[pid]:
-                            slots[pref] = p
-                            player_used_slots[pid].add(pref)
-                            placed = True
-
-                        if not placed:
-                            for i in range(10):
-                                if slots[i] is None and i not in player_used_slots[pid]:
-                                    slots[i] = p
-                                    player_used_slots[pid].add(i)
-                                    placed = True
+                        if pref >= len(slots) or slots[pref] is not None:
+                            for i in range(len(slots)):
+                                if slots[i] is None:
+                                    pref = i
                                     break
-
-                        if not placed:
-                            raise HTTPException(status_code=500, detail="Ошибка рассадки")
-
+                        slots[pref] = p
                 final_tables.append(slots)
-
             all_round_tables.append(final_tables)
 
     # ============================================================
-    # 7. Запись в Game.data (ИСПРАВЛЕНО)
+    # 5. Запись в Game.data
     # ============================================================
     game_map = {g.gameId: g for g in games}
 
     for r in range(1, num_rounds + 1):
         for idx, label in enumerate(table_labels):
-
             game_id = f"{event_id}_r{r}_t{label}"
             game = game_map.get(game_id)
             if not game:
@@ -818,9 +786,7 @@ async def generate_event_seating(
 
             slots = all_round_tables[r - 1][idx]
             players_list = []
-
             for seat_id, p in enumerate(slots):
-
                 if p is None:
                     players_list.append({
                         "id": seat_id,
@@ -832,7 +798,6 @@ async def generate_event_seating(
                         "jk": 0,
                         "best_move": ""
                     })
-
                 else:
                     user = user_map.get(p["id"])
                     players_list.append({
@@ -851,8 +816,8 @@ async def generate_event_seating(
             game.data = json.dumps(data, ensure_ascii=False)
 
     db.commit()
-
     return {"message": "Рассадка успешно сгенерирована."}
+
 
 
 # Тур швейцарки
