@@ -568,7 +568,6 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
     return {"message": f"Создано {len(new_games)} игр для события '{event.title}'."}
 
 
-
 # Рассадка
 @router.post("/events/{event_id}/generate_seating")
 async def generate_event_seating(
@@ -622,11 +621,15 @@ async def generate_event_seating(
     # 2. Разбор seating_exclusions
     # ============================================================
     exclusions_groups = []
+    player_exclusions = {}
     if request.exclusions_text:
         for line in request.exclusions_text.splitlines():
             names = [name.strip() for name in line.split(",") if name.strip()]
             if names:
                 exclusions_groups.append(names)
+                for n in names:
+                    player_exclusions.setdefault(n, set())
+                    player_exclusions[n].update(set(names) - {n})
 
     # ============================================================
     # 3. SOLO
@@ -660,20 +663,17 @@ async def generate_event_seating(
             # создаём пустые столы
             tables = [[] for _ in range(num_tables)]
 
-            # распределяем исключенные группы с циклической ротацией
-            for group in exclusions_groups:
-                for i, name in enumerate(group):
-                    player = next((p for p in players if p["nick"] == name), None)
-                    if player:
-                        table_idx = (i + r) % num_tables
-                        tables[table_idx].append(player)
-
-            # затем остальных игроков
-            remaining_players = [p for p in shuffled_players if all(p["nick"] not in g for g in exclusions_groups)]
-            rnd.shuffle(remaining_players)  # перемешиваем перед рассадкой, чтобы не садились на одних столах с теми же частями
-            for p in remaining_players:
-                min_table = min(tables, key=lambda t: len(t))
-                min_table.append(p)
+            # распределяем игроков с учётом индивидуальных запретов
+            for p in shuffled_players:
+                # ищем стол, где нет запрещённых игроков
+                allowed_tables = [t for t in tables if not any(x["nick"] in player_exclusions.get(p["nick"], set()) for x in t)]
+                if not allowed_tables:
+                    # если нет полностью разрешённых столов, садим за любой
+                    min_table = min(tables, key=lambda t: len(t))
+                    min_table.append(p)
+                else:
+                    min_table = min(allowed_tables, key=lambda t: len(t))
+                    min_table.append(p)
 
             # формируем слоты
             final_tables = []
@@ -733,22 +733,16 @@ async def generate_event_seating(
 
             tables = [[] for _ in range(num_tables)]
 
-            # распределяем исключенные группы с ротацией по столам
-            for group in exclusions_groups:
-                for i, name in enumerate(group):
-                    for team in participants:
-                        for p in team["players"]:
-                            if p["nick"] == name:
-                                table_idx = (i + r) % num_tables
-                                if team not in tables[table_idx]:
-                                    tables[table_idx].append(team)
-
-            # затем остальных
-            remaining_teams = [t for t in shuffled_teams if all(p["nick"] not in itertools.chain(*exclusions_groups) for p in t["players"])]
-            rnd.shuffle(remaining_teams)  # перемешиваем команды перед распределением по столам
-            for team in remaining_teams:
-                min_table = min(tables, key=lambda t: len(t))
-                tables[tables.index(min_table)].append(team)
+            # распределяем команды с учётом индивидуальных запретов
+            for team in shuffled_teams:
+                # ищем стол, где нет запрещённых игроков
+                allowed_tables = [t for t in tables if not any(p["nick"] in player_exclusions.get(other["nick"], set()) for other in [p for tm in t for p in tm["players"]] for p in team["players"])]
+                if not allowed_tables:
+                    min_table = min(tables, key=lambda t: len(t))
+                    min_table.append(team)
+                else:
+                    min_table = min(allowed_tables, key=lambda t: len(t))
+                    min_table.append(team)
 
             # формируем слоты
             final_tables = []
@@ -813,7 +807,6 @@ async def generate_event_seating(
 
     db.commit()
     return {"message": "Рассадка успешно сгенерирована."}
-
 
 
 # Тур швейцарки
