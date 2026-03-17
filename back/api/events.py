@@ -569,7 +569,6 @@ async def setup_event_games(event_id: str, request: EventSetupRequest, current_u
 
 
 
-
 # Рассадка
 @router.post("/events/{event_id}/generate_seating")
 async def generate_event_seating(
@@ -580,6 +579,8 @@ async def generate_event_seating(
 ):
     import math
     import itertools
+    import random
+    import json
 
     # ============================================================
     # 0. Авторизация
@@ -622,7 +623,6 @@ async def generate_event_seating(
     # ============================================================
     exclusions_groups = []
     if request.exclusions_text:
-        # разделяем по строкам
         for line in request.exclusions_text.splitlines():
             names = [name.strip() for name in line.split(",") if name.strip()]
             if names:
@@ -636,7 +636,6 @@ async def generate_event_seating(
             Registration.event_id == event_id,
             Registration.status == "approved"
         ).all()
-
         players = [{"id": r.user_id, "nick": r.user.nickname} for r in participants]
         if not players:
             raise HTTPException(status_code=400, detail="Нет подтвержденных участников.")
@@ -653,36 +652,33 @@ async def generate_event_seating(
         master_seed = random.randrange(1_000_000_000)
         all_round_tables = []
 
-        # Пересаживаем группы исключений
-        def assign_exclusion_group(group, tables):
-            table_indices = list(range(len(tables)))
-            for i, name in enumerate(group):
-                # находим игрока
-                player = next((p for p in players if p["nick"] == name), None)
-                if not player:
-                    continue
-                table_idx = table_indices[i % len(table_indices)]
-                tables[table_idx].append(player)
-
         for r in range(num_rounds):
             rnd = random.Random(master_seed + r)
             shuffled_players = players[:]
             rnd.shuffle(shuffled_players)
 
+            # создаём пустые столы
             tables = [[] for _ in range(num_tables)]
 
-            # сначала распределяем исключенные группы
+            # распределяем исключенные группы с циклической ротацией
             for group in exclusions_groups:
-                assign_exclusion_group(group, tables)
+                for i, name in enumerate(group):
+                    player = next((p for p in players if p["nick"] == name), None)
+                    if player:
+                        table_idx = (i + r) % num_tables
+                        tables[table_idx].append(player)
 
             # затем остальных игроков
             remaining_players = [p for p in shuffled_players if all(p["nick"] not in g for g in exclusions_groups)]
+            rnd.shuffle(remaining_players)  # перемешиваем перед рассадкой, чтобы не садились на одних столах с теми же частями
             for p in remaining_players:
                 min_table = min(tables, key=lambda t: len(t))
                 min_table.append(p)
 
+            # формируем слоты
             final_tables = []
             for t_i, table in enumerate(tables):
+                rnd.shuffle(table)  # перемешиваем игроков внутри стола
                 slots = [None] * max(10, len(table))
                 for p in table:
                     pid = p["id"]
@@ -730,15 +726,6 @@ async def generate_event_seating(
         master_seed = random.randrange(1_000_000_000)
         all_round_tables = []
 
-        def assign_exclusion_group_pair(group, tables):
-            table_indices = list(range(len(tables)))
-            for i, name in enumerate(group):
-                for team in participants:
-                    for p in team["players"]:
-                        if p["nick"] == name:
-                            table_idx = table_indices[i % len(table_indices)]
-                            tables[table_idx].append(team)
-
         for r in range(num_rounds):
             rnd = random.Random(master_seed + r)
             shuffled_teams = participants[:]
@@ -746,29 +733,39 @@ async def generate_event_seating(
 
             tables = [[] for _ in range(num_tables)]
 
+            # распределяем исключенные группы с ротацией по столам
             for group in exclusions_groups:
-                assign_exclusion_group_pair(group, tables)
+                for i, name in enumerate(group):
+                    for team in participants:
+                        for p in team["players"]:
+                            if p["nick"] == name:
+                                table_idx = (i + r) % num_tables
+                                if team not in tables[table_idx]:
+                                    tables[table_idx].append(team)
 
             # затем остальных
             remaining_teams = [t for t in shuffled_teams if all(p["nick"] not in itertools.chain(*exclusions_groups) for p in t["players"])]
+            rnd.shuffle(remaining_teams)  # перемешиваем команды перед распределением по столам
             for team in remaining_teams:
                 min_table = min(tables, key=lambda t: len(t))
-                min_table.append(team)
+                tables[tables.index(min_table)].append(team)
 
+            # формируем слоты
             final_tables = []
             for t_i, table in enumerate(tables):
                 total_players = sum(len(team["players"]) for team in table)
                 slots = [None] * max(10, total_players)
-                for team in table:
-                    for p in team["players"]:
-                        pid = p["id"]
-                        pref = player_slot_queue[pid][r]
-                        if pref >= len(slots) or slots[pref] is not None:
-                            for i in range(len(slots)):
-                                if slots[i] is None:
-                                    pref = i
-                                    break
-                        slots[pref] = p
+                flat_players = [p for team in table for p in team["players"]]
+                rnd.shuffle(flat_players)  # перемешиваем игроков внутри стола
+                for p in flat_players:
+                    pid = p["id"]
+                    pref = player_slot_queue[pid][r]
+                    if pref >= len(slots) or slots[pref] is not None:
+                        for i in range(len(slots)):
+                            if slots[i] is None:
+                                pref = i
+                                break
+                    slots[pref] = p
                 final_tables.append(slots)
             all_round_tables.append(final_tables)
 
@@ -776,7 +773,6 @@ async def generate_event_seating(
     # 5. Запись в Game.data
     # ============================================================
     game_map = {g.gameId: g for g in games}
-
     for r in range(1, num_rounds + 1):
         for idx, label in enumerate(table_labels):
             game_id = f"{event_id}_r{r}_t{label}"
