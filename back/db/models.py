@@ -84,6 +84,7 @@ class Game(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     event = relationship("Event", backref="games") # --- ИЗМЕНЕНИЕ: Добавлена связь ---
 
+
 class Team(Base):
     __tablename__ = "teams"
     id = Column(String, primary_key=True, index=True)

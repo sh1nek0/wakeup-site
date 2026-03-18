@@ -116,12 +116,16 @@ async def save_game_data(data: SaveGameData, current_user: User = Depends(get_cu
     db.commit()
     return {"message": "Данные игры сохранены успешно"}
 
+
 @router.get("/getGameData/{gameId}")
 async def get_game_data(gameId: str, db: Session = Depends(get_db)):
     game = db.query(Game).filter(Game.gameId == gameId).first()
     if not game:
         raise HTTPException(status_code=404, detail="Игра не найдена")
     return json.loads(game.data)
+
+
+
 
 @router.get("/checkGameExists/{gameId}")
 async def check_game_exists(gameId: str, db: Session = Depends(get_db)):

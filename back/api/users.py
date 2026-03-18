@@ -242,6 +242,38 @@ async def get_user(user_id: str, db: Session = Depends(get_db)):
     }}
 
 
+@router.get("/users/{user_id}/games")
+async def get_user_games_data(user_id: str, db: Session = Depends(get_db)):
+    games = db.query(Game).all()
+
+    result = []
+
+    for game in games:
+        if not game.data:
+            continue
+
+        try:
+            data = json.loads(game.data)
+        except json.JSONDecodeError:
+            continue  # защита от битых данных
+
+        players = data.get("players", [])
+        
+        for player in players:
+            if player.get("userId") == user_id:
+                result.append({
+                    "gameId": game.gameId,
+                    "event_id": game.event_id,
+                    "created_at": game.created_at,
+                    "player": player,
+                    "game": data
+                })
+                break
+
+    
+    return result
+
+
 @router.get("/getUserPhoto/{nickname}")
 async def get_user_photo(nickname: str, db: Session = Depends(get_db)):
     user_obj = db.query(User).filter(User.nickname == nickname).first()

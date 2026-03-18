@@ -25,8 +25,13 @@ const PlayerGames = ({ nickname, games, loading, error, isAdmin, onDelete, onEdi
     <div className={styles.gamesGrid}>
       {games.map((game, index) => (
         <GameCard
-          key={game.id ?? `${nickname}-${index}`}
-          game={game}
+          key={game.gameId ?? `${nickname}-${index}`}
+          game={{
+            ...game.game,
+            gameId: game.gameId,
+            player: game.player,
+            created_at: game.created_at
+          }}
           gameNumber={totalGames - index}
           isAdmin={isAdmin}
           onDelete={onDelete}
@@ -146,15 +151,19 @@ const ProfilePage = () => {
     }, 4000);
   };
 
-  const fetchGames = useCallback(async (nickname) => {
-    if (!nickname) return;
+  const fetchGames = useCallback(async (user_id) => {
+    
+    if (!user_id) return;
     setGamesLoading(true);
     setGamesError(null);
     try {
-      const response = await fetch(`/api/getPlayerGames/${encodeURIComponent(nickname)}`);
+      const response = await fetch(`/api/users/${user_id}/games`);
       if (!response.ok) throw new Error("Не удалось загрузить историю игр");
+      
       const data = await response.json();
-      setPlayerGames(Array.isArray(data?.games) ? data.games : []);
+      console.log(data); // у тебя тут уже массив
+      setPlayerGames(Array.isArray(data) ? data : []);
+      console.log(playerGames)
     } catch (err) {
       setGamesError(err.message);
     } finally {
@@ -182,6 +191,7 @@ const ProfilePage = () => {
   };
 
   const fetchProfile = async () => {
+    console.log(targetUserId)
     setLoading(true);
     setLoadError(null);
     try {
@@ -204,7 +214,7 @@ const ProfilePage = () => {
       const data = await res.json();
       resetProfileData(data);
       if (data.user?.nickname) {
-        fetchGames(data.user.nickname);
+        fetchGames(targetUserId);
       }
     } catch (e) {
       setLoadError(e.message);
@@ -217,79 +227,85 @@ const ProfilePage = () => {
     fetchProfile();
   }, [targetUserId, fetchGames]);
 
-  const playerStats = useMemo(() => {
-    const stats = {
-      totalGames: 0,
-      totalWins: 0,
-      totalLosses: 0,
-      winrate: 0,
-      byRole: {
-        'Черная карта': { games: 0, wins: 0 },
-        'Дон': { games: 0, wins: 0 },
-        'Мафия': { games: 0, wins: 0 },
-        'Красная карта': { games: 0, wins: 0 },
-        'Шериф': { games: 0, wins: 0 },
-        'Мирный': { games: 0, wins: 0 },
-      }
-    };
-
-    if (!playerGames || playerGames.length === 0) {
-      return stats;
+const playerStats = useMemo(() => {
+  const stats = {
+    totalGames: 0,
+    totalWins: 0,
+    totalLosses: 0,
+    winrate: 0,
+    byRole: {
+      'Черная карта': { games: 0, wins: 0 },
+      'Дон': { games: 0, wins: 0 },
+      'Мафия': { games: 0, wins: 0 },
+      'Красная карта': { games: 0, wins: 0 },
+      'Шериф': { games: 0, wins: 0 },
+      'Мирный': { games: 0, wins: 0 },
     }
+  };
 
-    stats.totalGames = playerGames.length;
-
-    const roleMap = {
-      'мирный': 'Мирный',
-      'шериф': 'Шериф',
-      'мафия': 'Мафия',
-      'дон': 'Дон',
-    };
-
-    playerGames.forEach(game => {
-      const playerInGame = game.players.find(p => p.name === profileData.nickname);
-      if (!playerInGame || !playerInGame.role) return;
-
-      const rawRole = playerInGame.role.toLowerCase();
-      const mappedRole = roleMap[rawRole];
-
-      const isRedPlayer = rawRole === 'мирный' || rawRole === 'шериф';
-      const isBlackPlayer = rawRole === 'мафия' || rawRole === 'дон';
-
-      let isWin = false;
-      if (game.badgeColor === 'red' && isRedPlayer) {
-        isWin = true;
-      } else if (game.badgeColor === 'black' && isBlackPlayer) {
-        isWin = true;
-      }
-
-      if (isWin) {
-        stats.totalWins++;
-      } else if (game.badgeColor === 'red' || game.badgeColor === 'black') {
-        stats.totalLosses++;
-      }
-
-      if (mappedRole && stats.byRole[mappedRole]) {
-        stats.byRole[mappedRole].games++;
-        if (isWin) stats.byRole[mappedRole].wins++;
-      }
-      
-      if (isRedPlayer) {
-        stats.byRole['Красная карта'].games++;
-        if (isWin) stats.byRole['Красная карта'].wins++;
-      }
-      if (isBlackPlayer) {
-        stats.byRole['Черная карта'].games++;
-        if (isWin) stats.byRole['Черная карта'].wins++;
-      }
-    });
-
-    if (stats.totalGames > 0) {
-      stats.winrate = Math.round((stats.totalWins / stats.totalGames) * 100);
-    }
-
+  if (!Array.isArray(playerGames) || playerGames.length === 0) {
     return stats;
-  }, [playerGames, profileData.nickname]);
+  }
+
+  const roleMap = {
+    'мирный': 'Мирный',
+    'шериф': 'Шериф',
+    'мафия': 'Мафия',
+    'дон': 'Дон',
+  };
+
+  playerGames.forEach(g => {
+    const player = g?.player;
+    const game = g?.game;
+
+    if (!player || !game) return;
+
+    const rawRole = player.role?.toLowerCase();
+    if (!rawRole) return;
+
+    const mappedRole = roleMap[rawRole];
+    const badgeColor = game.badgeColor;
+
+    const isRedPlayer = rawRole === 'мирный' || rawRole === 'шериф';
+    const isBlackPlayer = rawRole === 'мафия' || rawRole === 'дон';
+
+    let isWin = false;
+
+    if (badgeColor === 'red' && isRedPlayer) isWin = true;
+    if (badgeColor === 'black' && isBlackPlayer) isWin = true;
+
+    // считаем только валидные игры
+    if (badgeColor === 'red' || badgeColor === 'black') {
+      stats.totalGames++;
+
+      if (isWin) stats.totalWins++;
+      else stats.totalLosses++;
+    }
+
+    // по конкретной роли
+    if (mappedRole && stats.byRole[mappedRole]) {
+      stats.byRole[mappedRole].games++;
+      if (isWin) stats.byRole[mappedRole].wins++;
+    }
+
+    // по цвету
+    if (isRedPlayer) {
+      stats.byRole['Красная карта'].games++;
+      if (isWin) stats.byRole['Красная карта'].wins++;
+    }
+
+    if (isBlackPlayer) {
+      stats.byRole['Черная карта'].games++;
+      if (isWin) stats.byRole['Черная карта'].wins++;
+    }
+  });
+
+  if (stats.totalGames > 0) {
+    stats.winrate = Math.round((stats.totalWins / stats.totalGames) * 100);
+  }
+
+  return stats;
+}, [playerGames]);
 
   const onChangeField = (field) => (e) => {
     const val = e.target.value;
@@ -521,7 +537,7 @@ const ProfilePage = () => {
               throw new Error(errData.detail || 'Ошибка удаления');
           }
           showMessage('Игра успешно удалена.');
-          fetchGames(profileData.nickname);
+          fetchGames(profileData.user_id);
       } catch (err) {
           showMessage(err.message, true);
       }
