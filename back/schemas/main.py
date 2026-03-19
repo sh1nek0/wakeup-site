@@ -184,3 +184,6 @@ class ValidatePlayersResponse(BaseModel):
     ok: bool
     errors: List[str] = []
     details: List[Dict[str, Any]] = []
+
+class RegisterForEventRequest(BaseModel):
+    user_id: Optional[str] = None

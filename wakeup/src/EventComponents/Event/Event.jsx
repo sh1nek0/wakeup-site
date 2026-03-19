@@ -34,7 +34,11 @@ export default function Event() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
- 
+  
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -75,13 +79,16 @@ export default function Event() {
   const [numTables, setNumTables] = useState(1);
   const [exclusionsText, setExclusionsText] = useState("");
   const isJudge = eventData.judges?.some(j => j?.id === user?.id);
-  console.log()
+  
 
   // ------------------------------
   // Новое: Состояние для статистики игроков из API
   // ------------------------------
   const [playersStats, setPlayersStats] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  const [playersList, setPlayersList] = useState([]);
+const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
   // ------------------------------
   // Редактирование события
@@ -136,13 +143,27 @@ export default function Event() {
     );
   };
 
-
-
     useEffect(() => {
   if (eventData.judges) {
     setJudges(eventData.judges);
   }
 }, [eventData.judges]);
+
+  const openAddPlayerModal = async () => {
+  try {
+    const res = await fetch("/api/getPlayersList");
+    const data = await res.json();
+    setPlayersList(data.players || []);
+    setIsAddPlayerModalOpen(true);
+  } catch (e) {
+    showMessage("Ошибка загрузки игроков", true);
+  }
+};
+
+const closeAddPlayerModal = () => {
+  setIsAddPlayerModalOpen(false);
+  setSelectedPlayerId(null);
+};
 
 
   const startEditing = () => {
@@ -312,7 +333,6 @@ const saveEvent = async () => {
       const res = await fetch(`/api/getEvent/${eventId}`, { headers });
       if (!res.ok) throw new Error("Ошибка загрузки данных ивента");
       const data = await res.json();
-      console.log(data);
       setEventData(data);
       setParticipants(data.participants || []);
       setTeams(data.teams || []);
@@ -325,6 +345,71 @@ const saveEvent = async () => {
       setLoading(false);
     }
   };
+
+  const fetchAllUsers = async () => {
+  try {
+    const res = await fetch("/api/getPlayersList", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+
+    setAllUsers(data.players || []);
+  } catch (e) {
+    console.error(e);
+    setAllUsers([]);
+  }
+};
+
+useEffect(()=>{fetchAllUsers()},[])
+
+
+const handleAdminRegister = async () => {
+  if (!selectedUserId) return;
+
+  try {
+    const res = await fetch(`/api/events/${eventId}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        user_id: selectedUserId
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.detail);
+
+    showMessage("Заявка отправлена");
+
+    setIsAddPlayerModalOpen(false);
+    setSelectedUserId(null);
+
+    await fetchEventData();
+
+  } catch (e) {
+    showMessage(e.message, true);
+  }
+};
+
+  const availableUsers = useMemo(() => {
+  if (!allUsers.length) return [];
+
+  const participantIds = new Set(participants.map(p => p.id));
+
+  return allUsers.filter(u => !participantIds.has(u.id));
+}, [allUsers, participants]);
+
+const filteredUsers = useMemo(() => {
+  if (!availableUsers.length) return [];
+
+  return availableUsers.filter(u =>
+    u.nickname?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+}, [availableUsers, searchTerm]);
 
 
   const handleGenerateNextRound = async () => {
@@ -435,38 +520,32 @@ const saveEvent = async () => {
     }
   };
 
-  const handleRegister = async () => {
-    if (!isAuthenticated) return navigate('/login');
-    try {
-      const response = await fetch(`/api/events/${eventId}/register`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Ошибка регистрации");
-      showMessage(data.message);
-      setUserRegistrationStatus('pending');
-    } catch (error) {
-      showMessage(`Ошибка: ${error.message}`, true);
-    }
-  };
+const handleRegister = async () => {
+  if (!isAuthenticated) return navigate('/login');
 
-  const handleManageRegistration = async (registrationId, action) => {
-    if (!isAdmin) return;
-    try {
-      const response = await fetch(`/api/registrations/${registrationId}/manage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ action }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Ошибка при обработке заявки");
-      showMessage(data.message);
-      fetchEventData();
-    } catch (error) {
-      showMessage(`Ошибка: ${error.message}`, true);
-    }
-  };
+  try {
+    const response = await fetch(`/api/events/${eventId}/register`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}), // 🔹 обязательный body для Pydantic
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.detail || "Ошибка регистрации");
+
+    showMessage(data.message);
+    setUserRegistrationStatus('pending');
+
+  } catch (error) {
+    showMessage(`Ошибка: ${error.message}`, true);
+  }
+};
+
+
 
   const handleSetupGames = async () => {
     if (!isAdmin) return;
@@ -582,17 +661,9 @@ const saveEvent = async () => {
     setEventAvatarPreview(url);
   };
 
-
-
-
-  // ------------------------------
-  // TEST DATA for tables (personal)
-  // ------------------------------
   const pageSize = 10;
 
-  // ------------------------------
-  // Изменено: playersStats теперь из API, сортируем в useMemo
-  // ------------------------------
+  
   const playersStatsSorted = useMemo(() => {
     return [...playersStats].sort((a, b) => b.totalPoints - a.totalPoints);
   }, [playersStats]);
@@ -1223,6 +1294,69 @@ useEffect(() => {
         {activeTab==="player" && (
           <section className={styles.qualifiedWrap}>
         <h2 className={styles.h2}>Участники</h2>
+        {isAdmin && (
+    <button
+      className={styles.addBtn}
+      onClick={openAddPlayerModal}
+      title="Добавить игрока"
+    >
+      +
+    </button>
+  )}
+
+  {isAddPlayerModalOpen && (
+  <div className={styles.modalOverlay}>
+    <div className={styles.modal}>
+      <h3>Добавить игрока</h3>
+
+      <div className={styles.playersList}>
+        <input
+  type="text"
+  placeholder="Поиск по нику..."
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  className={styles.searchInput}
+/>
+        {filteredUsers.map(u => (
+          <div
+            key={u.id}
+            className={`${styles.playerRow} ${selectedUserId === u.id ? styles.selected : ''}`}
+            onClick={() => setSelectedUserId(u.id)}
+          >
+            <img
+              src={u.photoUrl || stubAvatar}
+              className={styles.avatarSmall}
+              alt={u.nickname}
+            />
+            <div>
+              <div>{u.nickname}</div>
+              <div className={styles.hint}>
+                {u.club || "—"} • игр: {u.game_count}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className={styles.modalActions}>
+        <button
+          onClick={handleAdminRegister}
+          className={styles.primaryBtn}
+          disabled={!selectedUserId}
+        >
+          Добавить
+        </button>
+
+        <button onClick={() => setIsAddPlayerModalOpen(false)}>
+          Отмена
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+
         {participants.length === 0 ? (
           <div className={styles.emptyHint}>Пока нет подтвержденных участников.</div>
         ) : (

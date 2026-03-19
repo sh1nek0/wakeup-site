@@ -15,7 +15,7 @@ from sqlalchemy import distinct, func, or_
 from pathlib import Path
 from core.security import get_current_user, get_optional_current_user, get_db
 from db.models import Event, Team, Registration, User, Notification, Game, event_judges
-from schemas.main import CreateTeamRequest, ManageRegistrationRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
+from schemas.main import CreateTeamRequest, ManageRegistrationRequest,RegisterForEventRequest, TeamActionRequest, EventSetupRequest, GenerateSeatingRequest, CreateEventRequest, UpdateEventRequest
 from api.notifications import create_notification
 from collections import defaultdict
 from typing import Optional
@@ -248,33 +248,82 @@ async def handle_team_invite(
 ):
     return await manage_team_invite_logic(team_id, request.action, current_user, db)
 
+
 @router.post("/events/{event_id}/register")
-async def register_for_event(event_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    
+async def register_for_event(
+    event_id: str,
+    request: RegisterForEventRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    import uuid
+
+    user_id = request.user_id
+
+    # 1. Проверка события
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Событие не найдено")
+
+    # 2. Проверка лимита
     if event.participants_count >= event.participants_limit:
-        raise HTTPException(status_code=400, detail="Регистрация закрыта, достигнут лимит")
-    existing_registration = db.query(Registration).filter_by(event_id=event_id, user_id=current_user.id).first()
+        raise HTTPException(status_code=400, detail="Регистрация закрыта")
+
+    # 3. Определяем target_user
+    if user_id:
+        # регистрация за другого пользователя
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="Нет прав")
+
+        target_user = db.query(User).filter(User.id == user_id).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+    else:
+        # саморегистрация (для любого пользователя, включая админа)
+        target_user = current_user
+
+    # 4. Проверка на дубликат
+    existing_registration = db.query(Registration).filter_by(
+        event_id=event_id,
+        user_id=target_user.id
+    ).first()
+
     if existing_registration:
-        raise HTTPException(status_code=400, detail="Вы уже подали заявку")
-    new_registration = Registration(id=f"reg_{uuid.uuid4().hex[:12]}", event_id=event_id, user_id=current_user.id, status="pending")
+        raise HTTPException(status_code=400, detail="Заявка уже существует")
+
+    # 5. Создание заявки
+    new_registration = Registration(
+        id=f"reg_{uuid.uuid4().hex[:12]}",
+        event_id=event_id,
+        user_id=target_user.id,
+        status="pending"
+    )
+
     db.add(new_registration)
     db.commit()
     db.refresh(new_registration)
+
+    # 6. Уведомления администраторам
     admin_users = db.query(User).filter(User.role == "admin").all()
     for admin in admin_users:
         create_notification(
             db,
             recipient_id=admin.id,
             type="registration_request",
-            message=f"Новая заявка на '{event.title}' от '{current_user.nickname}'.",
+            message=f"Заявка на '{event.title}' от '{target_user.nickname}'.",
             sender_id=current_user.id,
             related_id=new_registration.id,
             actions=["approve_registration", "reject_registration"]
         )
-    return {"message": "Ваша заявка на участие успешно подана"}
+
+    # 7. Ответ
+    return {
+        "message": f"Заявка за {target_user.nickname} отправлена",
+        "user_id": target_user.id,
+        "event_id": event_id
+    }
+
+
 
 @router.post("/registrations/{registration_id}/manage")
 async def manage_registration(registration_id: str, request: ManageRegistrationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
