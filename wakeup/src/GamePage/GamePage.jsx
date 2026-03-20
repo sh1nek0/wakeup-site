@@ -1355,7 +1355,6 @@ useEffect(() => {
   // ✅ Автоматически переключаем сцену при изменении currentPhase
 useEffect(() => {
   
-
   const sceneMap = {
     shooting: "Ночь",
     don: "Ночь",
