@@ -1349,6 +1349,7 @@ useEffect(() => {
     setRound(1);
     setFirstRoundCandidates([]);
     setCurrentPhase("shooting");
+    switchScene("Ночь")
   };
 
 
@@ -1368,7 +1369,7 @@ const handleCount = () => {
   // 🔥 Финал: один кандидат
   if (candidates.length === 1) {
     saveResult([candidates[0].playerId]);
-    switchScene("Ночь"); // ✅ ТОЛЬКО здесь!
+    ; // ✅ ТОЛЬКО здесь!
     return;
   }
 
@@ -1390,7 +1391,7 @@ const handleCount = () => {
         setIsCounting(true);
       } else {
         saveResult(currentIds);
-        switchScene("Ночь"); // ✅ ТОЛЬКО здесь!
+        
       }
     } else {
       setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
@@ -1407,7 +1408,7 @@ const handleCount = () => {
     setIsCounting(true);
   } else {
     saveResult(candidates.map((c) => c.playerId));
-    switchScene("Ночь"); // ✅ ТОЛЬКО здесь!
+    
   }
 };
 
