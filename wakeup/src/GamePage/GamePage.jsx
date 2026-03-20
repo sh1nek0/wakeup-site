@@ -1304,6 +1304,13 @@ useEffect(() => {
       )
     );
   };
+  useEffect(() => {
+  const allVoted = votes.every((v) => v.votesCount > 0);
+  if (allVoted && !isCounting && votes.length > 0) {
+    console.log("✅ Все проголосовали — автоматически переключаем на 'Ночь'");
+    switchScene("Ночь");
+  }
+}, [votes, isCounting]);
 
   const handleVoteButtonClick = (increment) => {
     if (isReadOnly || selectedPlayerId === null) return;
@@ -1349,6 +1356,14 @@ useEffect(() => {
     setCurrentPhase("shooting");
   };
 
+  const checkIfVotingComplete = () => {
+  const allVoted = votes.every((v) => v.votesCount > 0); // Все проголосовали?
+  if (allVoted && !isCounting) {
+    console.log("✅ Все проголосовали — автоматически переключаем на 'Ночь'");
+    switchScene("Ночь");
+  }
+};
+
 
   
   const handleCount = () => {
@@ -1364,7 +1379,6 @@ useEffect(() => {
   // 🔥 Финал: один кандидат
   if (candidates.length === 1) {
     saveResult([candidates[0].playerId]);
-    switchScene("Ночь"); // ✅ Автоматически переключаем на "Ночь"
     return;
   }
 
@@ -1387,8 +1401,7 @@ useEffect(() => {
       } else {
         // 🔥 Финал: ничья подтверждена
         saveResult(currentIds);
-        switchScene("Ночь"); // ✅ Автоматически переключаем на "Ночь"
-      }
+        }
     } else {
       setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
       setRound(3);
@@ -1405,8 +1418,7 @@ useEffect(() => {
   } else {
     // 🔥 Финал: последний раунд
     saveResult(candidates.map((c) => c.playerId));
-    switchScene("Ночь"); // ✅ Автоматически переключаем на "Ночь"
-  }
+    }
 };
 
   const handleLeft = () => saveResult([]);
