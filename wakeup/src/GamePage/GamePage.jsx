@@ -1349,22 +1349,22 @@ useEffect(() => {
     setCurrentPhase("shooting");
   };
 
-const handleCount = () => {
-  if (isReadOnly) return;
 
+  
+  const handleCount = () => {
+  if (isReadOnly) return;
   const voted = votes.filter((v) => v.votesCount > 0);
   if (voted.length === 0) {
     setIsCounting(false);
     return;
   }
-
   const maxVotes = Math.max(...voted.map((v) => v.votesCount));
   const candidates = voted.filter((v) => v.votesCount === maxVotes);
 
-  // 🔥 финал (один кандидат)
+  // 🔥 Финал: один кандидат
   if (candidates.length === 1) {
     saveResult([candidates[0].playerId]);
-    switchScene("Ночь");
+    switchScene("Ночь"); // ✅ Автоматически переключаем на "Ночь"
     return;
   }
 
@@ -1380,22 +1380,18 @@ const handleCount = () => {
 
   if (round === 2) {
     const currentIds = candidates.map((c) => c.playerId);
-    const same =
-      firstRoundCandidates.length === currentIds.length &&
-      firstRoundCandidates.every((id) => currentIds.includes(id));
-
+    const same = firstRoundCandidates.length === currentIds.length && firstRoundCandidates.every((id) => currentIds.includes(id));
     if (same) {
       if (voted.length === votes.length) {
         setIsCounting(true);
       } else {
-        // 🔥 финал (ничья подтверждена)
+        // 🔥 Финал: ничья подтверждена
         saveResult(currentIds);
-        switchScene("Ночь");
+        switchScene("Ночь"); // ✅ Автоматически переключаем на "Ночь"
       }
     } else {
       setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
       setRound(3);
-
       setIsCounting(false);
       setSelectedPlayerId(candidates[0].playerId);
       setTimeout(() => firstVoteBtnRef.current?.focus(), 0);
@@ -1407,9 +1403,9 @@ const handleCount = () => {
   if (voted.length === votes.length) {
     setIsCounting(true);
   } else {
-    // 🔥 финал (последний раунд)
+    // 🔥 Финал: последний раунд
     saveResult(candidates.map((c) => c.playerId));
-    switchScene("Ночь");
+    switchScene("Ночь"); // ✅ Автоматически переключаем на "Ночь"
   }
 };
 
