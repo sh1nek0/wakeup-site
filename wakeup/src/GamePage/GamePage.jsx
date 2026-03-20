@@ -1304,13 +1304,7 @@ useEffect(() => {
       )
     );
   };
-  useEffect(() => {
-  const allVoted = votes.every((v) => v.votesCount > 0);
-  if (allVoted && !isCounting && votes.length > 0) {
-    console.log("✅ Все проголосовали — автоматически переключаем на 'Ночь'");
-    switchScene("Ночь");
-  }
-}, [votes, isCounting]);
+
 
   const handleVoteButtonClick = (increment) => {
     if (isReadOnly || selectedPlayerId === null) return;
@@ -1356,17 +1350,11 @@ useEffect(() => {
     setCurrentPhase("shooting");
   };
 
-  const checkIfVotingComplete = () => {
-  const allVoted = votes.every((v) => v.votesCount > 0); // Все проголосовали?
-  if (allVoted && !isCounting) {
-    console.log("✅ Все проголосовали — автоматически переключаем на 'Ночь'");
-    switchScene("Ночь");
-  }
-};
+
 
 
   
-  const handleCount = () => {
+const handleCount = () => {
   if (isReadOnly) return;
   const voted = votes.filter((v) => v.votesCount > 0);
   if (voted.length === 0) {
@@ -1379,6 +1367,7 @@ useEffect(() => {
   // 🔥 Финал: один кандидат
   if (candidates.length === 1) {
     saveResult([candidates[0].playerId]);
+    switchScene("Ночь"); // ✅ ТОЛЬКО здесь!
     return;
   }
 
@@ -1399,9 +1388,9 @@ useEffect(() => {
       if (voted.length === votes.length) {
         setIsCounting(true);
       } else {
-        // 🔥 Финал: ничья подтверждена
         saveResult(currentIds);
-        }
+        switchScene("Ночь"); // ✅ ТОЛЬКО здесь!
+      }
     } else {
       setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
       setRound(3);
@@ -1416,16 +1405,20 @@ useEffect(() => {
   if (voted.length === votes.length) {
     setIsCounting(true);
   } else {
-    // 🔥 Финал: последний раунд
     saveResult(candidates.map((c) => c.playerId));
-    }
+    switchScene("Ночь"); // ✅ ТОЛЬКО здесь!
+  }
 };
 
-  const handleLeft = () => saveResult([]);
-  const handleRaised = () => {
-    const voted = votes.filter((v) => v.votesCount > 0);
-    saveResult(voted.map((v) => v.playerId));
-  };
+
+const handleLeft = () => {
+  saveResult([]);
+};
+
+const handleRaised = () => {
+  const voted = votes.filter((v) => v.votesCount > 0);
+  saveResult(voted.map((v) => v.playerId));
+};
 
   const handlePhaseButtonClick = (value, phase) => {
     if (isReadOnly) return;
