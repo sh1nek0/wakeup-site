@@ -1349,9 +1349,26 @@ useEffect(() => {
     setRound(1);
     setFirstRoundCandidates([]);
     setCurrentPhase("shooting");
-    switchScene("Ночь")
+   
   };
 
+  // ✅ Автоматически переключаем сцену при изменении currentPhase
+useEffect(() => {
+  if (isReadOnly || !isAdmin) return;
+
+  const sceneMap = {
+    shooting: "Ночь",
+    don: "Ночь",
+    sheriff: "Ночь",
+    nominating: "День",
+  };
+
+  const sceneName = sceneMap[currentPhase];
+  if (sceneName) {
+    console.log(`🔄 Переключаем сцену на: ${sceneName} (currentPhase: ${currentPhase})`);
+    switchScene(sceneName);
+  }
+}, [currentPhase, isAdmin, isReadOnly]);
 
 
 
