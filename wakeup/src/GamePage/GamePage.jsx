@@ -1178,7 +1178,7 @@ useEffect(() => {
   // Update results from table inputs
   const handleUpdateVotingResults = (day, newVotes) => {
     setVotingResults((prev) => ({ ...prev, [day]: { ...prev[day], votes: newVotes } }));
-    switchScene("Ночь")
+   
   };
   const handleUpdateShootingResults = (day, newResult) => {
     setShootingResults((prev) => ({ ...prev, [day]: { ...prev[day], result: newResult } }));
