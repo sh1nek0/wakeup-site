@@ -1354,7 +1354,7 @@ useEffect(() => {
 
   // ✅ Автоматически переключаем сцену при изменении currentPhase
 useEffect(() => {
-  if (isReadOnly || !isAdmin) return;
+  
 
   const sceneMap = {
     shooting: "Ночь",
