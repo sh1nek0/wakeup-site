@@ -1349,57 +1349,69 @@ useEffect(() => {
     setCurrentPhase("shooting");
   };
 
-  const handleCount = () => {
-    if (isReadOnly) return;
+const handleCount = () => {
+  if (isReadOnly) return;
 
-    const voted = votes.filter((v) => v.votesCount > 0);
-    if (voted.length === 0) {
-      setIsCounting(false);
-      return;
-    }
+  const voted = votes.filter((v) => v.votesCount > 0);
+  if (voted.length === 0) {
+    setIsCounting(false);
+    return;
+  }
 
-    const maxVotes = Math.max(...voted.map((v) => v.votesCount));
-    const candidates = voted.filter((v) => v.votesCount === maxVotes);
+  const maxVotes = Math.max(...voted.map((v) => v.votesCount));
+  const candidates = voted.filter((v) => v.votesCount === maxVotes);
 
-    if (candidates.length === 1) {
-      saveResult([candidates[0].playerId]);
-      return;
-    }
+  // 🔥 финал (один кандидат)
+  if (candidates.length === 1) {
+    saveResult([candidates[0].playerId]);
+    switchScene("Ночь");
+    return;
+  }
 
-    if (round === 1) {
-      setFirstRoundCandidates(candidates.map((c) => c.playerId));
+  if (round === 1) {
+    setFirstRoundCandidates(candidates.map((c) => c.playerId));
+    setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
+    setRound(2);
+    setIsCounting(false);
+    setSelectedPlayerId(candidates[0].playerId);
+    setTimeout(() => firstVoteBtnRef.current?.focus(), 0);
+    return;
+  }
+
+  if (round === 2) {
+    const currentIds = candidates.map((c) => c.playerId);
+    const same =
+      firstRoundCandidates.length === currentIds.length &&
+      firstRoundCandidates.every((id) => currentIds.includes(id));
+
+    if (same) {
+      if (voted.length === votes.length) {
+        setIsCounting(true);
+      } else {
+        // 🔥 финал (ничья подтверждена)
+        saveResult(currentIds);
+        switchScene("Ночь");
+      }
+    } else {
       setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
-      setRound(2);
+      setRound(3);
+
       setIsCounting(false);
       setSelectedPlayerId(candidates[0].playerId);
       setTimeout(() => firstVoteBtnRef.current?.focus(), 0);
-      return;
     }
+    return;
+  }
 
-    if (round === 2) {
-      const currentIds = candidates.map((c) => c.playerId);
-      const same =
-        firstRoundCandidates.length === currentIds.length &&
-        firstRoundCandidates.every((id) => currentIds.includes(id));
-
-      if (same) {
-        if (voted.length === votes.length) setIsCounting(true);
-        else saveResult(currentIds);
-      } else {
-        setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
-        setRound(3);
-        switchScene("Ночь")
-        setIsCounting(false);
-        setSelectedPlayerId(candidates[0].playerId);
-        setTimeout(() => firstVoteBtnRef.current?.focus(), 0);
-      }
-      return;
-    }
-
-    // round === 3
-    if (voted.length === votes.length) setIsCounting(true);
-    else saveResult(candidates.map((c) => c.playerId));
-  };
+  // round === 3
+  if (voted.length === votes.length) {
+    setIsCounting(true);
+  } else {
+    // 🔥 финал (последний раунд)
+    saveResult(candidates.map((c) => c.playerId));
+    switchScene("Ночь");
+  }
+};
 
   const handleLeft = () => saveResult([]);
   const handleRaised = () => {
