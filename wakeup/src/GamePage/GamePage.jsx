@@ -835,9 +835,6 @@ useEffect(() => {
     console.log("▶️ Детекция запущена");
   };
 
-  
-  const phase = currentPhase || "фаза ?";
-  const day = currentDay || "День ?";
 
 
 
@@ -911,7 +908,6 @@ useEffect(() => {
   return res.json(); // { ok, errors, details }
 }
 
-  // ✅ AUTOSAVE (исправленный, без дублей localStorage, с cleanup и индикатором)
   const autosaveTimerRef = useRef(null);
   const autosaveAbortRef = useRef(null);
   const lastAutosavedHashRef = useRef("");
@@ -1324,7 +1320,7 @@ useEffect(() => {
       handleVoteChange(selectedPlayerId, increment);
     }
 
-    // next select (используем актуальный votes через setVotes не можем, поэтому берём из текущего state)
+    
     const currentIndex = votes.findIndex((v) => v.playerId === selectedPlayerId);
     if (currentIndex !== -1) {
       const nextIndex = (currentIndex + 1) % votes.length;
@@ -1392,6 +1388,7 @@ useEffect(() => {
       } else {
         setVotes(candidates.map((v) => ({ playerId: v.playerId, votesCount: 0 })));
         setRound(3);
+        switchScene("Ночь")
         setIsCounting(false);
         setSelectedPlayerId(candidates[0].playerId);
         setTimeout(() => firstVoteBtnRef.current?.focus(), 0);
@@ -1427,6 +1424,7 @@ useEffect(() => {
       const nextIndex = days.indexOf(currentDay) + 1;
       if (nextIndex < days.length) setCurrentDay(days[nextIndex]);
       setCurrentPhase("nominating");
+      switchScene("День")
 
     }
   };
